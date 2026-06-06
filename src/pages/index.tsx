@@ -1,5 +1,5 @@
 import React from 'react';
-import { Rocket, Wrench, Users, Archive, Banknote, UsersRound, LayoutDashboard, Truck, Activity } from 'lucide-react';
+import { Rocket, Wrench, Users, Archive, Banknote, UsersRound, LayoutDashboard, Truck, Ticket } from 'lucide-react';
 
 const PageTemplate = ({ title, description, icon: Icon }: { title: string, description: string, icon: any }) => (
   <div className="animate-fade-in">
@@ -65,10 +65,10 @@ export const Inicio = () => (
 );
 
 export const Estadisticas = () => <PageTemplate title="Estadísticas" description="Análisis profundo y reportes detallados" icon={LayoutDashboard} />;
-export { Unidades } from './Unidades';
-export { Servicio } from './Servicio';
 export const Mantenimiento = () => <PageTemplate title="Mantenimiento" description="Control de estado y reparaciones de unidades" icon={Wrench} />;
-export { Administracion } from './Administracion';
 export const Archivo = () => <PageTemplate title="Archivo" description="Registros históricos y documentación" icon={Archive} />;
-export const Recaudacion = () => <PageTemplate title="Recaudación" description="Ingresos y control financiero" icon={Banknote} />;
-export const Aforo = () => <PageTemplate title="Aforo" description="Análisis de capacidad y flujo de pasajeros" icon={UsersRound} />;
+
+// Exportar módulos reales PWA (Satélite 2) y Recaudación
+export { Aforo } from '../modules/operacion/Aforo';
+export { Recaudacion } from '../modules/recaudacion/Recaudacion';
+export { Taquilla } from '../modules/taquilla/Taquilla';

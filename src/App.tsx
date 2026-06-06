@@ -1,10 +1,15 @@
 import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { supabase } from './lib/supabaseClient';
-import { Layout } from './components/Layout';
-import { Inicio, Estadisticas, Servicio, Mantenimiento, Administracion, Archivo, Recaudacion, Aforo, Unidades } from './pages';
-import { Login } from './pages/Login';
+import { supabase } from './modules/core/supabaseClient';
+import { Layout } from './modules/core/Layout';
+import { Inicio, Estadisticas, Mantenimiento, Archivo, Recaudacion, Aforo, Taquilla } from './pages';
+import { Login } from './modules/core/Login';
+import { Unidades } from './modules/flota/Unidades';
+import { Servicio } from './modules/operacion/Servicio';
+import { Administracion } from './modules/admin/Administracion';
 import type { Session } from '@supabase/supabase-js';
+
+import { ShadowModeProvider } from './modules/core/ShadowModeContext';
 
 function App() {
   const [session, setSession] = useState<Session | null>(null);
@@ -30,23 +35,26 @@ function App() {
   }
 
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/login" element={!session ? <Login /> : <Navigate to="/" />} />
-        
-        <Route path="/" element={session ? <Layout /> : <Navigate to="/login" />}>
-          <Route index element={<Inicio />} />
-          <Route path="estadisticas" element={<Estadisticas />} />
-          <Route path="unidades" element={<Unidades />} />
-          <Route path="servicio" element={<Servicio />} />
-          <Route path="mantenimiento" element={<Mantenimiento />} />
-          <Route path="administracion" element={<Administracion />} />
-          <Route path="archivo" element={<Archivo />} />
-          <Route path="recaudacion" element={<Recaudacion />} />
-          <Route path="aforo" element={<Aforo />} />
-        </Route>
-      </Routes>
-    </BrowserRouter>
+    <ShadowModeProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/login" element={!session ? <Login /> : <Navigate to="/" />} />
+          
+          <Route path="/" element={session ? <Layout /> : <Navigate to="/login" />}>
+            <Route index element={<Inicio />} />
+            <Route path="estadisticas" element={<Estadisticas />} />
+            <Route path="unidades" element={<Unidades />} />
+            <Route path="servicio" element={<Servicio />} />
+            <Route path="mantenimiento" element={<Mantenimiento />} />
+            <Route path="administracion" element={<Administracion />} />
+            <Route path="archivo" element={<Archivo />} />
+            <Route path="recaudacion" element={<Recaudacion />} />
+            <Route path="aforo" element={<Aforo />} />
+            <Route path="taquilla" element={<Taquilla />} />
+          </Route>
+        </Routes>
+      </BrowserRouter>
+    </ShadowModeProvider>
   );
 }
 
