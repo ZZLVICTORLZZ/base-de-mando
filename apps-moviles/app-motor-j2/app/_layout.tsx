@@ -12,6 +12,9 @@ export default function RootLayout() {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setLoading(false);
+    }).catch((error) => {
+      console.warn('Error conectando a Supabase:', error);
+      setLoading(false);
     });
 
     supabase.auth.onAuthStateChange((_event, session) => {

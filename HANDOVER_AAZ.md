@@ -54,3 +54,22 @@ El **Siguiente Paso Oficial** es iniciar con el **Sprint 6: Desarrollo de MOTOR 
 ---
 **Instrucción para el Desarrollador (IA):** 
 Cuando inicies, analiza la carpeta `/apps-moviles/app-taquilla-checador/`. Si es necesario, separa "Motor J2" en su propia carpeta Expo independiente para cumplir la arquitectura perfecta. Pídele autorización al usuario y **arranca la codificación del Motor J2**.
+
+---
+
+# ACTUALIZACIÓN (08 DE JUNIO 2026) - CIERRE DE DÍA
+El **Sprint 6 (Motor J2)** ha sido inicializado correctamente cumpliendo todas las reglas arquitectónicas (TypeScript nativo obligatorio) y UI/UX:
+
+1. **Separación Exitosa**: Se creó el proyecto independiente en `/apps-moviles/app-motor-j2/`.
+2. **Navegación Moderna**: Se implementó `Expo Router` y la estructura de Tabs.
+3. **Módulos Base en TypeScript (`.tsx`)**:
+   * `login.tsx`: Pantalla de inicio con conexión preparada para Supabase y `AsyncStorage`.
+   * `index.tsx`: Módulo 1 (Rol del Día) construido.
+   * `tabla.tsx`: Módulo 2 (Tabla del Día) con UI de Marcatextos Digital.
+   * `despacho.tsx`: Módulo 3 (Operación en Sitio).
+   * `reportes.tsx`: Módulo 4 (Reportes).
+
+**TODO PARA EL SIGUIENTE TURNO (EN LA OFICINA):**
+- Conectar los componentes UI a la base de datos Supabase en la nube.
+- Refinar la funcionalidad drag-and-drop de la Tabla del Día.
+- Implementar el Dashboard Motivacional de bienvenida.

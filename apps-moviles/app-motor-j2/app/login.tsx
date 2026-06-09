@@ -9,6 +9,12 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
+    // Bypass para poder ver la UI sin tener Supabase configurado
+    if (email === '' && password === '') {
+      router.replace('/(tabs)');
+      return;
+    }
+
     setLoading(true);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
