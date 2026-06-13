@@ -1,69 +1,73 @@
-import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { useState, useEffect } from 'react';
 
-// Datos de prueba temporales para el UI
-const dummyData = [
-  { id: '1', nombre: 'Unidad 01', estado: 'trabajando' },
-  { id: '2', nombre: 'Unidad 05', estado: 'faltó' },
-  { id: '3', nombre: 'Unidad 12', estado: 'trabajando' },
-];
-
-export default function RolDelDiaScreen() {
-  const [unidades, setUnidades] = useState(dummyData);
-
-  const toggleEstado = (id: string) => {
-    setUnidades(prev => prev.map(u => {
-      if (u.id === id) {
-        return { ...u, estado: u.estado === 'trabajando' ? 'faltó' : 'trabajando' };
-      }
-      return u;
-    }));
-  };
+export default function DashboardScreen() {
+  const [tableristaNombre, setTableristaNombre] = useState('Capitán');
+  const [horasTrabajadas, setHorasTrabajadas] = useState('02:15');
+  const [tablasCompletadas, setTablasCompletadas] = useState(5);
+  const [pasajerosTotales, setPasajerosTotales] = useState(142);
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.header}>Rol del Día en Vivo</Text>
-      <Text style={styles.subHeader}>Estado de unidades de la base</Text>
+    <ScrollView style={styles.container}>
+      <View style={styles.headerCard}>
+        <Text style={styles.welcomeText}>Bienvenido,</Text>
+        <Text style={styles.nameText}>{tableristaNombre}</Text>
+      </View>
 
-      <FlatList
-        data={unidades}
-        keyExtractor={item => item.id}
-        renderItem={({ item }) => (
-          <View style={styles.card}>
-            <Text style={styles.unidadText}>{item.nombre}</Text>
-            <TouchableOpacity 
-              style={[styles.statusBadge, item.estado === 'trabajando' ? styles.statusGreen : styles.statusRed]}
-              onPress={() => toggleEstado(item.id)}
-            >
-              <Text style={styles.statusText}>{item.estado.toUpperCase()}</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-      />
-    </View>
+      <Text style={styles.sectionTitle}>Métricas en Tiempo Real</Text>
+
+      <View style={styles.metricsContainer}>
+        <View style={styles.metricBox}>
+          <Text style={styles.metricValue}>{horasTrabajadas}</Text>
+          <Text style={styles.metricLabel}>Horas Trabajadas</Text>
+        </View>
+
+        <View style={styles.metricBox}>
+          <Text style={styles.metricValue}>{tablasCompletadas}</Text>
+          <Text style={styles.metricLabel}>Tablas (RD/OTP/CTR)</Text>
+        </View>
+
+        <View style={[styles.metricBox, styles.metricHighlight]}>
+          <Text style={styles.metricValueHighlight}>{pasajerosTotales}</Text>
+          <Text style={styles.metricLabelHighlight}>Pasajeros Transportados</Text>
+        </View>
+      </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f3f4f6', padding: 20 },
-  header: { fontSize: 24, fontWeight: 'bold', color: '#111827' },
-  subHeader: { fontSize: 14, color: '#6b7280', marginBottom: 20 },
-  card: {
-    backgroundColor: '#ffffff',
+  container: { flex: 1, backgroundColor: '#0f172a', padding: 20 },
+  headerCard: {
+    backgroundColor: '#1e293b',
+    padding: 24,
+    borderRadius: 16,
+    marginBottom: 24,
+    borderLeftWidth: 4,
+    borderLeftColor: '#3b82f6',
+  },
+  welcomeText: { fontSize: 16, color: '#94a3b8' },
+  nameText: { fontSize: 28, fontWeight: 'bold', color: '#f8fafc', marginTop: 4 },
+  sectionTitle: { fontSize: 18, fontWeight: '600', color: '#cbd5e1', marginBottom: 16 },
+  metricsContainer: { gap: 16 },
+  metricBox: {
+    backgroundColor: '#1e293b',
     padding: 20,
     borderRadius: 12,
-    marginBottom: 10,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 5,
-    elevation: 2,
+    borderWidth: 1,
+    borderColor: '#334155'
   },
-  unidadText: { fontSize: 18, fontWeight: '600' },
-  statusBadge: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 },
-  statusGreen: { backgroundColor: '#10b981' },
-  statusRed: { backgroundColor: '#ef4444' },
-  statusText: { color: '#ffffff', fontWeight: 'bold', fontSize: 12 }
+  metricValue: { fontSize: 32, fontWeight: 'bold', color: '#38bdf8' },
+  metricLabel: { fontSize: 14, color: '#94a3b8', marginTop: 4 },
+  metricHighlight: {
+    backgroundColor: '#3b82f6',
+    borderColor: '#2563eb',
+    shadowColor: '#3b82f6',
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 4
+  },
+  metricValueHighlight: { fontSize: 40, fontWeight: 'bold', color: '#ffffff' },
+  metricLabelHighlight: { fontSize: 14, color: '#e0e7ff', marginTop: 4, fontWeight: '500' },
 });

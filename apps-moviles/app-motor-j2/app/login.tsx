@@ -58,19 +58,19 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#111827' },
+  container: { flex: 1, backgroundColor: '#0f172a' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 },
-  title: { fontSize: 28, fontWeight: 'bold', color: 'white', marginBottom: 5 },
-  subtitle: { fontSize: 16, color: '#9ca3af', marginBottom: 30 },
+  title: { fontSize: 28, fontWeight: 'bold', color: '#ffffff', marginBottom: 5 },
+  subtitle: { fontSize: 16, color: '#94a3b8', marginBottom: 30 },
   input: { 
     width: '100%', 
     padding: 15, 
-    backgroundColor: '#1f2937', 
-    color: 'white',
+    backgroundColor: '#1e293b', 
+    color: '#f8fafc',
     borderRadius: 12, 
     marginBottom: 15, 
     borderWidth: 1, 
-    borderColor: '#374151' 
+    borderColor: '#334155' 
   },
   btn: { 
     width: '100%', 
@@ -79,7 +79,11 @@ const styles = StyleSheet.create({
     borderRadius: 12, 
     alignItems: 'center', 
     justifyContent: 'center',
-    marginTop: 10
+    marginTop: 10,
+    shadowColor: '#3b82f6',
+    shadowOpacity: 0.5,
+    shadowRadius: 10,
+    elevation: 5
   },
-  btnText: { color: 'white', fontWeight: 'bold', fontSize: 16 },
+  btnText: { color: 'white', fontWeight: 'bold', fontSize: 16, textTransform: 'uppercase' },
 });

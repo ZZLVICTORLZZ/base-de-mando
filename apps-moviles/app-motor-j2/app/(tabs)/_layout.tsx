@@ -5,52 +5,51 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        headerStyle: { backgroundColor: '#111827' },
-        headerTintColor: '#fff',
-        tabBarStyle: { backgroundColor: '#111827', borderTopColor: '#374151' },
-        tabBarActiveTintColor: '#3b82f6',
-        tabBarInactiveTintColor: '#9ca3af',
+        headerStyle: { backgroundColor: '#0f172a' },
+        headerTintColor: '#f8fafc',
+        tabBarStyle: { backgroundColor: '#0f172a', borderTopColor: '#334155' },
+        tabBarActiveTintColor: '#38bdf8',
+        tabBarInactiveTintColor: '#64748b',
       }}>
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Rol del Día',
+          title: 'Dashboard',
+          tabBarIcon: ({ color }) => <TabBarIcon name="home" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="rd"
+        options={{
+          title: 'Rol Despegue',
           tabBarIcon: ({ color }) => <TabBarIcon name="calendar" color={color} />,
         }}
       />
       <Tabs.Screen
-        name="tabla"
+        name="otp"
         options={{
-          title: 'Tabla del Día',
+          title: 'Proyección',
           tabBarIcon: ({ color }) => <TabBarIcon name="list" color={color} />,
         }}
       />
       <Tabs.Screen
-        name="despacho"
+        name="ctr"
         options={{
-          title: 'Despacho',
+          title: 'Tiempo Real',
           tabBarIcon: ({ color }) => <TabBarIcon name="rocket" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="reportes"
-        options={{
-          title: 'Reportes',
-          tabBarIcon: ({ color }) => <TabBarIcon name="warning" color={color} />,
         }}
       />
     </Tabs>
   );
 }
 
-// A simple icon placeholder since we haven't installed vector icons yet, 
-// or we can just use text/emojis if vector-icons is not installed.
+// Placeholder
 function TabBarIcon({ name, color }: { name: string; color: string }) {
   const iconMap: any = {
+    'home': '🏠',
     'calendar': '📅',
     'list': '📋',
-    'rocket': '🚀',
-    'warning': '⚠️'
+    'rocket': '🚀'
   };
   return <Text style={{ fontSize: 20, color }}>{iconMap[name]}</Text>;
 }
