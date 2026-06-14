@@ -1,97 +1,158 @@
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Modal } from 'react-native';
-import { useState } from 'react';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput } from 'react-native';
+import { Feather } from '@expo/vector-icons';
+import { router } from 'expo-router';
 
-// Datos de prueba para el historial
+// Datos Mock limpios sin el campo 'base'
 const MOCK_HISTORIAL = [
-  { id: '1', fecha: '2026-06-12', tipo: 'Entre semana', base: 'Nuevos Paseos', estatus: 'finalizado' },
-  { id: '2', fecha: '2026-06-13', tipo: 'Sabatino', base: 'Indios Verdes', estatus: 'activa' },
+  { id: '1', fecha: '12/06/2026', tipo: 'Entre semana', estatus: 'finalizado' },
+  { id: '2', fecha: '13/06/2026', tipo: 'Sabatino', estatus: 'activa' },
+  { id: '3', fecha: '14/06/2026', tipo: 'Dominical', estatus: 'pendiente' },
 ];
 
 export default function RDScreen() {
-  const [modalVisible, setModalVisible] = useState(false);
+  const [dateDesde, setDateDesde] = useState('01/06/2026');
+  const [dateHasta, setDateHasta] = useState('15/06/2026');
 
-  const renderItem = ({ item }: any) => (
-    <View style={styles.historyCard}>
-      <View>
-        <Text style={styles.historyTitle}>Rol {item.tipo}</Text>
-        <Text style={styles.historySubtitle}>{item.fecha} - {item.base}</Text>
+  const renderItem = ({ item }: { item: any }) => {
+    // Definimos el color del indicador visual según estatus
+    const statusColor = item.estatus === 'activa' ? '#10b981' : item.estatus === 'finalizado' ? '#3b82f6' : '#64748b';
+
+    return (
+      <View style={styles.card}>
+        <View style={styles.cardContent}>
+          <View style={styles.cardHeader}>
+            <View style={[styles.statusIndicator, { backgroundColor: statusColor }]} />
+            <Text style={styles.cardTitle}>Rol {item.tipo}</Text>
+          </View>
+          <Text style={styles.cardDate}>{item.fecha}</Text>
+        </View>
+        
+        <View style={styles.actionsRow}>
+          <TouchableOpacity style={styles.iconBtn}>
+            <Feather name="eye" size={18} color="#94a3b8" />
+          </TouchableOpacity>
+          {item.estatus === 'activa' && (
+            <TouchableOpacity style={styles.iconBtn}>
+              <Feather name="edit-2" size={18} color="#10b981" />
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
-      <View style={styles.actionsBox}>
-        <TouchableOpacity style={[styles.btnAction, styles.btnVer]}><Text style={styles.btnText}>👁️ Ver</Text></TouchableOpacity>
-        {item.estatus === 'activa' && (
-          <TouchableOpacity style={[styles.btnAction, styles.btnEditar]}><Text style={styles.btnText}>✏️ Editar</Text></TouchableOpacity>
-        )}
-      </View>
-    </View>
-  );
+    );
+  };
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Historial de Roles (RD)</Text>
-        <TouchableOpacity style={styles.btnNuevo} onPress={() => setModalVisible(true)}>
-          <Text style={styles.btnTextBold}>+ Nuevo Rol</Text>
+        <Text style={styles.title}>Rol de Despegue</Text>
+        <TouchableOpacity 
+          style={styles.btnNuevo} 
+          onPress={() => router.push('/nuevo-rol')}
+        >
+          <Feather name="plus" size={18} color="#ffffff" style={{ marginRight: 6 }} />
+          <Text style={styles.btnTextBold}>Nuevo Rol</Text>
         </TouchableOpacity>
+      </View>
+
+      {/* Barra de Filtros Minimalista */}
+      <View style={styles.filtersContainer}>
+        <Feather name="filter" size={16} color="#64748b" style={styles.filterIcon} />
+        <View style={styles.dateInputWrapper}>
+          <Text style={styles.dateLabel}>Desde</Text>
+          <TextInput 
+            style={styles.dateInput}
+            value={dateDesde}
+            onChangeText={setDateDesde}
+            placeholder="DD/MM/YYYY"
+            placeholderTextColor="#475569"
+          />
+        </View>
+        <View style={styles.dateSeparator} />
+        <View style={styles.dateInputWrapper}>
+          <Text style={styles.dateLabel}>Hasta</Text>
+          <TextInput 
+            style={styles.dateInput}
+            value={dateHasta}
+            onChangeText={setDateHasta}
+            placeholder="DD/MM/YYYY"
+            placeholderTextColor="#475569"
+          />
+        </View>
       </View>
 
       <FlatList
         data={MOCK_HISTORIAL}
         keyExtractor={item => item.id}
         renderItem={renderItem}
-        contentContainerStyle={{ padding: 20 }}
+        contentContainerStyle={styles.listPadding}
+        showsVerticalScrollIndicator={false}
       />
-
-      {/* MODAL NUEVO ROL */}
-      <Modal visible={modalVisible} transparent={true} animationType="fade">
-        <View style={styles.modalBg}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Crear Nuevo Rol</Text>
-            <Text style={styles.modalSubtitle}>Selecciona la plantilla base:</Text>
-
-            <TouchableOpacity style={styles.templateBtn} onPress={() => setModalVisible(false)}>
-              <Text style={styles.templateText}>📅 Entre semana</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.templateBtn} onPress={() => setModalVisible(false)}>
-              <Text style={styles.templateText}>🎉 Sabatino</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.templateBtn} onPress={() => setModalVisible(false)}>
-              <Text style={styles.templateText}>⛪ Dominical</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.templateBtn, { borderColor: '#3b82f6', borderWidth: 1 }]} onPress={() => setModalVisible(false)}>
-              <Text style={styles.templateText}>📄 Desde cero (Blanco)</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.btnCancelar} onPress={() => setModalVisible(false)}>
-              <Text style={styles.btnCancelarText}>Cancelar</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0f172a' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', padding: 20, alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#334155' },
-  title: { fontSize: 20, fontWeight: 'bold', color: '#f8fafc' },
-  btnNuevo: { backgroundColor: '#3b82f6', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 8 },
-  btnTextBold: { color: '#fff', fontWeight: 'bold' },
-  historyCard: { backgroundColor: '#1e293b', padding: 16, borderRadius: 12, marginBottom: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderWidth: 1, borderColor: '#334155' },
-  historyTitle: { fontSize: 16, fontWeight: 'bold', color: '#38bdf8', marginBottom: 4 },
-  historySubtitle: { fontSize: 14, color: '#94a3b8' },
-  actionsBox: { flexDirection: 'row', gap: 10 },
-  btnAction: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 6 },
-  btnVer: { backgroundColor: '#334155' },
-  btnEditar: { backgroundColor: '#059669' },
-  btnText: { color: '#f8fafc', fontSize: 12, fontWeight: 'bold' },
+  header: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    alignItems: 'center', 
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 15,
+  },
+  title: { fontSize: 24, fontWeight: '700', color: '#f8fafc', letterSpacing: -0.5 },
+  btnNuevo: { 
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#3b82f6', 
+    paddingHorizontal: 16, 
+    paddingVertical: 10, 
+    borderRadius: 8 
+  },
+  btnTextBold: { color: '#ffffff', fontWeight: '600', fontSize: 14 },
   
-  modalBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'center', alignItems: 'center' },
-  modalCard: { backgroundColor: '#1e293b', width: '85%', padding: 24, borderRadius: 16, borderWidth: 1, borderColor: '#334155' },
-  modalTitle: { fontSize: 20, fontWeight: 'bold', color: '#fff', marginBottom: 8 },
-  modalSubtitle: { fontSize: 14, color: '#94a3b8', marginBottom: 20 },
-  templateBtn: { backgroundColor: '#0f172a', padding: 16, borderRadius: 8, marginBottom: 12 },
-  templateText: { color: '#f8fafc', fontSize: 16, fontWeight: '500' },
-  btnCancelar: { marginTop: 10, padding: 12, alignItems: 'center' },
-  btnCancelarText: { color: '#ef4444', fontWeight: 'bold' }
+  // Filtros
+  filtersContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1e293b'
+  },
+  filterIcon: { marginRight: 15 },
+  dateInputWrapper: { flex: 1 },
+  dateLabel: { fontSize: 11, color: '#64748b', marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 },
+  dateInput: { 
+    color: '#f8fafc', 
+    fontSize: 14, 
+    borderBottomWidth: 1, 
+    borderBottomColor: '#334155',
+    paddingVertical: 4
+  },
+  dateSeparator: { width: 1, height: 20, backgroundColor: '#334155', marginHorizontal: 15, marginTop: 15 },
+
+  // Lista
+  listPadding: { padding: 20 },
+  card: { 
+    backgroundColor: '#1e293b', 
+    borderRadius: 12, 
+    marginBottom: 12, 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    alignItems: 'center', 
+    padding: 16,
+    borderWidth: 1, 
+    borderColor: '#334155' 
+  },
+  cardContent: { flex: 1 },
+  cardHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
+  statusIndicator: { width: 8, height: 8, borderRadius: 4, marginRight: 8 },
+  cardTitle: { fontSize: 16, fontWeight: '600', color: '#f8fafc' },
+  cardDate: { fontSize: 13, color: '#94a3b8', paddingLeft: 16 },
+  
+  actionsRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingLeft: 15 },
+  iconBtn: { padding: 8, backgroundColor: '#0f172a', borderRadius: 6, borderWidth: 1, borderColor: '#334155' },
 });

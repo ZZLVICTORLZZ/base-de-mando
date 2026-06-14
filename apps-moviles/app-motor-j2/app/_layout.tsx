@@ -1,3 +1,4 @@
+import 'react-native-gesture-handler';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { View, Text } from 'react-native';
@@ -28,13 +29,13 @@ export default function RootLayout() {
   useEffect(() => {
     if (loading) return;
 
-    const inAuthGroup = segments[0] === '(tabs)';
-    
-    if (!session && inAuthGroup) {
-      router.replace('/login');
-    } else if (session && !inAuthGroup) {
-      router.replace('/(tabs)');
-    }
+    // BYPASS TEMPORAL: Comentamos la guardia de seguridad para probar la UI
+    // const inAuthGroup = segments[0] === '(tabs)';
+    // if (!session && inAuthGroup) {
+    //   router.replace('/login');
+    // } else if (session && !inAuthGroup) {
+    //   router.replace('/(tabs)');
+    // }
   }, [session, loading, segments]);
 
   if (loading) {

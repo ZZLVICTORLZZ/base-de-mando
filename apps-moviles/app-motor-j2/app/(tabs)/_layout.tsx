@@ -1,5 +1,10 @@
-import { Tabs } from 'expo-router';
-import { StyleSheet, View, Text } from 'react-native';
+import { Tabs, useRouter, useSegments } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { View, Text } from 'react-native';
+import { supabase } from '../src/services/supabaseClient';
+import { Session } from '@supabase/supabase-js';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { Feather } from '@expo/vector-icons';
 
 export default function TabLayout() {
   return (
@@ -15,41 +20,37 @@ export default function TabLayout() {
         name="index"
         options={{
           title: 'Dashboard',
-          tabBarIcon: ({ color }) => <TabBarIcon name="home" color={color} />,
+          tabBarIcon: ({ color }) => <Feather name="home" size={20} color={color} />,
         }}
       />
       <Tabs.Screen
         name="rd"
         options={{
-          title: 'Rol Despegue',
-          tabBarIcon: ({ color }) => <TabBarIcon name="calendar" color={color} />,
+          title: 'Roles',
+          tabBarIcon: ({ color }) => <Feather name="calendar" size={20} color={color} />,
         }}
       />
       <Tabs.Screen
         name="otp"
         options={{
           title: 'Proyección',
-          tabBarIcon: ({ color }) => <TabBarIcon name="list" color={color} />,
+          tabBarIcon: ({ color }) => <Feather name="list" size={20} color={color} />,
         }}
       />
       <Tabs.Screen
         name="ctr"
         options={{
-          title: 'Tiempo Real',
-          tabBarIcon: ({ color }) => <TabBarIcon name="rocket" color={color} />,
+          title: 'T. Real',
+          tabBarIcon: ({ color }) => <Feather name="activity" size={20} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="incidencias"
+        options={{
+          title: 'Incidencias',
+          tabBarIcon: ({ color }) => <Feather name="alert-triangle" size={20} color={color} />,
         }}
       />
     </Tabs>
   );
-}
-
-// Placeholder
-function TabBarIcon({ name, color }: { name: string; color: string }) {
-  const iconMap: any = {
-    'home': '🏠',
-    'calendar': '📅',
-    'list': '📋',
-    'rocket': '🚀'
-  };
-  return <Text style={{ fontSize: 20, color }}>{iconMap[name]}</Text>;
 }

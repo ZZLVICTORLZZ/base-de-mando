@@ -3,26 +3,26 @@ import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput } from 'r
 import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
 
-const MOCK_CHEQUEOS = [
-  { id: '1', eco: '202', hora: '05:45', estado: 'A Tiempo', diferencia: '+0 min' },
-  { id: '2', eco: '101', hora: '05:32', estado: 'Atrasado', diferencia: '-2 min' },
-  { id: '3', eco: '303', hora: '06:00', estado: 'Adelantado', diferencia: '+1 min' },
+const MOCK_INCIDENCIAS = [
+  { id: '1', fecha: '14/06/2026', tipo: 'Falla Mecánica', eco: '202', estado: 'Pendiente' },
+  { id: '2', fecha: '13/06/2026', tipo: 'Retraso Tráfico', eco: '101', estado: 'Resuelto' },
+  { id: '3', fecha: '13/06/2026', tipo: 'Accidente Menor', eco: '305', estado: 'En Revisión' },
 ];
 
-export default function CTRScreen() {
+export default function IncidenciasScreen() {
   const [search, setSearch] = useState('');
 
   const renderItem = ({ item }: { item: any }) => {
-    const statusColor = item.estado === 'A Tiempo' ? '#10b981' : item.estado === 'Atrasado' ? '#ef4444' : '#f59e0b';
+    const statusColor = item.estado === 'Resuelto' ? '#10b981' : item.estado === 'Pendiente' ? '#ef4444' : '#f59e0b';
 
     return (
       <View style={styles.card}>
         <View style={styles.cardContent}>
           <View style={styles.cardHeader}>
             <View style={[styles.statusIndicator, { backgroundColor: statusColor }]} />
-            <Text style={styles.cardTitle}>ECO: {item.eco}</Text>
+            <Text style={styles.cardTitle}>{item.tipo}</Text>
           </View>
-          <Text style={styles.cardSubtitle}>Hora real: {item.hora} ({item.diferencia})</Text>
+          <Text style={styles.cardSubtitle}>ECO: {item.eco}  •  {item.fecha}</Text>
         </View>
         
         <View style={styles.actionsRow}>
@@ -37,16 +37,13 @@ export default function CTRScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Control en T. Real</Text>
+        <Text style={styles.title}>Incidencias</Text>
         <TouchableOpacity 
           style={styles.btnNuevo} 
-          onPress={() => {
-            // Podría abrir un modal o navegar a nueva pantalla de escaneo
-            console.log('Nuevo Chequeo Manual');
-          }}
+          onPress={() => router.push('/nueva-incidencia')}
         >
           <Feather name="plus" size={18} color="#ffffff" style={{ marginRight: 6 }} />
-          <Text style={styles.btnTextBold}>Checar Unidad</Text>
+          <Text style={styles.btnTextBold}>Nueva</Text>
         </TouchableOpacity>
       </View>
 
@@ -56,14 +53,13 @@ export default function CTRScreen() {
           style={styles.searchInput}
           value={search}
           onChangeText={setSearch}
-          placeholder="Buscar ECO..."
+          placeholder="Buscar por ECO o Tipo..."
           placeholderTextColor="#475569"
-          keyboardType="numeric"
         />
       </View>
 
       <FlatList
-        data={MOCK_CHEQUEOS}
+        data={MOCK_INCIDENCIAS}
         keyExtractor={item => item.id}
         renderItem={renderItem}
         contentContainerStyle={styles.listPadding}
@@ -87,7 +83,7 @@ const styles = StyleSheet.create({
   btnNuevo: { 
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#10b981', 
+    backgroundColor: '#ef4444', 
     paddingHorizontal: 16, 
     paddingVertical: 10, 
     borderRadius: 8 
