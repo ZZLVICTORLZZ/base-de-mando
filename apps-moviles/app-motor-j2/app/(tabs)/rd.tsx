@@ -1,18 +1,40 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, ActivityIndicator } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { router } from 'expo-router';
-
-// Datos Mock limpios sin el campo 'base'
-const MOCK_HISTORIAL = [
-  { id: '1', fecha: '12/06/2026', tipo: 'Entre semana', estatus: 'finalizado' },
-  { id: '2', fecha: '13/06/2026', tipo: 'Sabatino', estatus: 'activa' },
-  { id: '3', fecha: '14/06/2026', tipo: 'Dominical', estatus: 'pendiente' },
-];
+import { router, useFocusEffect } from 'expo-router';
+import { supabase } from '../../src/services/supabaseClient';
+import { useCallback } from 'react';
 
 export default function RDScreen() {
   const [dateDesde, setDateDesde] = useState('01/06/2026');
   const [dateHasta, setDateHasta] = useState('15/06/2026');
+  const [roles, setRoles] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchRoles();
+    }, [])
+  );
+
+  const fetchRoles = async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('roles_del_dia')
+      .select('*, plantillas_predeterminadas(name)')
+      .order('created_at', { ascending: false });
+    
+    if (!error && data) {
+      setRoles(data.map(d => ({
+        id: d.id,
+        fecha: d.fecha,
+        tipo: d.plantillas_predeterminadas?.name || 'Desconocido',
+        estatus: 'activa', // Hardcodeado por ahora
+        creado_por: d.creado_por
+      })));
+    }
+    setLoading(false);
+  };
 
   const renderItem = ({ item }: { item: any }) => {
     // Definimos el color del indicador visual según estatus
@@ -81,13 +103,19 @@ export default function RDScreen() {
         </View>
       </View>
 
-      <FlatList
-        data={MOCK_HISTORIAL}
-        keyExtractor={item => item.id}
-        renderItem={renderItem}
-        contentContainerStyle={styles.listPadding}
-        showsVerticalScrollIndicator={false}
-      />
+      {loading ? (
+        <ActivityIndicator size="large" color="#3b82f6" style={{ marginTop: 40 }} />
+      ) : roles.length === 0 ? (
+        <Text style={{ color: '#64748b', textAlign: 'center', marginTop: 40 }}>No hay roles creados.</Text>
+      ) : (
+        <FlatList
+          data={roles}
+          keyExtractor={item => item.id}
+          renderItem={renderItem}
+          contentContainerStyle={styles.listPadding}
+          showsVerticalScrollIndicator={false}
+        />
+      )}
     </View>
   );
 }

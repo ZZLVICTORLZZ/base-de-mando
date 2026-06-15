@@ -16,12 +16,15 @@
 ## 🚀 Avances Logrados Hoy
 - Repositorio clonado y configurado exitosamente en la computadora de la oficina.
 - Entorno de desarrollo para la App Móvil (Expo) configurado y ejecutándose en la red local para pruebas físicas.
-- Las variables de entorno de Supabase ya están inyectadas en el proyecto `app-motor-j2`.
+- Las variables de entorno de Supabase ya están inyectadas en el proyecto `app-motor-j2` y en la `Base de Mando`.
+- **Módulo de Plantillas Predeterminadas (Web):** Interfaz completa con auto-cálculo matemático de horarios y "Marcatextos Digital" (con 7 colores incluyendo fosforescentes). Conectado a la nube.
+- **Base de Datos:** Se crearon las tablas `plantillas_predeterminadas` y `roles_del_dia` en Supabase usando SQL.
+- **Integración J2 (Móvil):** La app móvil ahora descarga las plantillas de la nube, permite asignar los números ECO en el nuevo "Editor de Rol", y guarda el Rol Oficial de vuelta en la base de datos para que la Base de Mando lo reciba en tiempo real.
 
 ## 📌 Proyecciones (Siguientes Pasos para trabajar en casa)
 > *Nota para retomar el trabajo:*
-> 1. Validar la lectura de datos (Rol del Día) extrayendo la información real desde la nube (Supabase).
-> 2. Terminar la implementación del **Marcatextos Digital** (Drag & Drop) en la Tabla del Día usando la librería `react-native-draggable-flatlist`.
+> 1. Iniciar la lógica real de "Aforo" y "Taquilla" que cruzan datos de las unidades.
+> 2. Terminar la implementación del **Marcatextos Digital** (Drag & Drop de la lista negra/blanca, no el de colores) en la Tabla del Día usando la librería `react-native-draggable-flatlist`.
 > 3. Agregar el **Dashboard Motivacional** en la pantalla principal al iniciar sesión.
 
 ---

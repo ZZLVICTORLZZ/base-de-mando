@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Calendar, Clock, ListOrdered, LayoutGrid, ArrowLeft, ScanLine } from 'lucide-react';
 import { PlantillasPredeterminadas } from './PlantillasPredeterminadas';
+import { RolDespegue } from './RolDespegue';
 
 const mockReporte = [
   { no: 1, frec: 'I.F.', hEntrada: '05:00', hSalida: '05:30', pax: 2, eco: '2540' },
@@ -178,11 +179,7 @@ export const Servicio = () => {
       )}
 
       {view === 'rol_despegue' && (
-        <div className="glass-panel" style={{ padding: '3rem', textAlign: 'center' }}>
-          <ListOrdered size={64} color="var(--primary)" style={{ marginBottom: '1.5rem', opacity: 0.8 }} />
-          <h2 style={{ color: 'var(--text-main)', marginBottom: '1rem', fontSize: '1.8rem' }}>Pantalla de Rol de Despegue</h2>
-          <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem', maxWidth: '600px', margin: '0 auto' }}>Aquí el tablerista seleccionará el modelo de frecuencias del día y asignará los números económicos a cada horario antes de iniciar la jornada.</p>
-        </div>
+        <RolDespegue />
       )}
 
       {view === 'roles_predeterminados' && (

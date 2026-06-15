@@ -3,16 +3,26 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput } from 
 import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { supabase } from '../src/services/supabaseClient';
 
 export default function NuevoRolScreen() {
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
 
-  const templates = [
-    { id: 'semana', name: 'Entre semana', icon: 'calendar' },
-    { id: 'sabatino', name: 'Sabatino', icon: 'sun' },
-    { id: 'dominical', name: 'Dominical', icon: 'coffee' },
-    { id: 'blanco', name: 'Desde cero (Blanco)', icon: 'file' },
-  ];
+  const [templates, setTemplates] = useState<{ id: string, name: string, rows: any[] }[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  React.useEffect(() => {
+    fetchTemplates();
+  }, []);
+
+  const fetchTemplates = async () => {
+    setLoading(true);
+    const { data, error } = await supabase.from('plantillas_predeterminadas').select('*').order('created_at', { ascending: true });
+    if (!error && data) {
+      setTemplates(data);
+    }
+    setLoading(false);
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -28,26 +38,32 @@ export default function NuevoRolScreen() {
         <Text style={styles.sectionTitle}>Selecciona la plantilla base</Text>
         
         <View style={styles.grid}>
-          {templates.map(tpl => {
-            const isSelected = selectedTemplate === tpl.id;
-            return (
-              <TouchableOpacity 
-                key={tpl.id}
-                style={[styles.templateCard, isSelected && styles.templateCardSelected]}
-                onPress={() => setSelectedTemplate(tpl.id)}
-              >
-                <Feather name={tpl.icon as any} size={28} color={isSelected ? '#3b82f6' : '#64748b'} style={styles.templateIcon} />
-                <Text style={[styles.templateText, isSelected && styles.templateTextSelected]}>
-                  {tpl.name}
-                </Text>
-                {isSelected && (
-                  <View style={styles.checkBadge}>
-                    <Feather name="check" size={12} color="#fff" />
-                  </View>
-                )}
-              </TouchableOpacity>
-            );
-          })}
+          {loading ? (
+            <Text style={{ color: '#94a3b8' }}>Cargando plantillas de la nube...</Text>
+          ) : templates.length === 0 ? (
+            <Text style={{ color: '#94a3b8' }}>No hay plantillas creadas. Ve a la Base de Mando Web para crear una.</Text>
+          ) : (
+            templates.map(tpl => {
+              const isSelected = selectedTemplate === tpl.id;
+              return (
+                <TouchableOpacity 
+                  key={tpl.id}
+                  style={[styles.templateCard, isSelected && styles.templateCardSelected]}
+                  onPress={() => setSelectedTemplate(tpl.id)}
+                >
+                  <Feather name="file-text" size={28} color={isSelected ? '#3b82f6' : '#64748b'} style={styles.templateIcon} />
+                  <Text style={[styles.templateText, isSelected && styles.templateTextSelected]}>
+                    {tpl.name}
+                  </Text>
+                  {isSelected && (
+                    <View style={styles.checkBadge}>
+                      <Feather name="check" size={12} color="#fff" />
+                    </View>
+                  )}
+                </TouchableOpacity>
+              );
+            })
+          )}
         </View>
 
         <View style={styles.inputGroup}>
@@ -67,11 +83,15 @@ export default function NuevoRolScreen() {
           style={[styles.btnContinuar, !selectedTemplate && styles.btnContinuarDisabled]}
           disabled={!selectedTemplate}
           onPress={() => {
-            // Aquí iría la lógica para guardar en base de datos o abrir el editor
-            router.back();
+            if (selectedTemplate) {
+              router.push({
+                pathname: '/editor-rol',
+                params: { plantilla_id: selectedTemplate }
+              });
+            }
           }}
         >
-          <Text style={styles.btnContinuarText}>Crear y Editar Rol</Text>
+          <Text style={styles.btnContinuarText}>Llenar ECOs (Crear Rol)</Text>
           <Feather name="arrow-right" size={18} color="#fff" style={{ marginLeft: 8 }} />
         </TouchableOpacity>
       </View>

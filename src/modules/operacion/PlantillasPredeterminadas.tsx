@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Highlighter, Save, Edit3 } from 'lucide-react';
+import { Plus, Trash2, Highlighter, Save, Edit3, Loader2 } from 'lucide-react';
+import { supabase } from '../../lib/supabaseClient';
 
 interface RowData {
   id: string;
@@ -17,20 +18,21 @@ interface Template {
 }
 
 export const PlantillasPredeterminadas = () => {
-  const [templates, setTemplates] = useState<Template[]>([
-    {
-      id: '1',
-      name: 'Plantilla Base (Ejemplo)',
-      rows: [
-        { id: 'r1', no: 1, frec: 'I.F.', horario: '05:00', eco: '' },
-        { id: 'r2', no: 2, frec: '25', horario: '05:25', eco: '' },
-      ]
-    }
-  ]);
-  const [activeTemplateId, setActiveTemplateId] = useState<string>('1');
+  const [templates, setTemplates] = useState<Template[]>([]);
+  const [activeTemplateId, setActiveTemplateId] = useState<string>('');
   const [activeColor, setActiveColor] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const colors = ['#fde047', '#86efac', '#fca5a5', '#93c5fd']; // Amarillo, Verde, Rojo, Azul
+  const colors = [
+    '#fde047', // Amarillo
+    '#86efac', // Verde
+    '#fca5a5', // Rojo
+    '#93c5fd', // Azul
+    '#ff00ff', // Magenta Fosforescente
+    '#ff7f00', // Naranja Fosforescente
+    '#39ff14'  // Verde Fosforescente
+  ];
 
   const activeTemplate = templates.find(t => t.id === activeTemplateId);
 
@@ -54,17 +56,47 @@ export const PlantillasPredeterminadas = () => {
     return currentRows;
   };
 
-  const handleCreateTemplate = () => {
+  useEffect(() => {
+    fetchTemplates();
+  }, []);
+
+  const fetchTemplates = async () => {
+    setIsLoading(true);
+    const { data, error } = await supabase.from('plantillas_predeterminadas').select('*').order('created_at', { ascending: true });
+    
+    if (error) {
+      console.error('Error fetching templates:', error);
+    } else if (data && data.length > 0) {
+      const formatted = data.map(d => ({ id: d.id, name: d.name, rows: d.rows }));
+      setTemplates(formatted);
+      setActiveTemplateId(formatted[0].id);
+    }
+    setIsLoading(false);
+  };
+
+  const handleCreateTemplate = async () => {
     const name = prompt('Nombre de la nueva plantilla (Ej. Sabatino):');
     if (!name) return;
-    const newId = Date.now().toString();
-    const newTemplate: Template = {
-      id: newId,
+    
+    const newTemplate = {
       name,
       rows: [{ id: Date.now().toString(), no: 1, frec: 'I.F.', horario: '05:00', eco: '' }]
     };
-    setTemplates([...templates, newTemplate]);
-    setActiveTemplateId(newId);
+
+    setIsSaving(true);
+    const { data, error } = await supabase.from('plantillas_predeterminadas').insert([newTemplate]).select();
+    setIsSaving(false);
+
+    if (error) {
+      alert('Error al crear plantilla en la nube: ' + error.message);
+      return;
+    }
+
+    if (data && data[0]) {
+      const added: Template = { id: data[0].id, name: data[0].name, rows: data[0].rows };
+      setTemplates([...templates, added]);
+      setActiveTemplateId(added.id);
+    }
   };
 
   const handleUpdateRow = (rowId: string, field: keyof RowData, value: string) => {
@@ -232,14 +264,25 @@ export const PlantillasPredeterminadas = () => {
             </button>
             
             <div style={{ marginTop: '2rem', display: 'flex', justifyContent: 'flex-end' }}>
-              <button style={{ background: 'var(--primary)', color: '#fff', border: 'none', padding: '12px 24px', borderRadius: 'var(--radius-sm)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold' }}>
-                <Save size={18} /> Guardar Plantilla
+              <button 
+                onClick={async () => {
+                  if(!activeTemplate) return;
+                  setIsSaving(true);
+                  const { error } = await supabase.from('plantillas_predeterminadas').update({ rows: activeTemplate.rows }).eq('id', activeTemplate.id);
+                  setIsSaving(false);
+                  if(error) alert('Error al guardar: ' + error.message);
+                  else alert('¡Plantilla guardada en la nube con éxito!');
+                }}
+                disabled={isSaving}
+                style={{ background: 'var(--primary)', color: '#fff', border: 'none', padding: '12px 24px', borderRadius: 'var(--radius-sm)', cursor: isSaving ? 'wait' : 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold', opacity: isSaving ? 0.7 : 1 }}>
+                {isSaving ? <Loader2 size={18} className="spin" /> : <Save size={18} />} 
+                {isSaving ? 'Guardando...' : 'Guardar Plantilla en Nube'}
               </button>
             </div>
           </>
         ) : (
           <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', color: 'var(--text-muted)' }}>
-            Selecciona o crea una plantilla para empezar.
+            {isLoading ? 'Conectando a Supabase...' : 'Selecciona o crea una plantilla para empezar.'}
           </div>
         )}
       </div>
