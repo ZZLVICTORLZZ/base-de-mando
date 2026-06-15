@@ -21,7 +21,7 @@ export default function NuevoRolScreen() {
           <Feather name="arrow-left" size={24} color="#f8fafc" />
         </TouchableOpacity>
         <Text style={styles.title}>Crear Nuevo Rol</Text>
-        <View style={{ width: 24 }} /> {/* Spacer */}
+        <View style={{ width: 24 }} />
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Calendar, Clock, ListOrdered, LayoutGrid, ArrowLeft, ScanLine } from 'lucide-react';
+import { PlantillasPredeterminadas } from './PlantillasPredeterminadas';
 
 const mockReporte = [
   { no: 1, frec: 'I.F.', hEntrada: '05:00', hSalida: '05:30', pax: 2, eco: '2540' },
@@ -185,11 +186,7 @@ export const Servicio = () => {
       )}
 
       {view === 'roles_predeterminados' && (
-        <div className="glass-panel" style={{ padding: '3rem', textAlign: 'center' }}>
-          <Calendar size={64} color="var(--text-main)" style={{ marginBottom: '1.5rem', opacity: 0.5 }} />
-          <h2 style={{ color: 'var(--text-main)', marginBottom: '1rem', fontSize: '1.8rem' }}>Pantalla de Roles Predeterminados</h2>
-          <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem', maxWidth: '600px', margin: '0 auto' }}>Panel exclusivo para la gerencia. Aquí se definen las plantillas maestras de salidas (ej. domingos inician a las 6am cada 20 min, martes a las 5am cada 15 min, etc).</p>
-        </div>
+        <PlantillasPredeterminadas />
       )}
     </div>
   );
