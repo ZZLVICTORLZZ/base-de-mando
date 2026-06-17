@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabaseClient';
-import { ListOrdered, Search, Calendar as CalendarIcon, Loader2 } from 'lucide-react';
+import { ListOrdered, Search, Calendar as CalendarIcon, Loader2, Trash2 } from 'lucide-react';
+import { isAdmin } from '../../lib/permissions';
 
 interface RolOficial {
   id: string;
@@ -16,8 +17,10 @@ export const RolDespegue = () => {
   const [roles, setRoles] = useState<RolOficial[]>([]);
   const [selectedRolId, setSelectedRolId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [userIsAdmin, setUserIsAdmin] = useState(false);
 
   useEffect(() => {
+    setUserIsAdmin(isAdmin());
     fetchRoles();
   }, []);
 
@@ -33,6 +36,23 @@ export const RolDespegue = () => {
       if (data.length > 0) setSelectedRolId(data[0].id);
     }
     setLoading(false);
+  };
+
+  const handleDeleteRol = async (id: string) => {
+    if (!userIsAdmin) {
+      alert('Acceso denegado. Solo un administrador puede eliminar roles oficiales.');
+      return;
+    }
+    if (window.confirm('¿Estás completamente seguro de ELIMINAR este Rol Oficial? Se perderá el registro de los autobuses asignados ese día.')) {
+      const { error } = await supabase.from('roles_del_dia').delete().eq('id', id);
+      if (error) alert('Error al borrar: ' + error.message);
+      else {
+        const remaining = roles.filter(r => r.id !== id);
+        setRoles(remaining);
+        if (remaining.length > 0) setSelectedRolId(remaining[0].id);
+        else setSelectedRolId(null);
+      }
+    }
   };
 
   const selectedRol = roles.find(r => r.id === selectedRolId);
@@ -90,6 +110,13 @@ export const RolDespegue = () => {
               <div style={{ textAlign: 'right' }}>
                 <div style={{ color: 'var(--text-main)', fontSize: '1.2rem', fontWeight: 'bold' }}>{selectedRol.fecha}</div>
                 <div style={{ color: '#10b981', fontSize: '0.9rem', marginTop: '4px' }}>✓ Sincronizado desde J2</div>
+                {userIsAdmin && (
+                  <button 
+                    onClick={() => handleDeleteRol(selectedRol.id)} 
+                    style={{ marginTop: '10px', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: '1px solid #ef4444', padding: '6px 12px', borderRadius: 'var(--radius-sm)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                    <Trash2 size={16} /> Borrar Rol
+                  </button>
+                )}
               </div>
             </div>
 

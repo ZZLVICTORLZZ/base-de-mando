@@ -1,19 +1,29 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, ActivityIndicator, Alert } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { supabase } from '../../src/services/supabaseClient';
 import { useCallback } from 'react';
+import { isAdmin } from '../../lib/permissions';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function RDScreen() {
   const [dateDesde, setDateDesde] = useState('01/06/2026');
   const [dateHasta, setDateHasta] = useState('15/06/2026');
   const [roles, setRoles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [userIsAdmin, setUserIsAdmin] = useState(false);
+  const [currentUser, setCurrentUser] = useState('Tablerista');
 
   useFocusEffect(
     useCallback(() => {
-      fetchRoles();
+      const init = async () => {
+        setUserIsAdmin(await isAdmin());
+        const name = await AsyncStorage.getItem('apolo11_user_name') || 'Tablerista';
+        setCurrentUser(name);
+        fetchRoles();
+      };
+      init();
     }, [])
   );
 
@@ -36,6 +46,34 @@ export default function RDScreen() {
     setLoading(false);
   };
 
+  const isToday = (fechaStr: string) => {
+    const today = new Date();
+    const dStr = String(today.getDate()).padStart(2, '0');
+    const mStr = String(today.getMonth() + 1).padStart(2, '0');
+    const yStr = String(today.getFullYear());
+    return fechaStr === `${dStr}/${mStr}/${yStr}`;
+  };
+
+  const canEdit = (item: any) => {
+    if (userIsAdmin) return true;
+    return item.creado_por === currentUser && isToday(item.fecha);
+  };
+
+  const handleDelete = (id: string) => {
+    if (!userIsAdmin) {
+      Alert.alert('Acceso Denegado', 'Solo los administradores pueden borrar roles.');
+      return;
+    }
+    Alert.alert('Confirmar Eliminación', '¿Estás seguro de eliminar permanentemente este Rol Oficial?', [
+      { text: 'Cancelar', style: 'cancel' },
+      { text: 'Eliminar', style: 'destructive', onPress: async () => {
+          const { error } = await supabase.from('roles_del_dia').delete().eq('id', id);
+          if (error) Alert.alert('Error', error.message);
+          else setRoles(roles.filter(r => r.id !== id));
+      }}
+    ]);
+  };
+
   const renderItem = ({ item }: { item: any }) => {
     // Definimos el color del indicador visual según estatus
     const statusColor = item.estatus === 'activa' ? '#10b981' : item.estatus === 'finalizado' ? '#3b82f6' : '#64748b';
@@ -47,16 +85,35 @@ export default function RDScreen() {
             <View style={[styles.statusIndicator, { backgroundColor: statusColor }]} />
             <Text style={styles.cardTitle}>Rol {item.tipo}</Text>
           </View>
-          <Text style={styles.cardDate}>{item.fecha}</Text>
+          <Text style={{ color: '#64748b', fontSize: 12, marginBottom: 4, paddingLeft: 16 }}>
+            <Feather name="user" size={12} color="#64748b" style={{ marginRight: 4 }} /> {item.creado_por || 'Sistema'}
+          </Text>
+          <Text style={styles.cardDate}>
+            <Feather name="calendar" size={12} color="#94a3b8" style={{ marginRight: 4 }} /> {item.fecha}
+          </Text>
         </View>
         
         <View style={styles.actionsRow}>
-          <TouchableOpacity style={styles.iconBtn}>
+          <TouchableOpacity 
+            style={styles.iconBtn}
+            onPress={() => router.push({ pathname: '/editor-rol', params: { rol_id: item.id, mode: 'view' } })}
+          >
             <Feather name="eye" size={18} color="#94a3b8" />
           </TouchableOpacity>
-          {item.estatus === 'activa' && (
-            <TouchableOpacity style={styles.iconBtn}>
+          {canEdit(item) && (
+            <TouchableOpacity 
+              style={styles.iconBtn}
+              onPress={() => router.push({ pathname: '/editor-rol', params: { rol_id: item.id, mode: 'edit' } })}
+            >
               <Feather name="edit-2" size={18} color="#10b981" />
+            </TouchableOpacity>
+          )}
+          {userIsAdmin && (
+            <TouchableOpacity 
+              style={styles.iconBtn}
+              onPress={() => handleDelete(item.id)}
+            >
+              <Feather name="trash-2" size={18} color="#ef4444" />
             </TouchableOpacity>
           )}
         </View>

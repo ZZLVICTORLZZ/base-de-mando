@@ -24,6 +24,9 @@ function App() {
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
+      if (session) {
+        localStorage.setItem('apolo11_role', 'admin');
+      }
       setLoading(false);
     });
 
@@ -31,6 +34,14 @@ function App() {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
+      if (session) {
+        localStorage.setItem('apolo11_role', 'admin');
+      } else {
+        // Solo borrar el rol de admin si NO estamos en modo bypass
+        if (localStorage.getItem('apolo11_bypass') !== 'true') {
+          localStorage.removeItem('apolo11_role');
+        }
+      }
     });
 
     return () => subscription.unsubscribe();

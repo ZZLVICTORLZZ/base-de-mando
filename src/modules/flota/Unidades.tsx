@@ -1,22 +1,35 @@
-import React, { useState } from 'react';
-import { Truck, Plus, Eye, Edit3, Save, ArrowLeft, Search, LayoutGrid, Activity, ShieldAlert } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Truck, Plus, Eye, Edit3, Trash2, Save, ArrowLeft, Search, LayoutGrid, Activity, ShieldAlert, Loader2 } from 'lucide-react';
+import { supabase } from '../../lib/supabaseClient';
+import { isAdmin } from '../../lib/permissions';
 
 const tiposUnidad = ['Sprinter', 'Autobús', 'NV', 'Crafter', 'JAC'];
 
-const initialUnidades = [
-  { id: 1, eco: 'ECO 01', tipo: 'Sprinter', marca: 'Mercedes-Benz', modelo: 'Sprinter 315', año: 2022, serie: 'VIN1234567890ABCD', capacidad: 20, estado: 'Activo' },
-  { id: 2, eco: 'ECO 10', tipo: 'Autobús', marca: 'Mercedes-Benz', modelo: 'Toreto', año: 2020, serie: 'VIN0987654321WXYZ', capacidad: 45, estado: 'Taller' },
-  { id: 3, eco: 'ECO 05', tipo: 'Crafter', marca: 'Volkswagen', modelo: 'Crafter Pasajeros', año: 2023, serie: 'VIN5678901234FGHJ', capacidad: 21, estado: 'Activo' },
-];
-
 export const Unidades = () => {
   const [view, setView] = useState<'dashboard' | 'directorio_list' | 'directorio_form' | 'estado_list'>('dashboard');
-  const [unidades, setUnidades] = useState(initialUnidades);
+  const [unidades, setUnidades] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   
   // States for List View Actions
   const [searchTerm, setSearchTerm] = useState('');
-  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [isReadOnly, setIsReadOnly] = useState(false);
+  const [userIsAdmin, setUserIsAdmin] = useState(false);
+
+  useEffect(() => {
+    setUserIsAdmin(isAdmin());
+    fetchUnidades();
+  }, []);
+
+  const fetchUnidades = async () => {
+    setIsLoading(true);
+    const { data, error } = await supabase.from('unidades').select('*').order('numero', { ascending: true });
+    if (!error && data) {
+      setUnidades(data);
+    }
+    setIsLoading(false);
+  };
 
   const [formData, setFormData] = useState({
     ecoNum: '',
@@ -28,17 +41,20 @@ export const Unidades = () => {
     capacidad: ''
   });
 
-  const handleStatusChange = (id: number, newStatus: string) => {
-    setUnidades(unidades.map(u => u.id === id ? { ...u, estado: newStatus } : u));
+  const handleStatusChange = async (id: string, newStatus: boolean) => {
+    const { error } = await supabase.from('unidades').update({ activo: newStatus }).eq('id', id);
+    if (!error) {
+      setUnidades(unidades.map(u => u.id === id ? { ...u, activo: newStatus } : u));
+    }
   };
 
   const handleEdit = (u: any) => {
     setFormData({
-      ecoNum: u.eco.replace('ECO ', ''),
-      tipo: u.tipo,
+      ecoNum: u.numero || '',
+      tipo: u.tipo || 'Sprinter',
       marca: u.marca || '',
       modelo: u.modelo || '',
-      año: u.año || '',
+      año: u.anio || u.año || '',
       serie: u.serie || '',
       capacidad: u.capacidad || ''
     });
@@ -49,11 +65,11 @@ export const Unidades = () => {
 
   const handleView = (u: any) => {
     setFormData({
-      ecoNum: u.eco.replace('ECO ', ''),
-      tipo: u.tipo,
+      ecoNum: u.numero || '',
+      tipo: u.tipo || 'Sprinter',
       marca: u.marca || '',
       modelo: u.modelo || '',
-      año: u.año || '',
+      año: u.anio || u.año || '',
       serie: u.serie || '',
       capacidad: u.capacidad || ''
     });
@@ -69,47 +85,69 @@ export const Unidades = () => {
     setView('directorio_form');
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleDelete = async (id: string, numero: string) => {
+    if (!userIsAdmin) {
+      alert('Acceso denegado. Solo un administrador puede eliminar unidades.');
+      return;
+    }
+    if (window.confirm(`¿Estás completamente seguro de ELIMINAR la unidad con ECO ${numero}? Esta acción no se puede deshacer.`)) {
+      const { error } = await supabase.from('unidades').delete().eq('id', id);
+      if (error) {
+        alert('Error al eliminar: ' + error.message);
+      } else {
+        setUnidades(unidades.filter(u => u.id !== id));
+      }
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isReadOnly) {
       setView('directorio_list');
       return;
     }
 
-    const ecoPadded = formData.ecoNum.padStart(2, '0');
+    const ecoVal = formData.ecoNum.trim();
 
+    setIsSaving(true);
     if (editingId) {
-      setUnidades(unidades.map(u => u.id === editingId ? {
-        ...u,
-        eco: `ECO ${ecoPadded}`,
+      const payload = {
+        numero: ecoVal,
         tipo: formData.tipo,
         marca: formData.marca,
         modelo: formData.modelo,
-        año: Number(formData.año),
+        anio: Number(formData.año),
         serie: formData.serie,
         capacidad: Number(formData.capacidad)
-      } : u));
+      };
+      const { error } = await supabase.from('unidades').update(payload).eq('id', editingId);
+      if (!error) {
+        await fetchUnidades();
+        alert('Unidad actualizada correctamente.');
+      } else alert(error.message);
     } else {
-      const newUnidad = {
-        id: Date.now(),
-        eco: `ECO ${ecoPadded}`,
+      const payload = {
+        numero: ecoVal,
         tipo: formData.tipo,
         marca: formData.marca,
         modelo: formData.modelo,
-        año: Number(formData.año),
+        anio: Number(formData.año),
         serie: formData.serie,
         capacidad: Number(formData.capacidad),
-        estado: 'Activo'
+        activo: true
       };
-      setUnidades([...unidades, newUnidad]);
+      const { error } = await supabase.from('unidades').insert([payload]);
+      if (!error) {
+        await fetchUnidades();
+        alert('Unidad registrada correctamente.');
+      } else alert(error.message);
     }
-    
-    setFormData({ ecoNum: '', tipo: 'Sprinter', marca: '', modelo: '', año: '', serie: '', capacidad: '' });
+    setIsSaving(false);
     setView('directorio_list');
   };
 
   const filteredUnidades = unidades.filter(u => 
-    u.eco.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    (u.numero && u.numero.toString().toLowerCase().includes(searchTerm.toLowerCase())) || 
     (u.serie && u.serie.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
@@ -225,10 +263,10 @@ export const Unidades = () => {
               <tbody>
                 {filteredUnidades.map(u => (
                   <tr key={u.id} style={{ borderBottom: '1px solid var(--glass-border)' }} className="table-row-hover">
-                    <td style={{ padding: '12px', fontWeight: 600, color: 'var(--primary)' }}>{u.eco}</td>
+                    <td style={{ padding: '12px', fontWeight: 600, color: 'var(--primary)' }}>{u.numero}</td>
                     <td style={{ padding: '12px', color: 'var(--text-main)' }}>{u.tipo}</td>
                     <td style={{ padding: '12px', color: 'var(--text-main)' }}>{u.serie || 'N/A'}</td>
-                    <td style={{ padding: '12px', textAlign: 'center', color: 'var(--text-main)' }}>{u.año}</td>
+                    <td style={{ padding: '12px', textAlign: 'center', color: 'var(--text-main)' }}>{u.anio || u.año}</td>
                     <td style={{ padding: '12px', textAlign: 'center', color: 'var(--text-main)' }}>{u.capacidad}</td>
                     <td style={{ padding: '12px', textAlign: 'right' }}>
                       <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
@@ -238,12 +276,22 @@ export const Unidades = () => {
                           style={{ background: 'var(--surface-color)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-sm)', color: 'var(--text-muted)', cursor: 'pointer', padding: '6px' }}>
                           <Eye size={16} />
                         </button>
-                        <button 
-                          onClick={() => handleEdit(u)}
-                          title="Editar Unidad" 
-                          style={{ background: 'var(--primary)', border: 'none', borderRadius: 'var(--radius-sm)', color: '#fff', cursor: 'pointer', padding: '6px' }}>
-                          <Edit3 size={16} />
-                        </button>
+                        {userIsAdmin && (
+                          <>
+                            <button 
+                              onClick={() => handleEdit(u)}
+                              title="Editar Unidad" 
+                              style={{ background: 'var(--primary)', border: 'none', borderRadius: 'var(--radius-sm)', color: '#fff', cursor: 'pointer', padding: '6px' }}>
+                              <Edit3 size={16} />
+                            </button>
+                            <button 
+                              onClick={() => handleDelete(u.id, u.numero)}
+                              title="Borrar Unidad (Solo Admin)" 
+                              style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid #ef4444', borderRadius: 'var(--radius-sm)', color: '#ef4444', cursor: 'pointer', padding: '6px' }}>
+                              <Trash2 size={16} />
+                            </button>
+                          </>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -282,18 +330,15 @@ export const Unidades = () => {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.5rem', color: 'var(--text-muted)' }}>Número Económico</label>
-                <div style={{ display: 'flex', background: 'var(--surface-color)', border: '1px solid var(--glass-border)', borderRadius: 'var(--radius-sm)', overflow: 'hidden' }}>
-                  <span style={{ padding: '10px 15px', background: 'rgba(0,0,0,0.2)', color: 'var(--text-muted)', fontWeight: 600, borderRight: '1px solid var(--glass-border)' }}>ECO</span>
-                  <input 
-                    type="number" 
-                    required
-                    disabled={isReadOnly}
-                    value={formData.ecoNum}
-                    onChange={e => setFormData({...formData, ecoNum: e.target.value})}
-                    placeholder="01" 
-                    style={{ flex: 1, padding: '10px', background: 'transparent', border: 'none', color: 'var(--text-main)', outline: 'none' }} 
-                  />
-                </div>
+                <input 
+                  type="text" 
+                  required
+                  disabled={isReadOnly}
+                  value={formData.ecoNum}
+                  onChange={e => setFormData({...formData, ecoNum: e.target.value})}
+                  placeholder="Ej. 101" 
+                  style={{ width: '100%', padding: '10px', background: 'var(--surface-color)', border: '1px solid var(--glass-border)', color: 'var(--text-main)', borderRadius: 'var(--radius-sm)', outline: 'none' }} 
+                />
               </div>
               <div>
                 <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.5rem', color: 'var(--text-muted)' }}>Tipo de Unidad</label>
@@ -379,7 +424,7 @@ export const Unidades = () => {
                 style={{ background: 'transparent', color: 'var(--text-main)', border: '1px solid var(--glass-border)', padding: '10px 20px', borderRadius: 'var(--radius-sm)', fontWeight: 600, cursor: 'pointer' }}>
                 {isReadOnly ? 'Volver' : 'Cancelar'}
               </button>
-              {!isReadOnly && (
+              {(!isReadOnly && userIsAdmin) && (
                 <button 
                   type="submit"
                   style={{ background: 'var(--primary)', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: 'var(--radius-sm)', fontWeight: 600, cursor: 'pointer', display: 'flex', gap: '8px', alignItems: 'center', boxShadow: '0 0 10px var(--primary-glow)' }}>
@@ -407,34 +452,24 @@ export const Unidades = () => {
               <tbody>
                 {unidades.map(u => (
                   <tr key={u.id} style={{ borderBottom: '1px solid var(--glass-border)' }} className="table-row-hover">
-                    <td style={{ padding: '12px', fontWeight: 600, color: 'var(--primary)' }}>{u.eco}</td>
+                    <td style={{ padding: '12px', fontWeight: 600, color: 'var(--primary)' }}>{u.numero}</td>
                     <td style={{ padding: '12px', color: 'var(--text-main)' }}>{u.tipo} - {u.modelo}</td>
                     <td style={{ padding: '12px', textAlign: 'center' }}>
                       <span style={{ 
                         padding: '6px 12px', borderRadius: '12px', fontSize: '0.85rem', fontWeight: 600,
-                        background: 
-                          u.estado === 'Activo' ? 'rgba(16, 185, 129, 0.1)' : 
-                          u.estado === 'Taller' ? 'rgba(245, 158, 11, 0.1)' :
-                          u.estado === 'Inactivo' ? 'rgba(107, 114, 128, 0.1)' :
-                          'rgba(239, 68, 68, 0.1)',
-                        color: 
-                          u.estado === 'Activo' ? '#10b981' : 
-                          u.estado === 'Taller' ? '#f59e0b' :
-                          u.estado === 'Inactivo' ? '#9ca3af' :
-                          '#ef4444'
+                        backgroundColor: u.activo ? 'rgba(16, 185, 129, 0.2)' : 'rgba(245, 158, 11, 0.2)',
+                        color: u.activo ? '#10b981' : '#f59e0b'
                       }}>
-                        {u.estado}
+                        {u.activo ? 'Activo' : 'Taller'}
                       </span>
                     </td>
                     <td style={{ padding: '12px', textAlign: 'right' }}>
                       <select 
-                        value={u.estado}
-                        onChange={(e) => handleStatusChange(u.id, e.target.value)}
+                        value={u.activo ? 'true' : 'false'}
+                        onChange={(e) => handleStatusChange(u.id, e.target.value === 'true')}
                         style={{ padding: '8px 12px', background: 'var(--surface-color)', border: '1px solid var(--glass-border)', color: 'var(--text-main)', borderRadius: 'var(--radius-sm)', outline: 'none', cursor: 'pointer' }}>
-                        <option value="Activo">Activo</option>
-                        <option value="Inactivo">Inactivo</option>
-                        <option value="Taller">Taller</option>
-                        <option value="Baja">Baja</option>
+                        <option value="true">Activo</option>
+                        <option value="false">Taller</option>
                       </select>
                     </td>
                   </tr>
