@@ -94,9 +94,18 @@ export const PlantillasPredeterminadas = () => {
     if (error) {
       console.error('Error fetching templates:', error);
     } else if (data && data.length > 0) {
-      const formatted = data.map(d => ({ id: d.id, name: d.name, rows: d.rows }));
+      const formatted = data
+        .filter((d: any) => !d.name.startsWith('[ELIMINADA]'))
+        .map((d: any) => ({ id: d.id, name: d.name, rows: d.rows }));
       setTemplates(formatted);
-      setActiveTemplateId(formatted[0].id);
+      if (formatted.length > 0) {
+        setActiveTemplateId(formatted[0].id);
+      } else {
+        setActiveTemplateId('');
+      }
+    } else {
+      setTemplates([]);
+      setActiveTemplateId('');
     }
     setIsLoading(false);
   };
@@ -132,21 +141,27 @@ export const PlantillasPredeterminadas = () => {
       alert('Solo un administrador puede borrar plantillas.');
       return;
     }
-    if (window.confirm(`ATENCIÓN: ¿Estás seguro de eliminar permanentemente la plantilla "${name}"?`)) {
-      const { error } = await supabase.from('plantillas_predeterminadas').delete().eq('id', templateId);
+    if (window.confirm(`ATENCIÓN: ¿Estás seguro de archivar/eliminar la plantilla "${name}"? Su historial quedará bloqueado y seguro.`)) {
+      const deletedName = `[ELIMINADA] ${name}`;
+      const { error } = await supabase.from('plantillas_predeterminadas').update({ name: deletedName }).eq('id', templateId);
       if (error) {
-        if (error.code === '23503') {
-          alert('No se puede borrar esta plantilla porque ya hay "Roles del Día" históricos que la están usando. Borrarla arruinaría el historial.');
-        } else {
-          alert('Error al eliminar: ' + error.message);
-        }
+        alert('Error al archivar plantilla: ' + error.message);
       } else {
         const remaining = templates.filter(t => t.id !== templateId);
         setTemplates(remaining);
         if (remaining.length > 0) setActiveTemplateId(remaining[0].id);
         else setActiveTemplateId('');
+        alert('Plantilla archivada correctamente. El historial se mantiene intacto.');
       }
     }
+  };
+
+  const handleUpdateName = (newName: string) => {
+    if (!activeTemplate) return;
+    const updatedTemplates = templates.map(t => 
+      t.id === activeTemplate.id ? { ...t, name: newName } : t
+    );
+    setTemplates(updatedTemplates);
   };
 
   const handleUpdateRow = (rowId: string, field: keyof RowData, value: string) => {
@@ -242,9 +257,18 @@ export const PlantillasPredeterminadas = () => {
         {activeTemplate ? (
           <>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
-              <h2 style={{ color: 'var(--text-main)', fontSize: '1.5rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <h2 style={{ color: 'var(--text-main)', fontSize: '1.5rem', display: 'flex', alignItems: 'center', gap: '10px', flex: 1 }}>
                 {isReadOnly ? <Eye size={24} color="var(--primary)" /> : <Edit3 size={24} color="#eab308" />}
-                {activeTemplate.name}
+                {isReadOnly ? (
+                  <span>{activeTemplate.name}</span>
+                ) : (
+                  <input 
+                    type="text" 
+                    value={activeTemplate.name} 
+                    onChange={(e) => handleUpdateName(e.target.value)}
+                    style={{ background: 'rgba(0,0,0,0.2)', border: '1px dashed var(--glass-border)', color: 'var(--text-main)', fontSize: '1.5rem', padding: '4px 8px', borderRadius: '4px', outline: 'none', width: '100%', maxWidth: '300px' }}
+                  />
+                )}
               </h2>
               
               <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
@@ -346,7 +370,10 @@ export const PlantillasPredeterminadas = () => {
                     onClick={async () => {
                       if(!activeTemplate) return;
                       setIsSaving(true);
-                      const { error } = await supabase.from('plantillas_predeterminadas').update({ rows: activeTemplate.rows }).eq('id', activeTemplate.id);
+                      const { error } = await supabase.from('plantillas_predeterminadas').update({ 
+                        name: activeTemplate.name, 
+                        rows: activeTemplate.rows 
+                      }).eq('id', activeTemplate.id);
                       setIsSaving(false);
                       if(error) alert('Error al guardar: ' + error.message);
                       else {

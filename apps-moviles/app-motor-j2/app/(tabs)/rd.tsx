@@ -55,8 +55,7 @@ export default function RDScreen() {
   };
 
   const canEdit = (item: any) => {
-    if (userIsAdmin) return true;
-    return item.creado_por === currentUser && isToday(item.fecha);
+    return true; // Todos pueden editar por ahora
   };
 
   const handleDelete = (id: string) => {

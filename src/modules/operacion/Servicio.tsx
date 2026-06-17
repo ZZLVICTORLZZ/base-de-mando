@@ -1,34 +1,41 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, ListOrdered, LayoutGrid, ArrowLeft, ScanLine } from 'lucide-react';
 import { PlantillasPredeterminadas } from './PlantillasPredeterminadas';
 import { RolDespegue } from './RolDespegue';
 
-const mockReporte = [
-  { no: 1, frec: 'I.F.', hEntrada: '05:00', hSalida: '05:30', pax: 2, eco: '2540' },
-  { no: 2, frec: '25', hEntrada: '05:30', hSalida: '05:55', pax: 3, eco: '2114' },
-  { no: 3, frec: '25', hEntrada: '05:55', hSalida: '06:20', pax: 6, eco: '2526' },
-  { no: 4, frec: '25', hEntrada: '06:20', hSalida: '06:45', pax: 11, eco: '2541' },
-  { no: 5, frec: '25', hEntrada: '06:45', hSalida: '07:10', pax: 16, eco: '2460' },
-  { no: 6, frec: '25', hEntrada: '', hSalida: '', pax: 0, eco: '' },
-  { no: 7, frec: '20', hEntrada: '', hSalida: '', pax: 0, eco: '' },
-];
+import { supabase } from '../../lib/supabaseClient';
 
 export const Servicio = () => {
   const [view, setView] = useState<'dashboard' | 'tablas_dia' | 'rol_despegue' | 'roles_predeterminados'>('dashboard');
-  const [reporte, setReporte] = useState(mockReporte);
+  const [rolActivo, setRolActivo] = useState<any>(null);
+  const [reporte, setReporte] = useState<any[]>([]);
 
-  const simulateNFC = (no: number) => {
-    // Fill pending data with current time for demo
-    const now = new Date();
-    const timeStr = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
     
-    setReporte(reporte.map(row => {
-      if(row.no === no) {
-        return { ...row, hEntrada: timeStr, hSalida: timeStr, eco: '2438', pax: Math.floor(Math.random() * 20) + 1 };
+    const fetchLiveRol = async () => {
+      const { data, error } = await supabase
+        .from('roles_del_dia')
+        .select('*, plantillas_predeterminadas(name)')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+        
+      if (!error && data) {
+        setRolActivo(data);
+        setReporte(Array.isArray(data.rows) ? data.rows : []);
       }
-      return row;
-    }));
-  };
+    };
+
+    if (view === 'tablas_dia') {
+      fetchLiveRol(); // fetch once immediately
+      interval = setInterval(fetchLiveRol, 5000); // poll every 5 seconds
+    }
+
+    return () => clearInterval(interval);
+  }, [view]);
+
+  // Removido simulador NFC y lógica de despacho a petición del usuario.
 
   if (view === 'dashboard') {
     return (
@@ -78,8 +85,8 @@ export const Servicio = () => {
               <Clock size={28} />
             </div>
             <div>
-              <h3 style={{ fontSize: '1.25rem', color: 'var(--text-main)', marginBottom: '0.25rem' }}>Tablas del Día (Tiempo Real)</h3>
-              <p style={{ color: '#10b981', fontSize: '0.9rem', fontWeight: 600 }}>MONITOR EN VIVO Y NFC</p>
+              <h3 style={{ fontSize: '1.25rem', color: 'var(--text-main)', marginBottom: '0.25rem' }}>Monitor del Rol Activo</h3>
+              <p style={{ color: '#10b981', fontSize: '0.9rem', fontWeight: 600 }}>VISTA DE SOLO LECTURA</p>
             </div>
           </div>
         </div>
@@ -98,12 +105,12 @@ export const Servicio = () => {
         </button>
         <div>
           <h1 className="page-title">
-            {view === 'tablas_dia' ? 'Reporte de Salidas' : 
+            {view === 'tablas_dia' ? 'Monitor del Rol Activo' : 
              view === 'rol_despegue' ? 'Rol de Despegue Diario' : 
              'Roles Predeterminados'}
           </h1>
           <p className="page-subtitle">
-            {view === 'tablas_dia' ? 'Monitor en vivo conectado a escáner NFC (Base Indios Verdes)' : 
+            {view === 'tablas_dia' ? 'Vista de solo lectura del rol operativo' : 
              view === 'rol_despegue' ? 'Asignación de parque vehicular al rol del día' : 
              'Configuración de plantillas maestras por día de la semana'}
           </p>
@@ -115,7 +122,7 @@ export const Servicio = () => {
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1.5rem', alignItems: 'center', borderBottom: '1px solid var(--glass-border)', paddingBottom: '1.5rem' }}>
             <div>
               <h2 style={{ color: '#eab308', fontSize: '1.4rem', textTransform: 'uppercase', letterSpacing: '2px', fontWeight: 600, marginBottom: '0.5rem' }}>
-                REPORTE DE SALIDAS - BASE INDIOS VERDES
+                MONITOR DEL ROL ACTIVO - BASE INDIOS VERDES
               </h2>
               <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem', fontStyle: 'italic' }}>Sistema Operativo Inteligente (Saturno V)</span>
             </div>
@@ -135,46 +142,30 @@ export const Servicio = () => {
                 <tr style={{ borderBottom: '2px solid #eab308', color: '#eab308' }}>
                   <th style={{ padding: '16px 12px' }}>NO.</th>
                   <th style={{ padding: '16px 12px' }}>FREC.</th>
-                  <th style={{ padding: '16px 12px' }}>H. ENTRADA</th>
-                  <th style={{ padding: '16px 12px' }}>H. SALIDA</th>
-                  <th style={{ padding: '16px 12px' }}>PAX</th>
+                  <th style={{ padding: '16px 12px' }}>HORARIO</th>
                   <th style={{ padding: '16px 12px' }}>ECO</th>
-                  <th style={{ padding: '16px 12px', textAlign: 'right', color: 'var(--primary)' }}>Acción (Simulador NFC)</th>
                 </tr>
               </thead>
               <tbody>
-                {reporte.map(r => (
-                  <tr key={r.no} style={{ borderBottom: '1px solid var(--glass-border)', color: 'var(--text-main)', transition: 'background 0.2s' }} className="table-row-hover">
+                {reporte.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} style={{ padding: '2rem', color: 'var(--text-muted)' }}>No hay un rol del día activo publicado.</td>
+                  </tr>
+                ) : reporte.map(r => {
+                  if (!r) return null; // Prevenir crash
+                  return (
+                  <tr key={r.id || Math.random()} style={{ borderBottom: '1px solid var(--glass-border)', color: 'var(--text-main)', transition: 'background 0.2s', background: 'transparent' }} className="table-row-hover">
                     <td style={{ padding: '16px 12px', fontWeight: 'bold' }}>{r.no}</td>
                     <td style={{ padding: '16px 12px', color: r.frec === 'I.F.' ? 'var(--text-muted)' : '#eab308' }}>{r.frec}</td>
-                    <td style={{ padding: '16px 12px' }}>{r.hEntrada || '--:--'}</td>
-                    <td style={{ padding: '16px 12px' }}>{r.hSalida || '--:--'}</td>
-                    <td style={{ padding: '16px 12px', color: '#eab308', fontWeight: 'bold' }}>{r.pax || '-'}</td>
-                    <td style={{ padding: '16px 12px', fontWeight: 'bold', color: r.eco ? '#fff' : 'var(--text-muted)' }}>{r.eco || '---'}</td>
-                    <td style={{ padding: '16px 12px', textAlign: 'right' }}>
-                      {!r.hEntrada ? (
-                        <button 
-                          onClick={() => simulateNFC(r.no)}
-                          style={{ background: 'rgba(16, 185, 129, 0.1)', border: '1px solid #10b981', color: '#10b981', padding: '8px 16px', borderRadius: 'var(--radius-sm)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem', fontWeight: 600 }}>
-                          <ScanLine size={16} /> Toque NFC
-                        </button>
-                      ) : (
-                        <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                          ✓ Registrado
-                        </span>
-                      )}
-                    </td>
+                    <td style={{ padding: '16px 12px' }}>{r.horario || '--:--'}</td>
+                    <td style={{ padding: '16px 12px', fontWeight: 'bold', color: r.eco ? '#fff' : 'var(--text-muted)' }}>{r.eco || 'S/A'}</td>
                   </tr>
-                ))}
+                )})}
               </tbody>
             </table>
           </div>
           
-          <div style={{ marginTop: '2rem', textAlign: 'right' }}>
-            <div style={{ display: 'inline-block', background: 'rgba(16, 185, 129, 0.1)', border: '1px solid #10b981', color: '#10b981', padding: '12px 24px', borderRadius: 'var(--radius-sm)', fontWeight: 'bold', letterSpacing: '2px', fontSize: '1.2rem' }}>
-              TOTAL PASAJEROS (PAX): {reporte.reduce((sum, r) => sum + r.pax, 0)}
-            </div>
-          </div>
+          
         </div>
       )}
 

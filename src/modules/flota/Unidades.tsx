@@ -10,6 +10,7 @@ export const Unidades = () => {
   const [unidades, setUnidades] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [uiMessage, setUiMessage] = useState<{type: 'error' | 'success', text: string} | null>(null);
   
   // States for List View Actions
   const [searchTerm, setSearchTerm] = useState('');
@@ -107,43 +108,71 @@ export const Unidades = () => {
       return;
     }
 
-    const ecoVal = formData.ecoNum.trim();
+    const ecoVal = String(formData.ecoNum).trim();
 
     setIsSaving(true);
-    if (editingId) {
-      const payload = {
-        numero: ecoVal,
-        tipo: formData.tipo,
-        marca: formData.marca,
-        modelo: formData.modelo,
-        anio: Number(formData.año),
-        serie: formData.serie,
-        capacidad: Number(formData.capacidad)
-      };
-      const { error } = await supabase.from('unidades').update(payload).eq('id', editingId);
-      if (!error) {
-        await fetchUnidades();
-        alert('Unidad actualizada correctamente.');
-      } else alert(error.message);
-    } else {
-      const payload = {
-        numero: ecoVal,
-        tipo: formData.tipo,
-        marca: formData.marca,
-        modelo: formData.modelo,
-        anio: Number(formData.año),
-        serie: formData.serie,
-        capacidad: Number(formData.capacidad),
-        activo: true
-      };
-      const { error } = await supabase.from('unidades').insert([payload]);
-      if (!error) {
-        await fetchUnidades();
-        alert('Unidad registrada correctamente.');
-      } else alert(error.message);
+    setUiMessage(null);
+    try {
+      if (editingId) {
+        const payload = {
+          numero: ecoVal,
+          tipo: formData.tipo,
+          marca: formData.marca || null,
+          modelo: formData.modelo || null,
+          anio: formData.año ? Number(formData.año) : null,
+          serie: formData.serie || null,
+          capacidad: formData.capacidad ? Number(formData.capacidad) : null
+        };
+        console.log('Actualizando unidad:', editingId, payload);
+        const { data, error } = await supabase.from('unidades').update(payload).eq('id', editingId).select();
+        console.log('Resultado update:', { data, error });
+        
+        setIsSaving(false);
+        if (!error) {
+          if (!data || data.length === 0) {
+             setUiMessage({ type: 'error', text: 'Error de Permisos: Supabase bloqueó la actualización (RLS). Ve a Supabase > Table editor > unidades > RLS y permite el UPDATE.' });
+          } else {
+             setUiMessage({ type: 'success', text: 'Unidad actualizada correctamente.' });
+             setTimeout(() => { setView('directorio_list'); setUiMessage(null); }, 1500);
+          }
+          await fetchUnidades();
+        } else {
+          if (error?.message?.includes('duplicate key') || error?.code === '23505') {
+            setUiMessage({ type: 'error', text: 'Este número ECO ya está registrado.' });
+          } else {
+            setUiMessage({ type: 'error', text: 'Error: ' + (error?.message || 'Error desconocido') });
+          }
+        }
+      } else {
+        const payload = {
+          numero: ecoVal,
+          tipo: formData.tipo,
+          marca: formData.marca || null,
+          modelo: formData.modelo || null,
+          anio: formData.año ? Number(formData.año) : null,
+          serie: formData.serie || null,
+          capacidad: formData.capacidad ? Number(formData.capacidad) : null,
+          activo: true
+        };
+        const { error } = await supabase.from('unidades').insert([payload]);
+        
+        setIsSaving(false);
+        if (!error) {
+          await fetchUnidades();
+          setUiMessage({ type: 'success', text: 'Unidad registrada correctamente.' });
+          setTimeout(() => { setView('directorio_list'); setUiMessage(null); }, 1500);
+        } else {
+          if (error?.message?.includes('duplicate key') || error?.code === '23505') {
+            setUiMessage({ type: 'error', text: 'Este número ECO ya está registrado.' });
+          } else {
+            setUiMessage({ type: 'error', text: error?.message || 'Error desconocido' });
+          }
+        }
+      }
+    } catch (err: any) {
+      setIsSaving(false);
+      setUiMessage({ type: 'error', text: 'Falla interna: ' + (err?.message || '') });
     }
-    setIsSaving(false);
-    setView('directorio_list');
   };
 
   const filteredUnidades = unidades.filter(u => 
@@ -326,13 +355,18 @@ export const Unidades = () => {
                 {isReadOnly && <span style={{ fontSize: '0.8rem', color: 'var(--primary)', fontWeight: 600 }}>Modo Solo Lectura</span>}
               </div>
             </div>
+
+            {uiMessage && (
+              <div style={{ padding: '15px', borderRadius: 'var(--radius-sm)', background: uiMessage.type === 'error' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)', border: `1px solid ${uiMessage.type === 'error' ? '#ef4444' : '#10b981'}`, color: uiMessage.type === 'error' ? '#ef4444' : '#10b981', fontWeight: 600, textAlign: 'center' }}>
+                {uiMessage.text}
+              </div>
+            )}
             
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.5rem', color: 'var(--text-muted)' }}>Número Económico</label>
                 <input 
                   type="text" 
-                  required
                   disabled={isReadOnly}
                   value={formData.ecoNum}
                   onChange={e => setFormData({...formData, ecoNum: e.target.value})}
@@ -357,7 +391,6 @@ export const Unidades = () => {
                 <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.5rem', color: 'var(--text-muted)' }}>Marca</label>
                 <input 
                   type="text" 
-                  required
                   disabled={isReadOnly}
                   value={formData.marca}
                   onChange={e => setFormData({...formData, marca: e.target.value})}
@@ -369,7 +402,6 @@ export const Unidades = () => {
                 <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.5rem', color: 'var(--text-muted)' }}>Modelo</label>
                 <input 
                   type="text" 
-                  required
                   disabled={isReadOnly}
                   value={formData.modelo}
                   onChange={e => setFormData({...formData, modelo: e.target.value})}
@@ -381,7 +413,6 @@ export const Unidades = () => {
                 <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.5rem', color: 'var(--text-muted)' }}>Año</label>
                 <input 
                   type="number" 
-                  required
                   disabled={isReadOnly}
                   value={formData.año}
                   onChange={e => setFormData({...formData, año: e.target.value})}
@@ -407,7 +438,6 @@ export const Unidades = () => {
                 <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.5rem', color: 'var(--text-muted)' }}>Capacidad (Pasajeros)</label>
                 <input 
                   type="number" 
-                  required
                   disabled={isReadOnly}
                   value={formData.capacidad}
                   onChange={e => setFormData({...formData, capacidad: e.target.value})}
@@ -427,8 +457,9 @@ export const Unidades = () => {
               {(!isReadOnly && userIsAdmin) && (
                 <button 
                   type="submit"
-                  style={{ background: 'var(--primary)', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: 'var(--radius-sm)', fontWeight: 600, cursor: 'pointer', display: 'flex', gap: '8px', alignItems: 'center', boxShadow: '0 0 10px var(--primary-glow)' }}>
-                  <Save size={18} /> {editingId ? 'Actualizar Unidad' : 'Guardar Unidad'}
+                  disabled={isSaving}
+                  style={{ background: isSaving ? 'var(--surface-color)' : 'var(--primary)', color: isSaving ? 'var(--text-muted)' : '#fff', border: 'none', padding: '10px 20px', borderRadius: 'var(--radius-sm)', fontWeight: 600, cursor: isSaving ? 'not-allowed' : 'pointer', display: 'flex', gap: '8px', alignItems: 'center', boxShadow: isSaving ? 'none' : '0 0 10px var(--primary-glow)' }}>
+                  <Save size={18} /> {isSaving ? 'Procesando...' : (editingId ? 'Actualizar Unidad' : 'Guardar Unidad')}
                 </button>
               )}
             </div>
