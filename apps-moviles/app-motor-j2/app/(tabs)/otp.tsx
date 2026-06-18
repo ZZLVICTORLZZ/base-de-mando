@@ -1,182 +1,243 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, FlatList } from 'react-native';
-
-// Tipos base
-type UnitRow = {
-  id: string;
-  no: number;
-  frec: string | number; // 'I.F.' o minutos
-  horario: string; // HH:mm
-  eco: string;
-  tipo: 'Camioneta' | 'Autobús';
-  ruta: string;
-};
-
-// Datos Mock
-const MOCK_RD_INITIAL: UnitRow[] = [
-  { id: 'u1', no: 1, frec: 'I.F.', horario: '05:30', eco: '101', tipo: 'Camioneta', ruta: 'Nuevos Paseos' },
-  { id: 'u2', no: 2, frec: 15, horario: '05:45', eco: '202', tipo: 'Autobús', ruta: 'Indios Verdes' },
-  { id: 'u3', no: 3, frec: 15, horario: '06:00', eco: '303', tipo: 'Camioneta', ruta: 'Nuevos Paseos' },
-  { id: 'u4', no: 4, frec: 20, horario: '06:20', eco: '404', tipo: 'Camioneta', ruta: 'Nuevos Paseos' },
-];
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, ActivityIndicator, Alert } from 'react-native';
+import { Feather } from '@expo/vector-icons';
+import { router, useFocusEffect } from 'expo-router';
+import { supabase } from '../../src/services/supabaseClient';
+import { useCallback } from 'react';
+import { isAdmin } from '../../lib/permissions';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function OTPScreen() {
-  const [baseActiva, setBaseActiva] = useState<'Nuevos Paseos' | 'Indios Verdes'>('Nuevos Paseos');
-  const [data, setData] = useState<UnitRow[]>([]);
+  const [dateDesde, setDateDesde] = useState('01/06/2026');
+  const [dateHasta, setDateHasta] = useState('15/06/2026');
+  const [roles, setRoles] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [userIsAdmin, setUserIsAdmin] = useState(false);
+  const [currentUser, setCurrentUser] = useState('Tablerista');
 
-  useEffect(() => {
-    cargarTabla();
-  }, [baseActiva]);
-
-  const cargarTabla = () => {
-    let filtered = [...MOCK_RD_INITIAL];
-    filtered = filtered.filter(u => u.tipo !== 'Autobús');
-    if (filtered.length > 0) {
-      filtered[0].frec = 'I.F.';
-      if (baseActiva === 'Indios Verdes') {
-        filtered[0].horario = '05:30';
-      }
-    }
-    setData(recalcularCascada(filtered));
-  };
-
-  const recalcularCascada = (list: UnitRow[]): UnitRow[] => {
-    if (list.length === 0) return list;
-    const newList = [...list];
-    let currentTotalMinutes = timeToMinutes(newList[0].horario);
-    
-    for (let i = 0; i < newList.length; i++) {
-      newList[i].no = i + 1;
-      if (i === 0) {
-        newList[i].frec = 'I.F.';
-      } else {
-        let freqVal = typeof newList[i].frec === 'number' ? (newList[i].frec as number) : 15;
-        newList[i].frec = freqVal;
-        currentTotalMinutes += freqVal;
-        newList[i].horario = minutesToTime(currentTotalMinutes);
-      }
-    }
-    return newList;
-  };
-
-  const timeToMinutes = (timeStr: string) => {
-    const [h, m] = timeStr.split(':').map(Number);
-    return (h * 60) + m;
-  };
-
-  const minutesToTime = (totalMins: number) => {
-    const h = Math.floor(totalMins / 60) % 24;
-    const m = totalMins % 60;
-    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
-  };
-
-  const moveRow = (index: number, direction: 'up' | 'down') => {
-    if (direction === 'up' && index === 0) return;
-    if (direction === 'down' && index === data.length - 1) return;
-    
-    const newData = [...data];
-    const swapIndex = direction === 'up' ? index - 1 : index + 1;
-    
-    const temp = newData[index];
-    newData[index] = newData[swapIndex];
-    newData[swapIndex] = temp;
-    
-    setData(recalcularCascada(newData));
-  };
-
-  const updateFrecuencia = (index: number, newFrec: string) => {
-    const val = parseInt(newFrec, 10);
-    if (isNaN(val)) return;
-    const copy = [...data];
-    copy[index].frec = val;
-    setData(recalcularCascada(copy));
-  };
-
-  const renderItem = ({ item, index }: { item: UnitRow, index: number }) => (
-    <View style={styles.row}>
-      <View style={styles.arrowsBox}>
-        <TouchableOpacity onPress={() => moveRow(index, 'up')} disabled={index === 0}>
-          <Text style={[styles.arrowBtn, index === 0 && {opacity: 0.2}]}>▲</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => moveRow(index, 'down')} disabled={index === data.length - 1}>
-          <Text style={[styles.arrowBtn, index === data.length - 1 && {opacity: 0.2}]}>▼</Text>
-        </TouchableOpacity>
-      </View>
-      <Text style={[styles.cell, { width: 30 }]}>{item.no}</Text>
-      <View style={[styles.cell, { width: 60 }]}>
-         {index === 0 ? (
-           <Text style={styles.textWhite}>{item.frec}</Text>
-         ) : (
-           <TextInput 
-             style={styles.frecInput}
-             keyboardType="numeric"
-             defaultValue={item.frec.toString()}
-             onEndEditing={(e) => updateFrecuencia(index, e.nativeEvent.text)}
-           />
-         )}
-      </View>
-      <Text style={[styles.cell, { width: 70, fontWeight: 'bold', color: '#38bdf8' }]}>{item.horario}</Text>
-      <Text style={[styles.cell, { width: 50 }]}>{item.eco}</Text>
-      <Text style={[styles.cell, { flex: 1 }]} numberOfLines={1}>{item.ruta}</Text>
-    </View>
+  useFocusEffect(
+    useCallback(() => {
+      const init = async () => {
+        setUserIsAdmin(await isAdmin());
+        const name = await AsyncStorage.getItem('apolo11_user_name') || 'Tablerista';
+        setCurrentUser(name);
+        fetchRoles();
+      };
+      init();
+    }, [])
   );
+
+  const fetchRoles = async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('roles_del_dia')
+      .select('*, plantillas_predeterminadas(name)')
+      .ilike('creado_por', '[OTP]%')
+      .order('created_at', { ascending: false });
+    
+    if (!error && data) {
+      setRoles(data.map(d => ({
+        id: d.id,
+        fecha: d.fecha,
+        tipo: d.plantillas_predeterminadas?.name || 'Desconocido',
+        estatus: 'activa', // Hardcodeado por ahora
+        creado_por: d.creado_por
+      })));
+    }
+    setLoading(false);
+  };
+
+  const isToday = (fechaStr: string) => {
+    const today = new Date();
+    const dStr = String(today.getDate()).padStart(2, '0');
+    const mStr = String(today.getMonth() + 1).padStart(2, '0');
+    const yStr = String(today.getFullYear());
+    return fechaStr === `${dStr}/${mStr}/${yStr}`;
+  };
+
+  const canEdit = (item: any) => {
+    return true; // Todos pueden editar por ahora
+  };
+
+  const handleDelete = (id: string) => {
+    if (!userIsAdmin) {
+      Alert.alert('Acceso Denegado', 'Solo los administradores pueden borrar proyecciones.');
+      return;
+    }
+    Alert.alert('Confirmar Eliminación', '¿Estás seguro de eliminar permanentemente esta Proyección OTP?', [
+      { text: 'Cancelar', style: 'cancel' },
+      { text: 'Eliminar', style: 'destructive', onPress: async () => {
+          const { error } = await supabase.from('roles_del_dia').delete().eq('id', id);
+          if (error) Alert.alert('Error', error.message);
+          else setRoles(roles.filter(r => r.id !== id));
+      }}
+    ]);
+  };
+
+  const renderItem = ({ item }: { item: any }) => {
+    const statusColor = item.estatus === 'activa' ? '#8b5cf6' : item.estatus === 'finalizado' ? '#3b82f6' : '#64748b';
+
+    return (
+      <View style={styles.card}>
+        <View style={styles.cardContent}>
+          <View style={styles.cardHeader}>
+            <View style={[styles.statusIndicator, { backgroundColor: statusColor }]} />
+            <Text style={styles.cardTitle}>OTP {item.tipo}</Text>
+          </View>
+          <Text style={{ color: '#64748b', fontSize: 12, marginBottom: 4, paddingLeft: 16 }}>
+            <Feather name="user" size={12} color="#64748b" style={{ marginRight: 4 }} /> {item.creado_por || 'Sistema'}
+          </Text>
+          <Text style={styles.cardDate}>
+            <Feather name="calendar" size={12} color="#94a3b8" style={{ marginRight: 4 }} /> 
+            {item.fecha && item.fecha.includes('-') ? item.fecha.split('-').reverse().join('/') : item.fecha}
+          </Text>
+        </View>
+        
+        <View style={styles.actionsRow}>
+          <TouchableOpacity 
+            style={styles.iconBtn}
+            onPress={() => router.push({ pathname: '/editor-otp', params: { rol_id: item.id, mode: 'view' } })}
+          >
+            <Feather name="eye" size={18} color="#94a3b8" />
+          </TouchableOpacity>
+          {canEdit(item) && (
+            <TouchableOpacity 
+              style={styles.iconBtn}
+              onPress={() => router.push({ pathname: '/editor-otp', params: { rol_id: item.id, mode: 'edit' } })}
+            >
+              <Feather name="edit-2" size={18} color="#10b981" />
+            </TouchableOpacity>
+          )}
+          {userIsAdmin && (
+            <TouchableOpacity 
+              style={styles.iconBtn}
+              onPress={() => handleDelete(item.id)}
+            >
+              <Feather name="trash-2" size={18} color="#ef4444" />
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+    );
+  };
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Proyección OTP (Vuelta 2)</Text>
-        <View style={styles.filters}>
-          <TouchableOpacity 
-            style={[styles.btnBase, baseActiva === 'Nuevos Paseos' && styles.btnBaseActive]}
-            onPress={() => setBaseActiva('Nuevos Paseos')}
-          >
-            <Text style={styles.btnBaseText}>Nuevos</Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={[styles.btnBase, baseActiva === 'Indios Verdes' && styles.btnBaseActive]}
-            onPress={() => setBaseActiva('Indios Verdes')}
-          >
-            <Text style={styles.btnBaseText}>Indios</Text>
-          </TouchableOpacity>
+        <Text style={styles.title}>Proyecciones OTP</Text>
+        <TouchableOpacity 
+          style={styles.btnNuevo} 
+          onPress={() => router.push('/nueva-proyeccion-otp')}
+        >
+          <Feather name="plus" size={18} color="#ffffff" style={{ marginRight: 6 }} />
+          <Text style={styles.btnTextBold}>Nueva Proyección</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Barra de Filtros Minimalista */}
+      <View style={styles.filtersContainer}>
+        <Feather name="filter" size={16} color="#64748b" style={styles.filterIcon} />
+        <View style={styles.dateInputWrapper}>
+          <Text style={styles.dateLabel}>Desde</Text>
+          <TextInput 
+            style={styles.dateInput}
+            value={dateDesde}
+            onChangeText={setDateDesde}
+            placeholder="DD/MM/YYYY"
+            placeholderTextColor="#475569"
+          />
+        </View>
+        <View style={styles.dateSeparator} />
+        <View style={styles.dateInputWrapper}>
+          <Text style={styles.dateLabel}>Hasta</Text>
+          <TextInput 
+            style={styles.dateInput}
+            value={dateHasta}
+            onChangeText={setDateHasta}
+            placeholder="DD/MM/YYYY"
+            placeholderTextColor="#475569"
+          />
         </View>
       </View>
 
-      <View style={styles.tableHeader}>
-        <Text style={[styles.th, { width: 40 }]}>ORD</Text>
-        <Text style={[styles.th, { width: 30 }]}>NO</Text>
-        <Text style={[styles.th, { width: 60 }]}>FREC</Text>
-        <Text style={[styles.th, { width: 70 }]}>HORA</Text>
-        <Text style={[styles.th, { width: 50 }]}>ECO</Text>
-        <Text style={[styles.th, { flex: 1 }]}>RUTA</Text>
-      </View>
-
-      <FlatList
-        data={data}
-        keyExtractor={(item) => item.id}
-        renderItem={renderItem}
-        contentContainerStyle={{ paddingBottom: 100 }}
-      />
+      {loading ? (
+        <ActivityIndicator size="large" color="#8b5cf6" style={{ marginTop: 40 }} />
+      ) : roles.length === 0 ? (
+        <Text style={{ color: '#64748b', textAlign: 'center', marginTop: 40 }}>No hay proyecciones creadadas.</Text>
+      ) : (
+        <FlatList
+          data={roles}
+          keyExtractor={item => item.id}
+          renderItem={renderItem}
+          contentContainerStyle={styles.listPadding}
+          showsVerticalScrollIndicator={false}
+        />
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0f172a' },
-  header: { padding: 15, borderBottomWidth: 1, borderBottomColor: '#334155' },
-  title: { fontSize: 20, fontWeight: 'bold', color: '#f8fafc', marginBottom: 10 },
-  filters: { flexDirection: 'row', gap: 10 },
-  btnBase: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, backgroundColor: '#1e293b', borderWidth: 1, borderColor: '#334155' },
-  btnBaseActive: { backgroundColor: '#3b82f6', borderColor: '#2563eb' },
-  btnBaseText: { color: '#f8fafc', fontWeight: 'bold' },
+  header: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    alignItems: 'center', 
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 15,
+  },
+  title: { fontSize: 24, fontWeight: '700', color: '#f8fafc', letterSpacing: -0.5 },
+  btnNuevo: { 
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#8b5cf6', 
+    paddingHorizontal: 16, 
+    paddingVertical: 10, 
+    borderRadius: 8 
+  },
+  btnTextBold: { color: '#ffffff', fontWeight: '600', fontSize: 14 },
   
-  tableHeader: { flexDirection: 'row', paddingHorizontal: 10, paddingVertical: 10, backgroundColor: '#0f172a', borderBottomWidth: 2, borderBottomColor: '#38bdf8' },
-  th: { color: '#94a3b8', fontSize: 11, fontWeight: 'bold' },
+  // Filtros
+  filtersContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1e293b'
+  },
+  filterIcon: { marginRight: 15 },
+  dateInputWrapper: { flex: 1 },
+  dateLabel: { fontSize: 11, color: '#64748b', marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 },
+  dateInput: { 
+    color: '#f8fafc', 
+    fontSize: 14, 
+    borderBottomWidth: 1, 
+    borderBottomColor: '#334155',
+    paddingVertical: 4
+  },
+  dateSeparator: { width: 1, height: 20, backgroundColor: '#334155', marginHorizontal: 15, marginTop: 15 },
+
+  // Lista
+  listPadding: { padding: 20 },
+  card: { 
+    backgroundColor: '#1e293b', 
+    borderRadius: 12, 
+    marginBottom: 12, 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    alignItems: 'center', 
+    padding: 16,
+    borderWidth: 1, 
+    borderColor: '#334155' 
+  },
+  cardContent: { flex: 1 },
+  cardHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
+  statusIndicator: { width: 8, height: 8, borderRadius: 4, marginRight: 8 },
+  cardTitle: { fontSize: 16, fontWeight: '600', color: '#f8fafc' },
+  cardDate: { fontSize: 13, color: '#94a3b8', paddingLeft: 16 },
   
-  row: { flexDirection: 'row', paddingHorizontal: 10, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#334155', alignItems: 'center' },
-  cell: { color: '#f8fafc', fontSize: 13 },
-  textWhite: { color: '#f8fafc' },
-  frecInput: { backgroundColor: '#0f172a', color: '#f8fafc', padding: 4, borderRadius: 4, borderWidth: 1, borderColor: '#38bdf8', textAlign: 'center' },
-  
-  arrowsBox: { width: 40, alignItems: 'center', justifyContent: 'center' },
-  arrowBtn: { color: '#38bdf8', fontSize: 18, fontWeight: 'bold', padding: 2 }
+  actionsRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingLeft: 15 },
+  iconBtn: { padding: 8, backgroundColor: '#0f172a', borderRadius: 6, borderWidth: 1, borderColor: '#334155' },
 });

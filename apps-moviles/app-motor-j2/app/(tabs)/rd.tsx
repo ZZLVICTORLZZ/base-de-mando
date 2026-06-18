@@ -32,6 +32,7 @@ export default function RDScreen() {
     const { data, error } = await supabase
       .from('roles_del_dia')
       .select('*, plantillas_predeterminadas(name)')
+      .not('creado_por', 'ilike', '[OTP]%')
       .order('created_at', { ascending: false });
     
     if (!error && data) {
@@ -88,7 +89,8 @@ export default function RDScreen() {
             <Feather name="user" size={12} color="#64748b" style={{ marginRight: 4 }} /> {item.creado_por || 'Sistema'}
           </Text>
           <Text style={styles.cardDate}>
-            <Feather name="calendar" size={12} color="#94a3b8" style={{ marginRight: 4 }} /> {item.fecha}
+            <Feather name="calendar" size={12} color="#94a3b8" style={{ marginRight: 4 }} /> 
+            {item.fecha && item.fecha.includes('-') ? item.fecha.split('-').reverse().join('/') : item.fecha}
           </Text>
         </View>
         

@@ -29,6 +29,7 @@ export const RolDespegue = () => {
     const { data, error } = await supabase
       .from('roles_del_dia')
       .select('*, plantillas_predeterminadas(name)')
+      .not('creado_por', 'ilike', '[OTP]%')
       .order('created_at', { ascending: false });
 
     if (!error && data) {

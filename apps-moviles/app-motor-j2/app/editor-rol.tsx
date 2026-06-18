@@ -199,12 +199,19 @@ export default function EditorRolScreen() {
       const { error } = await supabase.from('roles_del_dia').update({ rows: rows }).eq('id', rol_id);
       errorObj = error;
     } else {
-      // Estamos creando uno nuevo desde una plantilla
+      let fechaBd = fecha || new Date().toISOString().split('T')[0];
+      if (fecha && fecha.includes('/')) {
+        const parts = fecha.split('/');
+        if (parts.length === 3) {
+           fechaBd = `${parts[2]}-${parts[1]}-${parts[0]}`;
+        }
+      }
+
       const newRol = {
         plantilla_base_id: plantilla_id,
         rows: rows,
         creado_por: 'Tablerista (Motor J2)',
-        fecha: fecha || new Date().toISOString().split('T')[0]
+        fecha: fechaBd
       };
       const { error } = await supabase.from('roles_del_dia').insert([newRol]);
       errorObj = error;

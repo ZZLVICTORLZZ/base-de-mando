@@ -2,11 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, ListOrdered, LayoutGrid, ArrowLeft, ScanLine } from 'lucide-react';
 import { PlantillasPredeterminadas } from './PlantillasPredeterminadas';
 import { RolDespegue } from './RolDespegue';
+import { OtpProyecciones } from './OtpProyecciones';
 
 import { supabase } from '../../lib/supabaseClient';
 
 export const Servicio = () => {
-  const [view, setView] = useState<'dashboard' | 'tablas_dia' | 'rol_despegue' | 'roles_predeterminados'>('dashboard');
+  const [view, setView] = useState<'dashboard' | 'tablas_dia' | 'rol_despegue' | 'roles_predeterminados' | 'otp'>('dashboard');
   const [rolActivo, setRolActivo] = useState<any>(null);
   const [reporte, setReporte] = useState<any[]>([]);
 
@@ -89,6 +90,19 @@ export const Servicio = () => {
               <p style={{ color: '#10b981', fontSize: '0.9rem', fontWeight: 600 }}>VISTA DE SOLO LECTURA</p>
             </div>
           </div>
+          <div 
+            onClick={() => setView('otp')}
+            className="glass-card table-row-hover" 
+            style={{ padding: '2rem', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '1rem', alignItems: 'flex-start' }}
+          >
+            <div style={{ background: 'rgba(139, 92, 246, 0.2)', padding: '12px', borderRadius: 'var(--radius-md)', color: '#8b5cf6', border: '1px solid rgba(139, 92, 246, 0.3)' }}>
+              <ListOrdered size={28} />
+            </div>
+            <div>
+              <h3 style={{ fontSize: '1.25rem', color: 'var(--text-main)', marginBottom: '0.25rem' }}>OTP (Proyecciones)</h3>
+              <p style={{ color: '#8b5cf6', fontSize: '0.9rem', fontWeight: 600 }}>VISTA DE SOLO LECTURA</p>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -107,11 +121,13 @@ export const Servicio = () => {
           <h1 className="page-title">
             {view === 'tablas_dia' ? 'Monitor del Rol Activo' : 
              view === 'rol_despegue' ? 'Rol de Despegue Diario' : 
+             view === 'otp' ? 'Proyecciones OTP' :
              'Roles Predeterminados'}
           </h1>
           <p className="page-subtitle">
             {view === 'tablas_dia' ? 'Vista de solo lectura del rol operativo' : 
              view === 'rol_despegue' ? 'Asignación de parque vehicular al rol del día' : 
+             view === 'otp' ? 'Visualización de proyecciones OTP históricas' :
              'Configuración de plantillas maestras por día de la semana'}
           </p>
         </div>
@@ -169,13 +185,9 @@ export const Servicio = () => {
         </div>
       )}
 
-      {view === 'rol_despegue' && (
-        <RolDespegue />
-      )}
-
-      {view === 'roles_predeterminados' && (
-        <PlantillasPredeterminadas />
-      )}
+      {view === 'rol_despegue' && <RolDespegue />}
+      {view === 'roles_predeterminados' && <PlantillasPredeterminadas />}
+      {view === 'otp' && <OtpProyecciones />}
     </div>
   );
 };
