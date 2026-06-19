@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { 
   Rocket, Wrench, Users, Archive, Banknote, UsersRound, 
-  LayoutDashboard, Truck, LogOut, Home, Palette
+  LayoutDashboard, Truck, LogOut, Home, Palette, AlertCircle, Briefcase
 } from 'lucide-react';
 import { supabase } from './supabaseClient';
 
@@ -11,6 +11,7 @@ const navItems = [
   { path: '/estadisticas', label: 'Estadísticas', icon: LayoutDashboard },
   { path: '/unidades', label: 'Unidades', icon: Truck },
   { path: '/servicio', label: 'Servicio', icon: Rocket },
+  { path: '/recursos-humanos', label: 'R. Humanos', icon: Briefcase },
   { path: '/mantenimiento', label: 'Mantenimiento', icon: Wrench },
   { path: '/administracion', label: 'Administración', icon: Users },
   { path: '/taquilla', label: 'Taquilla (PDV)', icon: Rocket },

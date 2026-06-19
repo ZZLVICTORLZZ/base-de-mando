@@ -36,13 +36,18 @@ export default function OTPScreen() {
       .order('created_at', { ascending: false });
     
     if (!error && data) {
-      setRoles(data.map(d => ({
-        id: d.id,
-        fecha: d.fecha,
-        tipo: d.plantillas_predeterminadas?.name || 'Desconocido',
-        estatus: 'activa', // Hardcodeado por ahora
-        creado_por: d.creado_por
-      })));
+      setRoles(data.map(d => {
+        const baseName = d.creado_por?.includes('|') ? d.creado_por.split('|')[1].trim() : 'Base Desconocida';
+        const plantillaName = d.plantillas_predeterminadas?.name || 'Plantilla Desconocida';
+        return {
+          id: d.id,
+          fecha: d.fecha,
+          baseName: baseName,
+          plantillaName: plantillaName,
+          estatus: 'activa',
+          creado_por: d.creado_por?.split('|')[0].trim() || ''
+        };
+      }));
     }
     setLoading(false);
   };
@@ -82,8 +87,11 @@ export default function OTPScreen() {
         <View style={styles.cardContent}>
           <View style={styles.cardHeader}>
             <View style={[styles.statusIndicator, { backgroundColor: statusColor }]} />
-            <Text style={styles.cardTitle}>OTP {item.tipo}</Text>
+            <Text style={styles.cardTitle}>OTP {item.baseName}</Text>
           </View>
+          <Text style={{ color: '#94a3b8', fontSize: 13, marginBottom: 4, paddingLeft: 16, fontWeight: '500' }}>
+            <Feather name="file-text" size={12} color="#94a3b8" style={{ marginRight: 4 }} /> OTP {item.plantillaName}
+          </Text>
           <Text style={{ color: '#64748b', fontSize: 12, marginBottom: 4, paddingLeft: 16 }}>
             <Feather name="user" size={12} color="#64748b" style={{ marginRight: 4 }} /> {item.creado_por || 'Sistema'}
           </Text>

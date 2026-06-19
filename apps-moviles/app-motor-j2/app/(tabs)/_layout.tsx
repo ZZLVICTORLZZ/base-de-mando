@@ -51,6 +51,13 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => <Feather name="alert-triangle" size={20} color={color} />,
         }}
       />
+      <Tabs.Screen
+        name="operadores"
+        options={{
+          title: 'Operadores',
+          tabBarIcon: ({ color }) => <Feather name="users" size={20} color={color} />,
+        }}
+      />
     </Tabs>
   );
 }

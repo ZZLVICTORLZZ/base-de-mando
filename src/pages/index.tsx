@@ -72,3 +72,5 @@ export const Archivo = () => <PageTemplate title="Archivo" description="Registro
 export { Aforo } from '../modules/operacion/Aforo';
 export { Recaudacion } from '../modules/recaudacion/Recaudacion';
 export { Taquilla } from '../modules/taquilla/Taquilla';
+export { Incidencias } from './Incidencias';
+export { RecursosHumanos } from './RecursosHumanos';

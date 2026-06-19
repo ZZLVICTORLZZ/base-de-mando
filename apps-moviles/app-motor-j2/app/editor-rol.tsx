@@ -17,6 +17,7 @@ export default function EditorRolScreen() {
   const [unidades, setUnidades] = useState<any[]>([]);
   const [ecoModalVisible, setEcoModalVisible] = useState(false);
   const [selectedRowIdForEco, setSelectedRowIdForEco] = useState<string | null>(null);
+  const [searchEco, setSearchEco] = useState('');
   
   // Marcatextos
   const [activeColor, setActiveColor] = useState<string | null>(null);
@@ -130,6 +131,7 @@ export default function EditorRolScreen() {
   const handleOpenEcoSelector = (rowId: string) => {
     if (isReadOnly) return;
     setSelectedRowIdForEco(rowId);
+    setSearchEco('');
     setEcoModalVisible(true);
   };
 
@@ -456,12 +458,25 @@ export default function EditorRolScreen() {
             
             {(() => {
               const assignedEcos = rows.map(r => r.eco).filter(Boolean);
-              const availableUnidades = unidades.filter(u => !assignedEcos.includes(u.numero));
+              const availableUnidades = unidades
+                .filter(u => !assignedEcos.includes(u.numero))
+                .filter(u => u.numero.toLowerCase().includes(searchEco.toLowerCase()))
+                .sort((a, b) => parseInt(a.numero) - parseInt(b.numero));
+                
               const autobuses = availableUnidades.filter(u => u.tipo?.toLowerCase() === 'autobús' || u.tipo?.toLowerCase() === 'autobus');
               const otrasUnidades = availableUnidades.filter(u => u.tipo?.toLowerCase() !== 'autobús' && u.tipo?.toLowerCase() !== 'autobus');
 
               return (
-                <ScrollView style={{ marginTop: 10, marginBottom: 15 }}>
+                <>
+                  <TextInput
+                    style={{ backgroundColor: '#0f172a', color: '#f8fafc', padding: 12, borderRadius: 8, borderWidth: 1, borderColor: '#334155', marginBottom: 10, fontSize: 16 }}
+                    placeholder="Buscar económico..."
+                    placeholderTextColor="#64748b"
+                    keyboardType="number-pad"
+                    value={searchEco}
+                    onChangeText={setSearchEco}
+                  />
+                  <ScrollView style={{ marginTop: 10, marginBottom: 15 }}>
                   {unidades.length === 0 ? (
                     <Text style={{ color: '#94a3b8', textAlign: 'center', marginTop: 20 }}>No hay unidades activas en la Base de Mando.</Text>
                   ) : (
@@ -494,6 +509,7 @@ export default function EditorRolScreen() {
                     </>
                   )}
                 </ScrollView>
+                </>
               );
             })()}
             

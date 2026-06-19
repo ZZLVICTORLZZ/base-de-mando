@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { supabase } from './modules/core/supabaseClient';
 import { Layout } from './modules/core/Layout';
-import { Inicio, Estadisticas, Mantenimiento, Archivo, Recaudacion, Aforo, Taquilla } from './pages';
+import { Inicio, Estadisticas, Mantenimiento, Archivo, Recaudacion, Aforo, Taquilla, RecursosHumanos } from './pages';
 import { Login } from './modules/core/Login';
 import { Unidades } from './modules/flota/Unidades';
 import { Servicio } from './modules/operacion/Servicio';
@@ -68,6 +68,7 @@ function App() {
             <Route path="recaudacion" element={<Recaudacion />} />
             <Route path="aforo" element={<Aforo />} />
             <Route path="taquilla" element={<Taquilla />} />
+            <Route path="recursos-humanos" element={<RecursosHumanos />} />
           </Route>
         </Routes>
       </BrowserRouter>

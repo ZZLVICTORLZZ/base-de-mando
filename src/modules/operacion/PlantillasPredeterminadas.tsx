@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Highlighter, Save, Edit3, Loader2, Eye } from 'lucide-react';
+import { Plus, Trash2, Highlighter, Save, Edit3, Loader2, Eye, ArrowDown } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import { isAdmin } from '../../lib/permissions';
 
@@ -183,6 +183,43 @@ export const PlantillasPredeterminadas = () => {
     setTemplates(updatedTemplates);
   };
 
+  const handleCascadeFrequency = (rowIndex: number) => {
+    if (!activeTemplate) return;
+    const currentRows = [...activeTemplate.rows];
+    const frecToCascade = currentRows[rowIndex].frec;
+    
+    // Copy the frec to all rows below
+    for (let i = rowIndex + 1; i < currentRows.length; i++) {
+      currentRows[i].frec = frecToCascade;
+    }
+    
+    // Recalculate times
+    const recalculatedRows = calculateTimes(currentRows, rowIndex, 'frec');
+    
+    const updatedTemplates = templates.map(t => 
+      t.id === activeTemplate.id ? { ...t, rows: recalculatedRows } : t
+    );
+    setTemplates(updatedTemplates);
+  };
+
+  const handleRemoveRow = (rowId: string) => {
+    if (!activeTemplate) return;
+    const currentRows = activeTemplate.rows.filter(r => r.id !== rowId);
+    
+    // Re-index
+    currentRows.forEach((r, idx) => {
+      r.no = idx + 1;
+    });
+    
+    // Recalculate times from beginning (if there are rows)
+    const recalculatedRows = currentRows.length > 0 ? calculateTimes(currentRows, 0, 'frec') : [];
+    
+    const updatedTemplates = templates.map(t => 
+      t.id === activeTemplate.id ? { ...t, rows: recalculatedRows } : t
+    );
+    setTemplates(updatedTemplates);
+  };
+
   const handleAddRow = () => {
     if (!activeTemplate) return;
     const lastRow = activeTemplate.rows[activeTemplate.rows.length - 1];
@@ -317,6 +354,7 @@ export const PlantillasPredeterminadas = () => {
                     <th style={{ padding: '12px' }}>FRECUENCIA</th>
                     <th style={{ padding: '12px' }}>HORARIO</th>
                     <th style={{ padding: '12px' }}>ECO</th>
+                    {!isReadOnly && <th style={{ padding: '12px' }}>ACCIONES</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -353,6 +391,26 @@ export const PlantillasPredeterminadas = () => {
                         />
                       </td>
                       <td style={{ padding: '12px', color: 'var(--text-muted)' }}>---</td>
+                      {!isReadOnly && (
+                        <td style={{ padding: '12px' }}>
+                          <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); handleCascadeFrequency(index); }}
+                              title="Mantener frecuencia hacia abajo"
+                              style={{ background: 'transparent', border: 'none', color: 'var(--primary)', cursor: 'pointer', padding: '4px' }}
+                            >
+                              <ArrowDown size={18} />
+                            </button>
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); handleRemoveRow(row.id); }}
+                              title="Eliminar Turno"
+                              style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '4px' }}
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
