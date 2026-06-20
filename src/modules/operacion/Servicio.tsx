@@ -126,13 +126,27 @@ export const Servicio = () => {
 
   return (
     <div className="animate-fade-in" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <div className="topbar">
+      <div className="topbar" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
         <button 
-          className="btn btn-secondary" 
           onClick={() => setView('dashboard')}
-          style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+          title="Volver a Módulos"
+          style={{ 
+            background: 'var(--surface-color)', 
+            border: '1px solid var(--glass-border)', 
+            padding: '10px 15px', 
+            borderRadius: '25px', 
+            color: 'var(--text-main)', 
+            cursor: 'pointer', 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: '8px', 
+            fontWeight: 'bold',
+            transition: 'all 0.2s ease'
+          }}
+          onMouseOver={(e) => e.currentTarget.style.borderColor = 'var(--primary)'}
+          onMouseOut={(e) => e.currentTarget.style.borderColor = 'var(--glass-border)'}
         >
-          <ArrowLeft size={16} /> Volver a Opciones
+          <ArrowLeft size={20} /> Volver a Opciones
         </button>
       </div>
 
