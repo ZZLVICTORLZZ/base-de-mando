@@ -29,3 +29,22 @@
 
 ---
 *No olvides ejecutar `git push` al final de la jornada en la oficina para tener todo este código listo en casa.*
+
+---
+
+## 🏠 Jornada en Casa (22 de Junio de 2026)
+
+### 🛠️ Correcciones y Bugs Solucionados
+1. **Recuperación de Archivos Huérfanos (`operadores.tsx` y `permissions.ts`):**
+   - *Problema:* El servidor de Expo en casa crasheaba o marcaba advertencias por rutas inexistentes. En la oficina se agregó el menú "Operadores" y la validación de `isAdmin`, pero se olvidó hacer `git add` a esos archivos físicos antes del commit.
+   - *Solución:* Se recrearon los archivos `app/(tabs)/operadores.tsx` (con el estándar Menú 1 Premium) y `lib/permissions.ts` desde cero.
+2. **Crash al asignar número ECO en Editor de Rol:**
+   - *Problema:* Expo arrojaba `TypeError: Cannot read properties of undefined (reading 'toLowerCase')` al abrir el modal de selección de ECO.
+   - *Causa:* Algunas unidades venían de Supabase con el campo `numero` nulo o como valores enteros (number), lo que rompía el filtro de búsqueda.
+   - *Solución:* Se agregó una doble barrera de seguridad: `u && u.numero != null` y se forzó la conversión estricta a texto usando `String(u.numero).toLowerCase()`. Todo funciona perfecto ahora.
+
+### 📌 Estado Actual y Siguientes Pasos
+> Estamos estabilizados. Listos para iniciar con:
+> 1. Lógica real de "Aforo" y "Taquilla".
+> 2. Implementación de Drag & Drop (Lista Blanca/Negra).
+> 3. Dashboard Motivacional de inicio de sesión.
