@@ -33,3 +33,8 @@ Estas son las reglas inquebrantables del proyecto que TODO desarrollador y agent
   - **NUNCA** utilices un `ScrollView` con `flex: 1` envolviendo al `ViewShot`, de lo contrario el sistema cortará la imagen al límite de la pantalla física.
   - **SIEMPRE** envuelve las listas de exportación usando un View absolutamente posicionado fuera de la pantalla (e.g., `top: -10000`) para que la captura lea el 100% de la altura natural de los datos y no corte ninguna fila.
   - Las exportaciones deben llevar el Logotipo de la empresa (o el cuadrado "WITCH LOGO" temporal) y datos formales.
+
+## 6. Ley de Autorización Estricta (Paso a Paso)
+- **NO ME ADELANTO A NADA.**
+- El desarrollo se hace paso a paso. Termino una tarea o nivel, y **me detengo por completo** a esperar la autorización explícita del usuario (Capitán) antes de saltar a la siguiente fase, módulo o archivo.
+- Presento los resultados y solicito confirmación antes de asumir que el trabajo está listo.

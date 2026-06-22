@@ -458,10 +458,10 @@ export default function EditorRolScreen() {
             
             {(() => {
               const assignedEcos = rows.map(r => r.eco).filter(Boolean);
-              const availableUnidades = unidades
-                .filter(u => !assignedEcos.includes(u.numero))
-                .filter(u => u.numero.toLowerCase().includes(searchEco.toLowerCase()))
-                .sort((a, b) => parseInt(a.numero) - parseInt(b.numero));
+                const availableUnidades = unidades
+                  .filter(u => u && u.numero && !assignedEcos.includes(u.numero))
+                  .filter(u => u.numero.toLowerCase().includes((searchEco || '').toLowerCase()))
+                  .sort((a, b) => parseInt(a.numero) - parseInt(b.numero));
                 
               const autobuses = availableUnidades.filter(u => u.tipo?.toLowerCase() === 'autobús' || u.tipo?.toLowerCase() === 'autobus');
               const otrasUnidades = availableUnidades.filter(u => u.tipo?.toLowerCase() !== 'autobús' && u.tipo?.toLowerCase() !== 'autobus');
