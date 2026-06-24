@@ -74,7 +74,7 @@ export default function CTRScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0f172a' },
+  container: { flex: 1, backgroundColor: '#F5F5DC' },
   header: { 
     flexDirection: 'row', 
     justifyContent: 'space-between', 
@@ -83,11 +83,11 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     paddingBottom: 15,
   },
-  title: { fontSize: 24, fontWeight: '700', color: '#f8fafc', letterSpacing: -0.5 },
+  title: { fontSize: 24, fontWeight: '700', color: '#000000', letterSpacing: -0.5 },
   btnNuevo: { 
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#10b981', 
+    backgroundColor: '#006847', 
     paddingHorizontal: 16, 
     paddingVertical: 10, 
     borderRadius: 8 
@@ -97,20 +97,20 @@ const styles = StyleSheet.create({
   filtersContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1e293b',
+    backgroundColor: '#F5F5DC',
     marginHorizontal: 20,
     paddingHorizontal: 15,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#D9D2C2',
     marginBottom: 10
   },
   filterIcon: { marginRight: 10 },
-  searchInput: { flex: 1, color: '#f8fafc', fontSize: 14, paddingVertical: 12 },
+  searchInput: { flex: 1, color: '#000000', fontSize: 14, paddingVertical: 12 },
 
   listPadding: { padding: 20 },
   card: { 
-    backgroundColor: '#1e293b', 
+    backgroundColor: '#F5F5DC', 
     borderRadius: 12, 
     marginBottom: 12, 
     flexDirection: 'row', 
@@ -118,14 +118,14 @@ const styles = StyleSheet.create({
     alignItems: 'center', 
     padding: 16,
     borderWidth: 1, 
-    borderColor: '#334155' 
+    borderColor: '#D9D2C2' 
   },
   cardContent: { flex: 1 },
   cardHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
   statusIndicator: { width: 8, height: 8, borderRadius: 4, marginRight: 8 },
-  cardTitle: { fontSize: 16, fontWeight: '600', color: '#f8fafc' },
-  cardSubtitle: { fontSize: 13, color: '#94a3b8', paddingLeft: 16 },
+  cardTitle: { fontSize: 16, fontWeight: '600', color: '#000000' },
+  cardSubtitle: { fontSize: 13, color: '#4A4A4A', paddingLeft: 16 },
   
   actionsRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingLeft: 15 },
-  iconBtn: { padding: 8, backgroundColor: '#0f172a', borderRadius: 6, borderWidth: 1, borderColor: '#334155' },
+  iconBtn: { padding: 8, backgroundColor: '#F5F5DC', borderRadius: 6, borderWidth: 1, borderColor: '#D9D2C2' },
 });

@@ -167,7 +167,7 @@ export default function NuevaIncidenciaScreen() {
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>Tipo de Incidencia</Text>
                 <TouchableOpacity onPress={() => setTipoModalVisible(false)}>
-                  <Feather name="x" size={24} color="#94a3b8" />
+                  <Feather name="x" size={24} color="#4A4A4A" />
                 </TouchableOpacity>
               </View>
               
@@ -192,24 +192,24 @@ export default function NuevaIncidenciaScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0f172a' },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: '#1e293b' },
+  container: { flex: 1, backgroundColor: '#F5F5DC' },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: '#D9D2C2' },
   backBtn: { padding: 4 },
-  title: { fontSize: 18, fontWeight: '600', color: '#f8fafc' },
+  title: { fontSize: 18, fontWeight: '600', color: '#000000' },
   content: { padding: 20 },
-  label: { color: '#94a3b8', fontSize: 14, fontWeight: '500', marginBottom: 8, marginTop: 15 },
-  selectBtn: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#1e293b', borderWidth: 1, borderColor: '#334155', borderRadius: 10, padding: 16 },
-  selectBtnText: { color: '#f8fafc', fontSize: 16 },
-  textArea: { backgroundColor: '#1e293b', borderWidth: 1, borderColor: '#334155', borderRadius: 10, padding: 16, color: '#f8fafc', fontSize: 16, textAlignVertical: 'top', minHeight: 120 },
-  footer: { padding: 20, borderTopWidth: 1, borderTopColor: '#1e293b', backgroundColor: '#0f172a' },
-  btnGuardar: { backgroundColor: '#ef4444', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 16, borderRadius: 12, gap: 8 },
+  label: { color: '#4A4A4A', fontSize: 14, fontWeight: '500', marginBottom: 8, marginTop: 15 },
+  selectBtn: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#D9D2C2', borderRadius: 10, padding: 16 },
+  selectBtnText: { color: '#000000', fontSize: 16 },
+  textArea: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#D9D2C2', borderRadius: 10, padding: 16, color: '#000000', fontSize: 16, textAlignVertical: 'top', minHeight: 120 },
+  footer: { padding: 20, borderTopWidth: 1, borderTopColor: '#D9D2C2', backgroundColor: '#F5F5DC' },
+  btnGuardar: { backgroundColor: '#006847', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 16, borderRadius: 12, gap: 8 },
   btnGuardarText: { color: '#ffffff', fontSize: 16, fontWeight: 'bold' },
   
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modalContent: { backgroundColor: '#1e293b', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, height: '70%' },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15, borderBottomWidth: 1, borderBottomColor: '#334155', paddingBottom: 15 },
-  modalTitle: { color: '#f8fafc', fontSize: 18, fontWeight: 'bold' },
-  searchInput: { backgroundColor: '#0f172a', color: '#f8fafc', padding: 12, borderRadius: 8, borderWidth: 1, borderColor: '#334155', fontSize: 16 },
-  modalItem: { paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: '#334155' },
-  modalItemText: { color: '#f8fafc', fontSize: 16 },
+  modalContent: { backgroundColor: '#F5F5DC', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, height: '70%' },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15, borderBottomWidth: 1, borderBottomColor: '#D9D2C2', paddingBottom: 15 },
+  modalTitle: { color: '#000000', fontSize: 18, fontWeight: 'bold' },
+  searchInput: { backgroundColor: '#FFFFFF', color: '#000000', padding: 12, borderRadius: 8, borderWidth: 1, borderColor: '#D9D2C2', fontSize: 16 },
+  modalItem: { paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: '#D9D2C2' },
+  modalItemText: { color: '#000000', fontSize: 16 },
 });

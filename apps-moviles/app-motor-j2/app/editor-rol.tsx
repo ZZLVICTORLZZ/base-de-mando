@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, KeyboardAvoidingView, Platform, Modal, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, KeyboardAvoidingView, Platform, Modal, Alert, LayoutAnimation, UIManager, Pressable } from 'react-native';
+
 import { Feather } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -9,6 +10,11 @@ import { supabase } from '../src/services/supabaseClient';
 
 export default function EditorRolScreen() {
   const { plantilla_id, rol_id, mode, fecha } = useLocalSearchParams();
+  
+  const pId = Array.isArray(plantilla_id) ? plantilla_id[0] : plantilla_id;
+  const rId = Array.isArray(rol_id) ? rol_id[0] : rol_id;
+  const fechaStr = Array.isArray(fecha) ? fecha[0] : fecha;
+
   const isReadOnly = mode === 'view';
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -18,10 +24,16 @@ export default function EditorRolScreen() {
   const [ecoModalVisible, setEcoModalVisible] = useState(false);
   const [selectedRowIdForEco, setSelectedRowIdForEco] = useState<string | null>(null);
   const [searchEco, setSearchEco] = useState('');
-  
+  const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
+
+  const toggleExpand = (id: string | null) => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setExpandedRowId(expandedRowId === id ? null : id);
+  };
+
   // Marcatextos
   const [activeColor, setActiveColor] = useState<string | null>(null);
-  const COLORS = ['#eab308', '#10b981', '#3b82f6', '#ef4444', '#a855f7'];
+  const COLORS = ['#e3dac9', '#D2042D', '#00FFFF', '#10b981', '#eab308'];
 
   // Exportación
   const [isExporting, setIsExporting] = useState(false);
@@ -29,12 +41,12 @@ export default function EditorRolScreen() {
 
   useEffect(() => {
     fetchUnidades();
-    if (rol_id) {
+    if (rId) {
       fetchRol();
-    } else if (plantilla_id) {
+    } else if (pId) {
       fetchPlantilla();
     }
-  }, [plantilla_id, rol_id]);
+  }, [pId, rId]);
 
   const fetchUnidades = async () => {
     // La columna del número económico se llama 'numero' y el estado 'activo'
@@ -43,7 +55,7 @@ export default function EditorRolScreen() {
   };
 
   const fetchRol = async () => {
-    const { data, error } = await supabase.from('roles_del_dia').select('*, plantillas_predeterminadas(name)').eq('id', rol_id).single();
+    const { data, error } = await supabase.from('roles_del_dia').select('*, plantillas_predeterminadas(name)').eq('id', rId).single();
     if (error || !data) {
       alert('Este rol ya no existe o fue eliminado.');
       router.back();
@@ -55,7 +67,7 @@ export default function EditorRolScreen() {
   };
 
   const fetchPlantilla = async () => {
-    const { data, error } = await supabase.from('plantillas_predeterminadas').select('*').eq('id', plantilla_id).single();
+    const { data, error } = await supabase.from('plantillas_predeterminadas').select('*').eq('id', pId).single();
     if (error || !data) {
       alert('La plantilla seleccionada ya no existe o fue eliminada por un administrador.');
       router.back();
@@ -128,6 +140,25 @@ export default function EditorRolScreen() {
     setRows(calculateTimes(updatedRows, rowIndex, field));
   };
 
+  const handleAdjustTime = (id: string, minutesToAdd: number) => {
+    if (isReadOnly) return;
+    const rowIndex = rows.findIndex(r => r.id === id);
+    if (rowIndex === -1) return;
+    const currentRow = rows[rowIndex];
+    if (!currentRow.horario || !currentRow.horario.includes(':')) return;
+    
+    const [h, m] = currentRow.horario.split(':').map(Number);
+    if (isNaN(h) || isNaN(m)) return;
+    
+    const date = new Date(2000, 0, 1, h, m);
+    date.setMinutes(date.getMinutes() + minutesToAdd);
+    
+    const newH = String(date.getHours()).padStart(2, '0');
+    const newM = String(date.getMinutes()).padStart(2, '0');
+    
+    handleUpdateField(id, 'horario', `${newH}:${newM}`);
+  };
+
   const handleOpenEcoSelector = (rowId: string) => {
     if (isReadOnly) return;
     setSelectedRowIdForEco(rowId);
@@ -162,15 +193,20 @@ export default function EditorRolScreen() {
 
   const handleApplyColor = (id: string) => {
     if (isReadOnly || !activeColor) return;
+    if (activeColor === 'eraser') {
+      setRows(rows.map(r => r.id === id ? { ...r, highlightColor: null } : r));
+      return;
+    }
     setRows(rows.map(r => r.id === id ? { ...r, highlightColor: r.highlightColor === activeColor ? null : activeColor } : r));
   };
 
   const handleInsertRow = (index: number) => {
     if (isReadOnly) return;
+    const prevFrec = rows[index] ? rows[index].frec : '15';
     const newRow = {
       id: Date.now().toString(),
       no: 0,
-      frec: '15',
+      frec: prevFrec,
       horario: '--:--', 
       eco: ''
     };
@@ -196,21 +232,21 @@ export default function EditorRolScreen() {
     setSaving(true);
     let errorObj = null;
 
-    if (rol_id) {
+    if (rId) {
       // Estamos editando un rol existente
-      const { error } = await supabase.from('roles_del_dia').update({ rows: rows }).eq('id', rol_id);
+      const { error } = await supabase.from('roles_del_dia').update({ rows: rows }).eq('id', rId);
       errorObj = error;
     } else {
-      let fechaBd = fecha || new Date().toISOString().split('T')[0];
-      if (fecha && fecha.includes('/')) {
-        const parts = fecha.split('/');
+      let fechaBd = fechaStr || new Date().toISOString().split('T')[0];
+      if (fechaStr && fechaStr.includes('/')) {
+        const parts = fechaStr.split('/');
         if (parts.length === 3) {
            fechaBd = `${parts[2]}-${parts[1]}-${parts[0]}`;
         }
       }
 
       const newRol = {
-        plantilla_base_id: plantilla_id,
+        plantilla_base_id: pId,
         rows: rows,
         creado_por: 'Tablerista (Motor J2)',
         fecha: fechaBd
@@ -274,12 +310,17 @@ export default function EditorRolScreen() {
 
       {!isReadOnly && !isExporting && (
         <View style={styles.marcatextosContainer}>
-          <Text style={{ color: '#94a3b8', fontSize: 12, marginRight: 10 }}>Marcatextos:</Text>
           <TouchableOpacity 
-            style={[styles.colorCircle, { backgroundColor: 'transparent', borderWidth: 1, borderColor: '#64748b' }, activeColor === null && styles.colorCircleActive]} 
+            style={[styles.colorCircle, { backgroundColor: '#F5F5DC', borderWidth: 1, borderColor: '#64748b' }, activeColor === 'eraser' && styles.colorCircleActive]} 
+            onPress={() => setActiveColor('eraser')}
+          >
+            <Feather name="x" size={16} color="#ef4444" />
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.colorCircle, { backgroundColor: 'transparent', borderWidth: 1, borderColor: '#64748b', marginLeft: 5, marginRight: 10 }, activeColor === null && styles.colorCircleActive]} 
             onPress={() => setActiveColor(null)}
           >
-            <Feather name="slash" size={14} color="#64748b" />
+            <Feather name="slash" size={16} color="#64748b" />
           </TouchableOpacity>
           {COLORS.map(c => (
             <TouchableOpacity 
@@ -295,26 +336,30 @@ export default function EditorRolScreen() {
         <View style={styles.tableHeader}>
           <Text style={[styles.th, { flex: 0.5 }]}>NO.</Text>
           <Text style={[styles.th, { flex: 1 }]}>FREC.</Text>
-          <Text style={[styles.th, { flex: 1.2 }]}>HORARIO</Text>
-          <Text style={[styles.th, { flex: 1.5, color: '#3b82f6' }]}>ECO</Text>
-          {!isReadOnly && <Text style={[styles.th, { flex: 0.5 }]}></Text>}
+          <Text style={[styles.th, { flex: 1.6 }]}>HORARIO</Text>
+          <Text style={[styles.th, { flex: 1.5, color: '#000000' }]}>ECO</Text>
+          {!isReadOnly && <View style={{ width: 35 }} />}
         </View>
       )}
 
       <ScrollView horizontal={isExporting} style={{ flex: 1 }}>
-      <ScrollView contentContainerStyle={isExporting ? undefined : styles.content}>
+      <ScrollView 
+        contentContainerStyle={isExporting ? undefined : styles.content}
+        onScrollBeginDrag={() => setExpandedRowId(null)}
+      >
         <ViewShot ref={viewShotRef} options={{ format: 'png', quality: 1 }}>
+          <TouchableOpacity activeOpacity={1} style={{ flex: 1 }} onPress={() => toggleExpand(null)}>
           {isExporting ? (
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              <View style={{ width: 900, backgroundColor: '#0f172a', padding: 30 }}>
+              <View style={{ width: 900, backgroundColor: '#F5F5DC', padding: 30 }}>
                 {/* Header de Exportación */}
-                <View style={{ flexDirection: 'column', borderBottomWidth: 1, borderColor: '#ca8a04', paddingBottom: 15, marginBottom: 20 }}>
-                  <Text style={{ color: '#ca8a04', fontSize: 28, fontWeight: 'bold', textAlign: 'center', marginBottom: 10 }}>
+                <View style={{ flexDirection: 'column', borderBottomWidth: 1, borderColor: '#D9D2C2', paddingBottom: 15, marginBottom: 20 }}>
+                  <Text style={{ color: '#000000', fontSize: 28, fontWeight: 'bold', textAlign: 'center', marginBottom: 10 }}>
                     ROL DE DESPEGUE - {plantillaName?.toUpperCase()}
                   </Text>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                    <Text style={{ color: '#f8fafc', fontSize: 18, fontWeight: 'bold' }}>Elaboró: Tablerista en Turno</Text>
-                    <Text style={{ color: '#eab308', fontSize: 18, fontWeight: 'bold' }}>Fecha: {fecha || new Date().toLocaleDateString()}</Text>
+                    <Text style={{ color: '#000000', fontSize: 18, fontWeight: 'bold' }}>Elaboró: Tablerista en Turno</Text>
+                    <Text style={{ color: '#4A4A4A', fontSize: 18, fontWeight: 'bold' }}>Fecha: {fecha || new Date().toLocaleDateString()}</Text>
                   </View>
                 </View>
 
@@ -323,18 +368,18 @@ export default function EditorRolScreen() {
                   
                   {/* Columna Izquierda (1-25) */}
                   <View style={{ flex: 1 }}>
-                    <View style={{ flexDirection: 'row', borderBottomWidth: 1, borderColor: '#ca8a04', paddingBottom: 8, marginBottom: 8 }}>
-                      <Text style={{ flex: 0.5, color: '#ca8a04', fontWeight: 'bold', fontSize: 20, textAlign: 'center' }}>NO.</Text>
-                      <Text style={{ flex: 1, color: '#ca8a04', fontWeight: 'bold', fontSize: 20, textAlign: 'center' }}>FREC.</Text>
-                      <Text style={{ flex: 1.2, color: '#ca8a04', fontWeight: 'bold', fontSize: 20, textAlign: 'center' }}>HORARIO</Text>
-                      <Text style={{ flex: 1.5, color: '#ca8a04', fontWeight: 'bold', fontSize: 20, textAlign: 'center' }}>ECO</Text>
+                    <View style={{ flexDirection: 'row', borderBottomWidth: 1, borderColor: '#D9D2C2', paddingBottom: 8, marginBottom: 8 }}>
+                      <Text style={{ flex: 0.5, color: '#000000', fontWeight: 'bold', fontSize: 20, textAlign: 'center' }}>NO.</Text>
+                      <Text style={{ flex: 1, color: '#000000', fontWeight: 'bold', fontSize: 20, textAlign: 'center' }}>FREC.</Text>
+                      <Text style={{ flex: 1.2, color: '#000000', fontWeight: 'bold', fontSize: 20, textAlign: 'center' }}>HORARIO</Text>
+                      <Text style={{ flex: 1.5, color: '#000000', fontWeight: 'bold', fontSize: 20, textAlign: 'center' }}>ECO</Text>
                     </View>
                     {rows.slice(0, 25).map((row) => (
-                      <View key={row.id} style={{ flexDirection: 'row', backgroundColor: row.highlightColor ? `${row.highlightColor}60` : 'transparent', borderBottomWidth: 1, borderColor: '#1e293b', paddingVertical: 10 }}>
-                        <Text style={{ flex: 0.5, color: '#f8fafc', fontWeight: 'bold', fontSize: 20, textAlign: 'center', borderRightWidth: 1, borderColor: '#1e293b' }}>{row.no}</Text>
-                        <Text style={{ flex: 1, color: '#eab308', fontSize: 20, textAlign: 'center', fontWeight: 'bold' }}>{row.frec}</Text>
-                        <Text style={{ flex: 1.2, color: '#f8fafc', fontSize: 20, textAlign: 'center', fontWeight: 'bold' }}>{row.horario}</Text>
-                        <Text style={{ flex: 1.5, color: '#38bdf8', fontSize: 20, textAlign: 'center', fontWeight: 'bold' }}>{row.eco || '-'}</Text>
+                      <View key={row.id} style={{ flexDirection: 'row', backgroundColor: row.highlightColor ? `${row.highlightColor}60` : 'transparent', borderBottomWidth: 1, borderColor: '#D9D2C2', paddingVertical: 10 }}>
+                        <Text style={{ flex: 0.5, color: '#000000', fontWeight: 'bold', fontSize: 20, textAlign: 'center', borderRightWidth: 1, borderColor: '#D9D2C2' }}>{row.no}</Text>
+                        <Text style={{ flex: 1, color: '#000080', fontSize: 20, textAlign: 'center', fontWeight: 'bold' }}>{row.frec}</Text>
+                        <Text style={{ flex: 1.2, color: '#000080', fontSize: 20, textAlign: 'center', fontWeight: 'bold' }}>{row.horario}</Text>
+                        <Text style={{ flex: 1.5, color: '#000000', fontSize: 20, textAlign: 'center', fontWeight: 'bold' }}>{row.eco || '-'}</Text>
                       </View>
                     ))}
                   </View>
@@ -342,18 +387,18 @@ export default function EditorRolScreen() {
                   {/* Columna Derecha (26 en adelante) */}
                   {rows.length > 25 && (
                     <View style={{ flex: 1 }}>
-                      <View style={{ flexDirection: 'row', borderBottomWidth: 1, borderColor: '#ca8a04', paddingBottom: 8, marginBottom: 8 }}>
-                        <Text style={{ flex: 0.5, color: '#ca8a04', fontWeight: 'bold', fontSize: 20, textAlign: 'center' }}>NO.</Text>
-                        <Text style={{ flex: 1, color: '#ca8a04', fontWeight: 'bold', fontSize: 20, textAlign: 'center' }}>FREC.</Text>
-                        <Text style={{ flex: 1.2, color: '#ca8a04', fontWeight: 'bold', fontSize: 20, textAlign: 'center' }}>HORARIO</Text>
-                        <Text style={{ flex: 1.5, color: '#ca8a04', fontWeight: 'bold', fontSize: 20, textAlign: 'center' }}>ECO</Text>
+                      <View style={{ flexDirection: 'row', borderBottomWidth: 1, borderColor: '#D9D2C2', paddingBottom: 8, marginBottom: 8 }}>
+                        <Text style={{ flex: 0.5, color: '#000000', fontWeight: 'bold', fontSize: 20, textAlign: 'center' }}>NO.</Text>
+                        <Text style={{ flex: 1, color: '#000000', fontWeight: 'bold', fontSize: 20, textAlign: 'center' }}>FREC.</Text>
+                        <Text style={{ flex: 1.2, color: '#000000', fontWeight: 'bold', fontSize: 20, textAlign: 'center' }}>HORARIO</Text>
+                        <Text style={{ flex: 1.5, color: '#000000', fontWeight: 'bold', fontSize: 20, textAlign: 'center' }}>ECO</Text>
                       </View>
                       {rows.slice(25).map((row) => (
-                        <View key={row.id} style={{ flexDirection: 'row', backgroundColor: row.highlightColor ? `${row.highlightColor}60` : 'transparent', borderBottomWidth: 1, borderColor: '#1e293b', paddingVertical: 10 }}>
-                          <Text style={{ flex: 0.5, color: '#f8fafc', fontWeight: 'bold', fontSize: 20, textAlign: 'center', borderRightWidth: 1, borderColor: '#1e293b' }}>{row.no}</Text>
-                          <Text style={{ flex: 1, color: '#eab308', fontSize: 20, textAlign: 'center', fontWeight: 'bold' }}>{row.frec}</Text>
-                          <Text style={{ flex: 1.2, color: '#f8fafc', fontSize: 20, textAlign: 'center', fontWeight: 'bold' }}>{row.horario}</Text>
-                          <Text style={{ flex: 1.5, color: '#38bdf8', fontSize: 20, textAlign: 'center', fontWeight: 'bold' }}>{row.eco || '-'}</Text>
+                        <View key={row.id} style={{ flexDirection: 'row', backgroundColor: row.highlightColor ? `${row.highlightColor}60` : 'transparent', borderBottomWidth: 1, borderColor: '#D9D2C2', paddingVertical: 10 }}>
+                          <Text style={{ flex: 0.5, color: '#000000', fontWeight: 'bold', fontSize: 20, textAlign: 'center', borderRightWidth: 1, borderColor: '#D9D2C2' }}>{row.no}</Text>
+                          <Text style={{ flex: 1, color: '#000080', fontSize: 20, textAlign: 'center', fontWeight: 'bold' }}>{row.frec}</Text>
+                          <Text style={{ flex: 1.2, color: '#000080', fontSize: 20, textAlign: 'center', fontWeight: 'bold' }}>{row.horario}</Text>
+                          <Text style={{ flex: 1.5, color: '#000000', fontSize: 20, textAlign: 'center', fontWeight: 'bold' }}>{row.eco || '-'}</Text>
                         </View>
                       ))}
                     </View>
@@ -363,72 +408,101 @@ export default function EditorRolScreen() {
               </View>
             </ScrollView>
           ) : (
-            <View style={{ backgroundColor: '#0f172a' }}>
+            <View style={{ backgroundColor: '#F5F5DC' }}>
               {rows.map((row) => (
-                <TouchableOpacity 
+                <TouchableOpacity activeOpacity={0.8}
                   key={row.id} 
-                  activeOpacity={activeColor ? 0.7 : 1}
-                  onPress={() => activeColor ? handleApplyColor(row.id) : null}
-                  style={[styles.tableRow, row.highlightColor && { backgroundColor: `${row.highlightColor}33` }]}
+                  onPress={() => {
+                    if (activeColor) handleApplyColor(row.id);
+                    toggleExpand(null);
+                  }}
+                  style={[
+                    styles.tableRow, 
+                    row.highlightColor && { backgroundColor: `${row.highlightColor}33` }
+                  ]}
                 >
                   <Text style={[styles.td, { flex: 0.5, fontWeight: 'bold' }]}>{row.no}</Text>
                   
                   <View style={{ flex: 1, paddingHorizontal: 4 }}>
                     <TextInput 
-                      style={[styles.inputCell, isReadOnly && { opacity: 0.8, borderColor: 'transparent' }]}
+                      style={[styles.inputCell, { color: '#000080', fontWeight: 'bold' }, isReadOnly && { opacity: 0.8, borderColor: 'transparent' }]}
                       value={row.frec}
                       onChangeText={(t) => handleUpdateField(row.id, 'frec', t)}
+                      onFocus={() => toggleExpand(null)}
                       editable={!isReadOnly}
                       keyboardType="number-pad"
                       maxLength={4}
                     />
                   </View>
 
-                  <View style={{ flex: 1.2, paddingHorizontal: 4 }}>
+                  <View style={{ flex: 1.6, paddingHorizontal: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+                    {!isReadOnly && (
+                      <TouchableOpacity onPress={() => handleAdjustTime(row.id, -1)} style={{ padding: 4 }}>
+                        <Feather name="minus-circle" size={18} color="#ef4444" />
+                      </TouchableOpacity>
+                    )}
                     <TextInput 
-                      style={[styles.inputCell, { color: '#eab308' }, isReadOnly && { opacity: 0.8, borderColor: 'transparent' }]}
+                      style={[styles.inputCell, { flex: 1, color: '#000080', fontWeight: 'bold', paddingHorizontal: 2 }, isReadOnly && { opacity: 0.8, borderColor: 'transparent' }]}
                       value={row.horario}
                       onChangeText={(t) => handleUpdateField(row.id, 'horario', t)}
+                      onFocus={() => toggleExpand(null)}
                       editable={!isReadOnly}
                       keyboardType="number-pad"
                       maxLength={5}
                     />
+                    {!isReadOnly && (
+                      <TouchableOpacity onPress={() => handleAdjustTime(row.id, 1)} style={{ padding: 4 }}>
+                        <Feather name="plus-circle" size={18} color="#10b981" />
+                      </TouchableOpacity>
+                    )}
                   </View>
                   
                   <View style={{ flex: 1.5, paddingHorizontal: 4 }}>
                     <TouchableOpacity 
-                      style={[styles.inputCell, { borderColor: '#3b82f6', justifyContent: 'center' }, isReadOnly && { opacity: 0.8, borderColor: 'transparent' }]}
+                      style={[styles.inputCell, { borderColor: '#94a3b8', justifyContent: 'center' }, isReadOnly && { opacity: 0.8, borderColor: 'transparent' }]}
                       onPress={() => handleOpenEcoSelector(row.id)}
                       disabled={isReadOnly}
                     >
-                      <Text style={{ color: row.eco ? '#38bdf8' : '#475569', fontWeight: 'bold', textAlign: 'center' }}>
+                      <Text style={{ color: '#000000', fontWeight: 'bold', textAlign: 'center' }}>
                         {row.eco || '---'}
                       </Text>
                     </TouchableOpacity>
                   </View>
 
                   {!isReadOnly && (
-                    <View style={{ flex: 0.5, alignItems: 'center', justifyContent: 'center', gap: 10, flexDirection: 'row' }}>
-                      <TouchableOpacity onPress={() => handleInsertRow(rows.findIndex(r => r.id === row.id))}>
-                        <Feather name="plus-circle" size={18} color="#10b981" />
-                      </TouchableOpacity>
-                      <TouchableOpacity onPress={() => handleRemoveRow(row.id)}>
-                        <Feather name="trash-2" size={18} color="#ef4444" />
-                      </TouchableOpacity>
+                    <View style={{ width: expandedRowId === row.id ? 80 : 35, alignItems: 'center', justifyContent: 'center' }}>
+                      {expandedRowId === row.id ? (
+                        <View style={{ flexDirection: 'row', gap: 15 }}>
+                          <TouchableOpacity onPress={() => { handleInsertRow(rows.findIndex(r => r.id === row.id)); toggleExpand(null); }}>
+                            <Feather name="plus-circle" size={24} color="#10b981" />
+                          </TouchableOpacity>
+                          <TouchableOpacity onPress={() => { handleRemoveRow(row.id); toggleExpand(null); }}>
+                            <Feather name="trash-2" size={24} color="#ef4444" />
+                          </TouchableOpacity>
+                        </View>
+                      ) : (
+                        <TouchableOpacity 
+                          style={{ flexDirection: 'row', gap: 3, paddingVertical: 10, paddingHorizontal: 5 }} 
+                          onPress={() => toggleExpand(row.id)}
+                        >
+                          <View style={{ width: 4, height: 18, backgroundColor: '#10b981', borderRadius: 2 }} />
+                          <View style={{ width: 4, height: 18, backgroundColor: '#ef4444', borderRadius: 2 }} />
+                        </TouchableOpacity>
+                      )}
                     </View>
                   )}
                 </TouchableOpacity>
               ))}
+              {!isReadOnly && !isExporting && (
+                <TouchableOpacity style={styles.btnAddRow} onPress={handleAddRow}>
+                  <Feather name="plus" size={20} color="#3b82f6" />
+                  <Text style={{ color: '#3b82f6', marginLeft: 8, fontWeight: 'bold' }}>Agregar Turno al Final</Text>
+                </TouchableOpacity>
+              )}
             </View>
           )}
-        </ViewShot>
-
-        {!isReadOnly && !isExporting && (
-          <TouchableOpacity style={styles.btnAddRow} onPress={handleAddRow}>
-            <Feather name="plus" size={20} color="#3b82f6" />
-            <Text style={{ color: '#3b82f6', marginLeft: 8, fontWeight: 'bold' }}>Agregar Turno al Final</Text>
           </TouchableOpacity>
-        )}
+        </ViewShot>
       </ScrollView>
       </ScrollView>
 
@@ -457,11 +531,11 @@ export default function EditorRolScreen() {
             </View>
             
             {(() => {
-              const assignedEcos = rows.map(r => r.eco).filter(Boolean);
-                const availableUnidades = unidades
-                  .filter(u => u && u.numero && !assignedEcos.includes(u.numero))
-                  .filter(u => u.numero.toLowerCase().includes((searchEco || '').toLowerCase()))
-                  .sort((a, b) => parseInt(a.numero) - parseInt(b.numero));
+              const assignedEcos = rows.map(r => String(r.eco)).filter(Boolean);
+              const availableUnidades = unidades
+                .filter(u => u && u.numero && !assignedEcos.includes(String(u.numero)))
+                .filter(u => String(u.numero).toLowerCase().includes((searchEco || '').toLowerCase()))
+                .sort((a, b) => parseInt(String(a.numero)) - parseInt(String(b.numero)));
                 
               const autobuses = availableUnidades.filter(u => u.tipo?.toLowerCase() === 'autobús' || u.tipo?.toLowerCase() === 'autobus');
               const otrasUnidades = availableUnidades.filter(u => u.tipo?.toLowerCase() !== 'autobús' && u.tipo?.toLowerCase() !== 'autobus');
@@ -526,7 +600,7 @@ export default function EditorRolScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0f172a' },
+  container: { flex: 1, backgroundColor: '#F5F5DC' },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -534,40 +608,52 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 15,
     borderBottomWidth: 1,
-    borderBottomColor: '#1e293b'
+    borderBottomColor: '#D9D2C2'
   },
   backBtn: { padding: 4 },
-  title: { fontSize: 16, fontWeight: '600', color: '#f8fafc' },
+  title: { fontSize: 16, fontWeight: '600', color: '#000000' },
   
   tableHeader: {
     flexDirection: 'row',
     paddingHorizontal: 15,
     paddingVertical: 12,
-    backgroundColor: '#1e293b',
+    backgroundColor: '#F5F5DC',
     borderBottomWidth: 1,
-    borderBottomColor: '#334155'
+    borderBottomColor: '#D9D2C2'
   },
-  th: { color: '#94a3b8', fontSize: 12, fontWeight: '600', textAlign: 'center' },
+  th: { color: '#4A4A4A', fontSize: 12, fontWeight: '600', textAlign: 'center' },
   
   content: { padding: 10, paddingBottom: 40 },
   tableRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#1e293b',
-    borderRadius: 8
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 8,
+    padding: 15,
+    marginBottom: 10,
+    backgroundColor: '#ffffff'
   },
-  td: { color: '#f8fafc', fontSize: 14, textAlign: 'center' },
+  td: { color: '#000000', fontSize: 14, textAlign: 'center' },
   
   inputCell: {
-    backgroundColor: '#0f172a',
+    backgroundColor: '#EAE5CE', // Burbujas color hueso
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#334155',
-    borderRadius: 6,
-    color: '#f8fafc',
+    borderColor: '#D9D2C2',
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+    fontSize: 16,
+    color: '#0f172a',
     textAlign: 'center',
-    paddingVertical: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 1,
+    elevation: 1
+  },
+  fab: { paddingVertical: 6,
     fontSize: 14
   },
 
@@ -578,7 +664,7 @@ const styles = StyleSheet.create({
     paddingVertical: 15,
     marginTop: 10,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#D9D2C2',
     borderStyle: 'dashed',
     borderRadius: 8
   },
@@ -587,13 +673,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     padding: 15,
     borderTopWidth: 1,
-    borderTopColor: '#1e293b',
-    backgroundColor: '#0f172a',
+    borderTopColor: '#D9D2C2',
+    backgroundColor: '#F5F5DC',
     gap: 15
   },
   btnShare: {
     flex: 1,
-    backgroundColor: '#10b981',
+    backgroundColor: '#006847',
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
@@ -603,7 +689,7 @@ const styles = StyleSheet.create({
   },
   btnGuardar: {
     flex: 2,
-    backgroundColor: '#10b981',
+    backgroundColor: '#006847',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -617,29 +703,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 15,
     paddingVertical: 10,
-    backgroundColor: '#1e293b',
+    backgroundColor: '#F5F5DC',
     gap: 10
   },
   colorCircle: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center'
   },
   colorCircleActive: {
-    borderWidth: 2,
-    borderColor: '#fff',
+    borderWidth: 3,
+    borderColor: '#000000',
     transform: [{ scale: 1.2 }]
   },
 
   // Modal Selector
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modalContent: { backgroundColor: '#1e293b', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, height: '60%' },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, borderBottomWidth: 1, borderBottomColor: '#334155', paddingBottom: 15 },
-  modalTitle: { color: '#f8fafc', fontSize: 18, fontWeight: 'bold' },
-  ecoItem: { padding: 15, borderBottomWidth: 1, borderBottomColor: '#334155', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  ecoItemText: { color: '#38bdf8', fontSize: 18, fontWeight: 'bold' },
-  ecoItemSubtext: { color: '#94a3b8', fontSize: 14 },
-  ecoItemClear: { padding: 15, marginTop: 10, backgroundColor: '#450a0a', borderRadius: 8, borderWidth: 1, borderColor: '#7f1d1d' }
+  modalContent: { backgroundColor: '#F5F5DC', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, height: '60%' },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, borderBottomWidth: 1, borderBottomColor: '#D9D2C2', paddingBottom: 15 },
+  modalTitle: { color: '#000000', fontSize: 18, fontWeight: 'bold' },
+  ecoItem: { padding: 15, borderBottomWidth: 1, borderBottomColor: '#D9D2C2', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  ecoItemText: { color: '#006847', fontSize: 18, fontWeight: 'bold' },
+  ecoItemSubtext: { color: '#4A4A4A', fontSize: 14 },
+  ecoItemClear: { padding: 15, marginTop: 10, backgroundColor: '#FFD1D1', borderRadius: 8, borderWidth: 1, borderColor: '#D2042D' }
 });

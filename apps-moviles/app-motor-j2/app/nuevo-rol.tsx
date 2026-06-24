@@ -180,7 +180,7 @@ export default function NuevoRolScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0f172a' },
+  container: { flex: 1, backgroundColor: '#F5F5DC' },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -188,36 +188,36 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 15,
     borderBottomWidth: 1,
-    borderBottomColor: '#1e293b'
+    borderBottomColor: '#D9D2C2'
   },
   backBtn: { padding: 4 },
-  title: { fontSize: 18, fontWeight: '600', color: '#f8fafc' },
+  title: { fontSize: 18, fontWeight: '600', color: '#000000' },
   
   content: { padding: 20 },
-  sectionTitle: { fontSize: 14, color: '#94a3b8', marginBottom: 15, textTransform: 'uppercase', letterSpacing: 0.5 },
+  sectionTitle: { fontSize: 14, color: '#4A4A4A', marginBottom: 15, textTransform: 'uppercase', letterSpacing: 0.5 },
   
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 15, marginBottom: 30 },
   templateCard: {
     width: '47%',
     aspectRatio: 1,
-    backgroundColor: '#1e293b',
+    backgroundColor: '#F5F5DC',
     borderRadius: 16,
     padding: 15,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: 'transparent',
+    borderColor: '#D9D2C2',
     position: 'relative'
   },
-  templateCardSelected: { borderColor: '#3b82f6', backgroundColor: '#0f172a' },
+  templateCardSelected: { borderColor: '#006847', backgroundColor: '#F5F5DC' },
   templateIcon: { marginBottom: 12 },
-  templateText: { color: '#cbd5e1', fontSize: 14, fontWeight: '500', textAlign: 'center' },
-  templateTextSelected: { color: '#38bdf8', fontWeight: 'bold' },
+  templateText: { color: '#4A4A4A', fontSize: 14, fontWeight: '500', textAlign: 'center' },
+  templateTextSelected: { color: '#006847', fontWeight: 'bold' },
   checkBadge: {
     position: 'absolute',
     top: 10,
     right: 10,
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#006847',
     borderRadius: 10,
     width: 20,
     height: 20,
@@ -226,25 +226,25 @@ const styles = StyleSheet.create({
   },
 
   inputGroup: { marginBottom: 20 },
-  label: { fontSize: 13, color: '#94a3b8', marginBottom: 8, fontWeight: '500' },
+  label: { fontSize: 13, color: '#4A4A4A', marginBottom: 8, fontWeight: '500' },
   input: {
-    backgroundColor: '#1e293b',
+    backgroundColor: '#F5F5DC',
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#D9D2C2',
     borderRadius: 10,
     padding: 15,
-    color: '#f8fafc',
+    color: '#000000',
     fontSize: 16
   },
 
   footer: {
     padding: 20,
     borderTopWidth: 1,
-    borderTopColor: '#1e293b',
-    backgroundColor: '#0f172a'
+    borderTopColor: '#D9D2C2',
+    backgroundColor: '#F5F5DC'
   },
   btnContinuar: {
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#006847',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',

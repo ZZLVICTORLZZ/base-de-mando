@@ -2,14 +2,19 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, ActivityIndicator, Alert } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
+import { Platform } from 'react-native';
 import { supabase } from '../../src/services/supabaseClient';
 import { useCallback } from 'react';
 import { isAdmin } from '../../lib/permissions';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function RDScreen() {
-  const [dateDesde, setDateDesde] = useState('01/06/2026');
-  const [dateHasta, setDateHasta] = useState('15/06/2026');
+  const today = new Date();
+  const todayStr = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
+  const [dateDesde, setDateDesde] = useState(todayStr);
+  const [dateHasta, setDateHasta] = useState(todayStr);
+  const [showPickerDesde, setShowPickerDesde] = useState(false);
+  const [showPickerHasta, setShowPickerHasta] = useState(false);
   const [roles, setRoles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [userIsAdmin, setUserIsAdmin] = useState(false);
@@ -35,7 +40,9 @@ export default function RDScreen() {
       .not('creado_por', 'ilike', '[OTP]%')
       .order('created_at', { ascending: false });
     
-    if (!error && data) {
+    if (error) {
+      Alert.alert('Error de Conexión', 'No se pudieron cargar los roles: ' + error.message);
+    } else if (data) {
       setRoles(data.map(d => ({
         id: d.id,
         fecha: d.fecha,
@@ -47,6 +54,19 @@ export default function RDScreen() {
     setLoading(false);
   };
 
+  const parseDateString = (dStr: string) => {
+    if (!dStr) return new Date(0).getTime();
+    if (dStr.includes('-')) {
+      const [y, m, d] = dStr.split('-');
+      return new Date(Number(y), Number(m)-1, Number(d)).getTime();
+    }
+    if (dStr.includes('/')) {
+      const [d, m, y] = dStr.split('/');
+      return new Date(Number(y), Number(m)-1, Number(d)).getTime();
+    }
+    return new Date(0).getTime();
+  };
+
   const isToday = (fechaStr: string) => {
     const today = new Date();
     const dStr = String(today.getDate()).padStart(2, '0');
@@ -54,6 +74,29 @@ export default function RDScreen() {
     const yStr = String(today.getFullYear());
     return fechaStr === `${dStr}/${mStr}/${yStr}`;
   };
+
+  const handleDateChangeDesde = (event: any, selectedDate?: Date) => {
+    setShowPickerDesde(Platform.OS === 'ios');
+    if (selectedDate) {
+      const dStr = `${String(selectedDate.getDate()).padStart(2, '0')}/${String(selectedDate.getMonth() + 1).padStart(2, '0')}/${selectedDate.getFullYear()}`;
+      setDateDesde(dStr);
+    }
+  };
+
+  const handleDateChangeHasta = (event: any, selectedDate?: Date) => {
+    setShowPickerHasta(Platform.OS === 'ios');
+    if (selectedDate) {
+      const dStr = `${String(selectedDate.getDate()).padStart(2, '0')}/${String(selectedDate.getMonth() + 1).padStart(2, '0')}/${selectedDate.getFullYear()}`;
+      setDateHasta(dStr);
+    }
+  };
+
+  const filteredRoles = roles.filter(r => {
+    const rTime = parseDateString(r.fecha);
+    const dTime = parseDateString(dateDesde);
+    const hTime = parseDateString(dateHasta);
+    return rTime >= dTime && rTime <= hTime;
+  });
 
   const canEdit = (item: any) => {
     return true; // Todos pueden editar por ahora
@@ -145,10 +188,12 @@ export default function RDScreen() {
             value={dateDesde}
             onChangeText={setDateDesde}
             placeholder="DD/MM/YYYY"
-            placeholderTextColor="#475569"
+            placeholderTextColor="#94a3b8"
           />
         </View>
+        
         <View style={styles.dateSeparator} />
+        
         <View style={styles.dateInputWrapper}>
           <Text style={styles.dateLabel}>Hasta</Text>
           <TextInput 
@@ -156,9 +201,10 @@ export default function RDScreen() {
             value={dateHasta}
             onChangeText={setDateHasta}
             placeholder="DD/MM/YYYY"
-            placeholderTextColor="#475569"
+            placeholderTextColor="#94a3b8"
           />
         </View>
+
       </View>
 
       {loading ? (
@@ -167,7 +213,7 @@ export default function RDScreen() {
         <Text style={{ color: '#64748b', textAlign: 'center', marginTop: 40 }}>No hay roles creados.</Text>
       ) : (
         <FlatList
-          data={roles}
+          data={filteredRoles}
           keyExtractor={item => item.id}
           renderItem={renderItem}
           contentContainerStyle={styles.listPadding}
@@ -179,23 +225,22 @@ export default function RDScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0f172a' },
+  container: { flex: 1, backgroundColor: '#F5F5DC' },
   header: { 
-    flexDirection: 'row', 
-    justifyContent: 'space-between', 
     alignItems: 'center', 
     paddingHorizontal: 20,
     paddingTop: 20,
     paddingBottom: 15,
   },
-  title: { fontSize: 24, fontWeight: '700', color: '#f8fafc', letterSpacing: -0.5 },
+  title: { fontSize: 24, fontWeight: '700', color: '#000000', letterSpacing: -0.5, marginBottom: 15 },
   btnNuevo: { 
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#3b82f6', 
-    paddingHorizontal: 16, 
-    paddingVertical: 10, 
-    borderRadius: 8 
+    backgroundColor: '#006847', 
+    paddingHorizontal: 24, 
+    paddingVertical: 12, 
+    borderRadius: 12,
+    alignSelf: 'center'
   },
   btnTextBold: { color: '#ffffff', fontWeight: '600', fontSize: 14 },
   
@@ -206,24 +251,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#1e293b'
+    borderBottomColor: '#D9D2C2'
   },
   filterIcon: { marginRight: 15 },
   dateInputWrapper: { flex: 1 },
-  dateLabel: { fontSize: 11, color: '#64748b', marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 },
+  dateLabel: { fontSize: 11, color: '#4A4A4A', marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 },
   dateInput: { 
-    color: '#f8fafc', 
+    color: '#000000', 
     fontSize: 14, 
     borderBottomWidth: 1, 
-    borderBottomColor: '#334155',
+    borderBottomColor: '#C8C1B2',
     paddingVertical: 4
   },
-  dateSeparator: { width: 1, height: 20, backgroundColor: '#334155', marginHorizontal: 15, marginTop: 15 },
+  dateSeparator: { width: 1, height: 20, backgroundColor: '#C8C1B2', marginHorizontal: 15, marginTop: 15 },
 
   // Lista
   listPadding: { padding: 20 },
   card: { 
-    backgroundColor: '#1e293b', 
+    backgroundColor: '#F5F5DC', 
     borderRadius: 12, 
     marginBottom: 12, 
     flexDirection: 'row', 
@@ -231,14 +276,14 @@ const styles = StyleSheet.create({
     alignItems: 'center', 
     padding: 16,
     borderWidth: 1, 
-    borderColor: '#334155' 
+    borderColor: '#D9D2C2' 
   },
   cardContent: { flex: 1 },
   cardHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
   statusIndicator: { width: 8, height: 8, borderRadius: 4, marginRight: 8 },
-  cardTitle: { fontSize: 16, fontWeight: '600', color: '#f8fafc' },
-  cardDate: { fontSize: 13, color: '#94a3b8', paddingLeft: 16 },
+  cardTitle: { fontSize: 16, fontWeight: '600', color: '#000000' },
+  cardDate: { fontSize: 13, color: '#666666', paddingLeft: 16 },
   
   actionsRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingLeft: 15 },
-  iconBtn: { padding: 8, backgroundColor: '#0f172a', borderRadius: 6, borderWidth: 1, borderColor: '#334155' },
+  iconBtn: { padding: 8, backgroundColor: '#F5F5DC', borderRadius: 6, borderWidth: 1, borderColor: '#D9D2C2' },
 });

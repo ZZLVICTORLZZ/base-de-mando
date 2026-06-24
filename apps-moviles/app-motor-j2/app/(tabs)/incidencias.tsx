@@ -2,11 +2,18 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, ActivityIndicator, Alert, Modal } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
+import { Platform } from 'react-native';
 import { supabase } from '../../src/services/supabaseClient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function IncidenciasScreen() {
+  const today = new Date();
+  const todayStr = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
   const [search, setSearch] = useState('');
+  const [dateDesde, setDateDesde] = useState(todayStr);
+  const [dateHasta, setDateHasta] = useState(todayStr);
+  const [showPickerDesde, setShowPickerDesde] = useState(false);
+  const [showPickerHasta, setShowPickerHasta] = useState(false);
   const [hojas, setHojas] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   
@@ -19,6 +26,35 @@ export default function IncidenciasScreen() {
       fetchHojas();
     }, [])
   );
+
+  const parseDateString = (dStr: string) => {
+    if (!dStr) return new Date(0).getTime();
+    if (dStr.includes('-')) {
+      const [y, m, d] = dStr.split('-');
+      return new Date(Number(y), Number(m)-1, Number(d)).getTime();
+    }
+    if (dStr.includes('/')) {
+      const [d, m, y] = dStr.split('/');
+      return new Date(Number(y), Number(m)-1, Number(d)).getTime();
+    }
+    return new Date(0).getTime();
+  };
+
+  const handleDateChangeDesde = (event: any, selectedDate?: Date) => {
+    setShowPickerDesde(Platform.OS === 'ios');
+    if (selectedDate) {
+      const dStr = `${String(selectedDate.getDate()).padStart(2, '0')}/${String(selectedDate.getMonth() + 1).padStart(2, '0')}/${selectedDate.getFullYear()}`;
+      setDateDesde(dStr);
+    }
+  };
+
+  const handleDateChangeHasta = (event: any, selectedDate?: Date) => {
+    setShowPickerHasta(Platform.OS === 'ios');
+    if (selectedDate) {
+      const dStr = `${String(selectedDate.getDate()).padStart(2, '0')}/${String(selectedDate.getMonth() + 1).padStart(2, '0')}/${selectedDate.getFullYear()}`;
+      setDateHasta(dStr);
+    }
+  };
 
   const fetchHojas = async () => {
     setLoading(true);
@@ -102,10 +138,14 @@ export default function IncidenciasScreen() {
     );
   };
 
-  const filteredHojas = hojas.filter(h => 
-    (h.base || '').toLowerCase().includes(search.toLowerCase()) || 
-    (h.fecha || '').toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredHojas = hojas.filter(h => {
+    const matchesSearch = (h.base || '').toLowerCase().includes(search.toLowerCase());
+    const rTime = parseDateString(h.fecha);
+    const dTime = parseDateString(dateDesde);
+    const hTime = parseDateString(dateHasta);
+    const matchesDate = rTime >= dTime && rTime <= hTime;
+    return matchesSearch && matchesDate;
+  });
 
   return (
     <View style={styles.container}>
@@ -121,14 +161,41 @@ export default function IncidenciasScreen() {
       </View>
 
       <View style={styles.filtersContainer}>
-        <Feather name="search" size={16} color="#64748b" style={styles.filterIcon} />
-        <TextInput 
-          style={styles.searchInput}
-          value={search}
-          onChangeText={setSearch}
-          placeholder="Buscar hoja por base o fecha..."
-          placeholderTextColor="#475569"
-        />
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 15 }}>
+          <Feather name="search" size={16} color="#64748b" style={styles.filterIcon} />
+          <TextInput 
+            style={styles.searchInput}
+            value={search}
+            onChangeText={setSearch}
+            placeholder="Buscar hoja por base..."
+            placeholderTextColor="#475569"
+          />
+        </View>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <Feather name="calendar" size={16} color="#64748b" style={styles.filterIcon} />
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 11, color: '#4A4A4A', marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 }}>Desde</Text>
+            <TextInput 
+              style={{ color: '#000000', fontSize: 14, borderBottomWidth: 1, borderBottomColor: '#C8C1B2', paddingVertical: 4 }}
+              value={dateDesde}
+              onChangeText={setDateDesde}
+              placeholder="DD/MM/YYYY"
+              placeholderTextColor="#94a3b8"
+            />
+          </View>
+          <View style={{ width: 1, height: 20, backgroundColor: '#C8C1B2', marginHorizontal: 15, marginTop: 15 }} />
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: 11, color: '#4A4A4A', marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 }}>Hasta</Text>
+            <TextInput 
+              style={{ color: '#000000', fontSize: 14, borderBottomWidth: 1, borderBottomColor: '#C8C1B2', paddingVertical: 4 }}
+              value={dateHasta}
+              onChangeText={setDateHasta}
+              placeholder="DD/MM/YYYY"
+              placeholderTextColor="#94a3b8"
+            />
+          </View>
+        </View>
+
       </View>
 
       {loading ? (
@@ -187,53 +254,52 @@ export default function IncidenciasScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0f172a' },
+  container: { flex: 1, backgroundColor: '#F5F5DC' },
   header: { 
-    flexDirection: 'row', 
-    justifyContent: 'space-between', 
     alignItems: 'center', 
     paddingHorizontal: 20,
     paddingTop: 20,
     paddingBottom: 15,
   },
-  title: { fontSize: 22, fontWeight: '700', color: '#f8fafc', letterSpacing: -0.5 },
+  title: { fontSize: 24, fontWeight: '700', color: '#000000', letterSpacing: -0.5, marginBottom: 15 },
   btnNuevo: {
-    backgroundColor: '#3b82f6',
+    backgroundColor: '#006847',
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 8,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignSelf: 'center'
   },
   btnTextBold: { color: '#ffffff', fontWeight: 'bold', fontSize: 14 },
   
   filtersContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1e293b',
+    backgroundColor: '#F5F5DC',
     marginHorizontal: 20,
     paddingHorizontal: 15,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#D9D2C2',
     marginBottom: 10
   },
   filterIcon: { marginRight: 10 },
-  searchInput: { flex: 1, color: '#f8fafc', fontSize: 14, paddingVertical: 12 },
+  searchInput: { flex: 1, color: '#000000', fontSize: 14, paddingVertical: 12 },
 
   listPadding: { padding: 20 },
   card: { 
-    backgroundColor: '#1e293b', 
+    backgroundColor: '#F5F5DC', 
     borderRadius: 12, 
     marginBottom: 16, 
     borderWidth: 1, 
-    borderColor: '#334155',
+    borderColor: '#D9D2C2',
     overflow: 'hidden'
   },
   cardInfo: {
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#334155'
+    borderBottomColor: '#D9D2C2'
   },
   titleRow: {
     flexDirection: 'row',
@@ -244,7 +310,7 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#f8fafc'
+    color: '#000000'
   },
   statusBadge: {
     paddingHorizontal: 8,
@@ -257,13 +323,13 @@ const styles = StyleSheet.create({
   },
   cardSubtitle: {
     fontSize: 14,
-    color: '#94a3b8',
+    color: '#4A4A4A',
     marginBottom: 4
   },
   actionsRow: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    backgroundColor: '#0f172a',
+    backgroundColor: '#F5F5DC',
     padding: 12,
     gap: 15
   },
@@ -277,7 +343,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end'
   },
   modalContent: {
-    backgroundColor: '#1e293b',
+    backgroundColor: '#F5F5DC',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 20,
@@ -292,12 +358,12 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#f8fafc'
+    color: '#000000'
   },
   label: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#94a3b8',
+    color: '#4A4A4A',
     marginBottom: 10
   },
   baseSelector: {
@@ -307,19 +373,19 @@ const styles = StyleSheet.create({
     marginBottom: 30
   },
   baseBtn: {
-    backgroundColor: '#0f172a',
+    backgroundColor: '#F5F5DC',
     paddingVertical: 10,
     paddingHorizontal: 15,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#334155'
+    borderColor: '#D9D2C2'
   },
   baseBtnActive: {
-    backgroundColor: '#3b82f6',
-    borderColor: '#3b82f6'
+    backgroundColor: '#006847',
+    borderColor: '#006847'
   },
   baseBtnText: {
-    color: '#94a3b8',
+    color: '#4A4A4A',
     fontWeight: '500'
   },
   baseBtnTextActive: {
@@ -327,7 +393,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold'
   },
   saveBtn: {
-    backgroundColor: '#10b981',
+    backgroundColor: '#006847',
     paddingVertical: 15,
     borderRadius: 10,
     alignItems: 'center'

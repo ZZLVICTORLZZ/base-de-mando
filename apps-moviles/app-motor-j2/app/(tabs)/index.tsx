@@ -37,33 +37,35 @@ export default function DashboardScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0f172a', padding: 20 },
+  container: { flex: 1, backgroundColor: '#F5F5DC', padding: 20 },
   headerCard: {
-    backgroundColor: '#1e293b',
+    backgroundColor: '#F5F5DC',
     padding: 24,
     borderRadius: 16,
     marginBottom: 24,
     borderLeftWidth: 4,
-    borderLeftColor: '#3b82f6',
+    borderLeftColor: '#006847',
+    borderWidth: 1,
+    borderColor: '#D9D2C2'
   },
-  welcomeText: { fontSize: 16, color: '#94a3b8' },
-  nameText: { fontSize: 28, fontWeight: 'bold', color: '#f8fafc', marginTop: 4 },
-  sectionTitle: { fontSize: 18, fontWeight: '600', color: '#cbd5e1', marginBottom: 16 },
+  welcomeText: { fontSize: 16, color: '#4A4A4A' },
+  nameText: { fontSize: 28, fontWeight: 'bold', color: '#000000', marginTop: 4 },
+  sectionTitle: { fontSize: 18, fontWeight: '600', color: '#000000', marginBottom: 16 },
   metricsContainer: { gap: 16 },
   metricBox: {
-    backgroundColor: '#1e293b',
+    backgroundColor: '#F5F5DC',
     padding: 20,
     borderRadius: 12,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#334155'
+    borderColor: '#D9D2C2'
   },
-  metricValue: { fontSize: 32, fontWeight: 'bold', color: '#38bdf8' },
-  metricLabel: { fontSize: 14, color: '#94a3b8', marginTop: 4 },
+  metricValue: { fontSize: 32, fontWeight: 'bold', color: '#006847' },
+  metricLabel: { fontSize: 14, color: '#4A4A4A', marginTop: 4 },
   metricHighlight: {
-    backgroundColor: '#3b82f6',
-    borderColor: '#2563eb',
-    shadowColor: '#3b82f6',
+    backgroundColor: '#006847',
+    borderColor: '#006847',
+    shadowColor: '#006847',
     shadowOpacity: 0.3,
     shadowRadius: 10,
     elevation: 4
