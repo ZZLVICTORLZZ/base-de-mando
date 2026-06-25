@@ -629,11 +629,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 8,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: '#D9D2C2',
     borderRadius: 8,
     padding: 15,
     marginBottom: 10,
-    backgroundColor: '#ffffff'
+    backgroundColor: '#EAE5CE'
   },
   td: { color: '#000000', fontSize: 14, textAlign: 'center' },
   
