@@ -116,7 +116,7 @@ export default function IncidenciasScreen() {
             </View>
           </View>
           <Text style={styles.cardSubtitle}>
-            <Feather name="map-pin" size={14} color="#94a3b8" /> Base: <Text style={{ color: '#f8fafc', fontWeight: 'bold' }}>{item.base}</Text>
+            <Feather name="map-pin" size={14} color="#94a3b8" /> Base: <Text style={{ color: '#000000', fontWeight: 'bold' }}>{item.base}</Text>
           </Text>
           <Text style={styles.cardSubtitle}>
             <Feather name="calendar" size={14} color="#94a3b8" /> Fecha: {item.fecha}

@@ -87,7 +87,7 @@ export default function NuevaIncidenciaScreen() {
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
           <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-            <Feather name="arrow-left" size={24} color="#f8fafc" />
+            <Feather name="arrow-left" size={24} color="#000000" />
           </TouchableOpacity>
           <Text style={styles.title}>Reportar Incidencia</Text>
           <View style={{ width: 32 }} />
@@ -132,14 +132,14 @@ export default function NuevaIncidenciaScreen() {
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>Seleccionar Unidad (ECO)</Text>
                 <TouchableOpacity onPress={() => setEcoModalVisible(false)}>
-                  <Feather name="x" size={24} color="#94a3b8" />
+                  <Feather name="x" size={24} color="#000000" />
                 </TouchableOpacity>
               </View>
               
               <TextInput
                 style={styles.searchInput}
                 placeholder="Buscar económico..."
-                placeholderTextColor="#64748b"
+                placeholderTextColor="#4A4A4A"
                 keyboardType="number-pad"
                 value={searchEco}
                 onChangeText={setSearchEco}
