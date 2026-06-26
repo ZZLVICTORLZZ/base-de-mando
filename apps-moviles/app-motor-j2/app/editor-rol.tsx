@@ -33,7 +33,7 @@ export default function EditorRolScreen() {
 
   // Marcatextos
   const [activeColor, setActiveColor] = useState<string | null>(null);
-  const COLORS = ['#e3dac9', '#D2042D', '#00FFFF', '#10b981', '#eab308'];
+  const COLORS = ['#fecdd3', '#bae6fd', '#bbf7d0', '#fef08a', '#fed7aa'];
 
   // Exportación
   const [isExporting, setIsExporting] = useState(false);
@@ -218,14 +218,15 @@ export default function EditorRolScreen() {
   const handleAddRow = () => {
     if (isReadOnly) return;
     const lastRow = rows[rows.length - 1];
+    const prevFrec = lastRow ? lastRow.frec : '15';
     const newRow = {
       id: Date.now().toString(),
       no: (lastRow?.no || 0) + 1,
-      frec: '15',
+      frec: prevFrec,
       horario: '--:--', 
       eco: ''
     };
-    setRows(calculateTimes([...rows, newRow], rows.length, 'frec'));
+    setRows(calculateTimes([...rows, newRow], rows.length - 1, 'frec'));
   };
 
   const handleSaveRol = async () => {
@@ -311,13 +312,7 @@ export default function EditorRolScreen() {
       {!isReadOnly && !isExporting && (
         <View style={styles.marcatextosContainer}>
           <TouchableOpacity 
-            style={[styles.colorCircle, { backgroundColor: '#F5F5DC', borderWidth: 1, borderColor: '#64748b' }, activeColor === 'eraser' && styles.colorCircleActive]} 
-            onPress={() => setActiveColor('eraser')}
-          >
-            <Feather name="x" size={16} color="#ef4444" />
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={[styles.colorCircle, { backgroundColor: 'transparent', borderWidth: 1, borderColor: '#64748b', marginLeft: 5, marginRight: 10 }, activeColor === null && styles.colorCircleActive]} 
+            style={[styles.colorCircle, { backgroundColor: 'transparent', borderWidth: 1, borderColor: '#64748b', marginRight: 10 }, activeColor === null && styles.colorCircleActive]} 
             onPress={() => setActiveColor(null)}
           >
             <Feather name="slash" size={16} color="#64748b" />
