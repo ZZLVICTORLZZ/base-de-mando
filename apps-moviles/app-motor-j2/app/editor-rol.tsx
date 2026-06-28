@@ -33,7 +33,7 @@ export default function EditorRolScreen() {
 
   // Marcatextos
   const [activeColor, setActiveColor] = useState<string | null>(null);
-  const COLORS = ['#fecdd3', '#bae6fd', '#bbf7d0', '#fef08a', '#fed7aa'];
+  const COLORS = ['#FF1493', '#00FFFF', '#39FF14', '#FFFF00', '#FF8C00'];
 
   // Exportación
   const [isExporting, setIsExporting] = useState(false);
