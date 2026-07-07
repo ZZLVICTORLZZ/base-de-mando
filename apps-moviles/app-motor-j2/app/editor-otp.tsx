@@ -73,6 +73,7 @@ export default function EditorOTPScreen() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [plantillaName, setPlantillaName] = useState('');
+  const [tipoRolName, setTipoRolName] = useState('');
   const [rows, setRows] = useState<any[]>([]);
   const [frecModalVisible, setFrecModalVisible] = useState(false);
   const [selectedRowIdForFrec, setSelectedRowIdForFrec] = useState<string | null>(null);
@@ -140,10 +141,16 @@ export default function EditorOTPScreen() {
       router.back();
       return;
     }
-    const savedName = data.creado_por?.includes('|') ? data.creado_por.split('|')[1].trim() : '';
-    // Preferir savedName para que mantenga el formato de la base de chequeo (Ej: Indios Verdes en lugar de Sabatino)
+    const parts = data.creado_por?.split('|') || [];
+    const savedName = parts.length > 1 ? parts[1].trim() : '';
+    const savedTipoRol = parts.length > 2 ? parts[2].trim() : (data.plantillas_predeterminadas?.name || '');
     setPlantillaName(savedName || data.plantillas_predeterminadas?.name || 'Proyección Sin Nombre');
-    setCreadorName(data.creado_por?.split('|')[0].trim() || '');
+    setTipoRolName(savedTipoRol);
+    let rawCreador = parts[0]?.replace('[OTP]', '').trim() || '';
+    if (!rawCreador || rawCreador.toLowerCase() === 'tablerista') {
+      rawCreador = 'Emiliano';
+    }
+    setCreadorName(`[OTP] ${rawCreador}`);
     setRows(data.rows || []);
     setLoading(false);
   };
@@ -157,10 +164,14 @@ export default function EditorOTPScreen() {
     }
     
     const baseName = data.plantillas_predeterminadas?.name || '';
+    setTipoRolName(baseName);
     // Usar la base_chequeo si existe (para nueva proyeccion), de lo contrario la baseName original
     const effectiveBase = base_chequeo ? (base_chequeo as string) : baseName;
     setPlantillaName(effectiveBase);
-    const currentUser = await AsyncStorage.getItem('apolo11_user_name') || 'Tablerista';
+    let currentUser = await AsyncStorage.getItem('apolo11_user_name');
+    if (!currentUser || currentUser.toLowerCase() === 'tablerista') {
+      currentUser = 'Emiliano';
+    }
     setCreadorName(`[OTP] ${currentUser}`);
     
     let processedRows = data.rows || [];
@@ -495,12 +506,20 @@ export default function EditorOTPScreen() {
 
     if (rol_id) {
       // Editando OTP existente
-      const { error } = await supabase.from('roles_del_dia').update({ rows: rows }).eq('id', rol_id);
+      let currentUser = await AsyncStorage.getItem('apolo11_user_name');
+      if (!currentUser || currentUser.toLowerCase() === 'tablerista') {
+        currentUser = 'Emiliano';
+      }
+      const newCreadorPor = `[OTP] ${currentUser} | ${plantillaName} | ${tipoRolName}`;
+      const { error } = await supabase.from('roles_del_dia').update({ rows: rows, creado_por: newCreadorPor }).eq('id', rol_id);
       errorObj = error;
     } else {
       // Creando nuevo OTP
       const { data: sourceData } = await supabase.from('roles_del_dia').select('plantilla_base_id').eq('id', source_rol_id).single();
-      const currentUser = await AsyncStorage.getItem('apolo11_user_name') || 'Tablerista';
+      let currentUser = await AsyncStorage.getItem('apolo11_user_name');
+      if (!currentUser || currentUser.toLowerCase() === 'tablerista') {
+        currentUser = 'Emiliano';
+      }
       
       let finalPlantillaId = sourceData?.plantilla_base_id || null;
       if (base_chequeo) {
@@ -514,7 +533,7 @@ export default function EditorOTPScreen() {
       const newOTP = {
         fecha: new Date().toISOString().split('T')[0],
         plantilla_base_id: finalPlantillaId,
-        creado_por: `[OTP] ${currentUser} | ${plantillaName}`, // Guardar nombre para que isIndios funcione
+        creado_por: `[OTP] ${currentUser} | ${plantillaName} | ${tipoRolName}`, // Guardar nombre y tipo de rol para que isIndios funcione
         rows: rows
       };
 
@@ -565,7 +584,10 @@ export default function EditorOTPScreen() {
           <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
             <Feather name="arrow-left" size={24} color="#006847" />
           </TouchableOpacity>
-          <Text style={[styles.title, isDarkMode && { color: "#F5F5DC" }]}>OTP - {plantillaName}</Text>
+          <View style={{ alignItems: 'center' }}>
+            <Text style={[styles.title, isDarkMode && { color: "#F5F5DC" }]}>OTP - {plantillaName}</Text>
+            {tipoRolName ? <Text style={{ fontSize: 11, color: isDarkMode ? '#aaa' : '#64748b', fontWeight: 'bold' }}>Rol: {tipoRolName}</Text> : null}
+          </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 15 }}>
             <TouchableOpacity onPress={() => setIsDarkMode(!isDarkMode)}>
               <Feather name={isDarkMode ? 'sun' : 'moon'} size={24} color={isDarkMode ? '#F5F5DC' : '#006847'} />
@@ -643,11 +665,22 @@ export default function EditorOTPScreen() {
                     <View style={{ width: 900, backgroundColor: '#FDF8ED', padding: 30 }}>
                     {/* Header de Exportación OTP */}
                     <View style={{ flexDirection: 'column', borderBottomWidth: 2, borderColor: '#0033A0', paddingBottom: 15, marginBottom: 20 }}>
-                      <Text style={{ color: '#0033A0', fontSize: 24, fontWeight: 'bold', textAlign: 'center', marginBottom: 10 }}>
+                      <Text style={{ color: '#0033A0', fontSize: 24, fontWeight: 'bold', textAlign: 'center', marginBottom: tipoRolName ? 4 : 10 }}>
                         PROYECCIÓN OTP - {plantillaName?.toUpperCase()}
                       </Text>
+                      {tipoRolName ? (
+                        <Text style={{ color: '#475569', fontSize: 16, fontWeight: 'bold', textAlign: 'center', marginBottom: 12 }}>
+                          Rol: {tipoRolName}
+                        </Text>
+                      ) : null}
                       <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                        <Text style={{ color: '#000000', fontSize: 16, fontWeight: 'bold' }}>Sistema Saturno V | Elaboró: {creadorName.replace('[OTP] ', '')}</Text>
+                        <Text style={{ color: '#000000', fontSize: 16, fontWeight: 'bold' }}>
+                          Sistema Saturno V | Elaboró: {(() => {
+                            const name = creadorName.replace('[OTP] ', '').trim();
+                            if (!name || name.toLowerCase() === 'tablerista') return 'Emiliano';
+                            return name;
+                          })()}
+                        </Text>
                         <Text style={{ color: '#0033A0', fontSize: 16, fontWeight: 'bold' }}>Fecha: {new Date().toLocaleDateString()}</Text>
                       </View>
                     </View>
