@@ -10,7 +10,7 @@ import * as Sharing from 'expo-sharing';
 import { supabase } from '../src/services/supabaseClient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const FrecModal = ({ visible, onClose, initialFrec, onSave }: any) => {
+const FrecModal = ({ visible, onClose, initialFrec, onSave, isDarkMode }: any) => {
   const [val, setVal] = useState('');
   const [isCascada, setIsCascada] = useState(false);
   const [isSF, setIsSF] = useState(false);
@@ -26,21 +26,21 @@ const FrecModal = ({ visible, onClose, initialFrec, onSave }: any) => {
   return (
     <Modal visible={visible} animationType="slide" transparent={true} onRequestClose={onClose}>
       <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Configurar Frecuencia</Text>
+        <View style={[styles.modalContent, isDarkMode && { backgroundColor: '#222' }]}>
+          <View style={[styles.modalHeader, isDarkMode && { borderBottomColor: '#333' }]}>
+            <Text style={[styles.modalTitle, isDarkMode && { color: '#F5F5DC' }]}>Configurar Frecuencia</Text>
             <TouchableOpacity onPress={onClose}>
               <Feather name="x" size={24} color="#94a3b8" />
             </TouchableOpacity>
           </View>
           
           <TextInput 
-            style={{ backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#D9D2C2', borderRadius: 12, color: '#000000', padding: 18, fontSize: 24, fontWeight: 'bold', marginBottom: 25, textAlign: 'center' }}
+            style={[{ backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#D9D2C2', borderRadius: 12, color: '#000000', padding: 18, fontSize: 24, fontWeight: 'bold', marginBottom: 25, textAlign: 'center' }, isDarkMode && { backgroundColor: '#333', borderColor: '#444', color: '#F5F5DC' }]}
             value={val}
             onChangeText={setVal}
             keyboardType="number-pad"
             placeholder="Ej. 15"
-            placeholderTextColor="#94a3b8"
+            placeholderTextColor={isDarkMode ? '#888' : '#94a3b8'}
             editable={!isSF}
           />
 
@@ -48,14 +48,14 @@ const FrecModal = ({ visible, onClose, initialFrec, onSave }: any) => {
             <View style={{ width: 24, height: 24, borderWidth: 2, borderColor: isCascada ? '#006847' : '#94a3b8', borderRadius: 6, marginRight: 15, justifyContent: 'center', alignItems: 'center', backgroundColor: isCascada ? '#006847' : 'transparent' }}>
               {isCascada && <Feather name="check" size={16} color="#fff" />}
             </View>
-            <Text style={{ color: '#000000', fontSize: 16 }}>Aplicar en Cascada a las demás</Text>
+            <Text style={{ color: isDarkMode ? '#F5F5DC' : '#000000', fontSize: 16 }}>Aplicar en Cascada a las demás</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 30 }} onPress={() => { setIsSF(!isSF); setIsCascada(false); }}>
             <View style={{ width: 24, height: 24, borderWidth: 2, borderColor: isSF ? '#D2042D' : '#94a3b8', borderRadius: 6, marginRight: 15, justifyContent: 'center', alignItems: 'center', backgroundColor: isSF ? '#D2042D' : 'transparent' }}>
               {isSF && <Feather name="check" size={16} color="#fff" />}
             </View>
-            <Text style={{ color: '#000000', fontSize: 16 }}>S.F. (Sin Frecuencia - Aislada)</Text>
+            <Text style={{ color: isDarkMode ? '#F5F5DC' : '#000000', fontSize: 16 }}>S.F. (Sin Frecuencia - Aislada)</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={{ backgroundColor: '#006847', padding: 18, borderRadius: 12 }} onPress={() => onSave(val, isSF, isCascada)}>
@@ -88,7 +88,23 @@ export default function EditorOTPScreen() {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [searchEco, setSearchEco] = useState('');
   const [toastMsg, setToastMsg] = useState('');
+  const [activeRolId, setActiveRolId] = useState<string | null>((rol_id as string) || null);
+  const [lastSavedTime, setLastSavedTime] = useState<string>('');
+  const [unidadesList, setUnidadesList] = useState<any[]>([]);
+  const [paxPromedioDia, setPaxPromedioDia] = useState<number>(0);
   
+  useEffect(() => {
+    AsyncStorage.getItem('OTP_DARK_MODE').then(val => {
+      if (val === 'true') setIsDarkMode(true);
+    });
+  }, []);
+
+  const toggleDarkMode = () => {
+    const next = !isDarkMode;
+    setIsDarkMode(next);
+    AsyncStorage.setItem('OTP_DARK_MODE', String(next));
+  };
+
   const showToast = (msg: string) => {
     setToastMsg(msg);
     setTimeout(() => setToastMsg(''), 2000);
@@ -126,12 +142,132 @@ export default function EditorOTPScreen() {
     init();
   }, [source_rol_id, rol_id]);
 
+  // Autoguardado silencioso cada vez que cambian las filas
+  useEffect(() => {
+    if (isReadOnly || loading || rows.length === 0) return;
+    const timer = setTimeout(async () => {
+      await performAutoSave();
+    }, 2500);
+    return () => clearTimeout(timer);
+  }, [rows]);
+
+  const performAutoSave = async () => {
+    if (isReadOnly || loading || rows.length === 0) return;
+    try {
+      let currentUser = await AsyncStorage.getItem('apolo11_user_name');
+      if (!currentUser || currentUser.toLowerCase() === 'tablerista') {
+        currentUser = 'Emiliano';
+      }
+      const targetId = activeRolId || (rol_id as string);
+      if (targetId) {
+        await supabase.from('roles_del_dia').update({ rows: rows }).eq('id', targetId);
+        setLastSavedTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+      } else if (source_rol_id) {
+        // Primera vez que se autoguarda un nuevo OTP
+        const { data: sourceData } = await supabase.from('roles_del_dia').select('plantilla_base_id').eq('id', source_rol_id).single();
+        let finalPlantillaId = sourceData?.plantilla_base_id || null;
+        if (base_chequeo) {
+          const { data: bData } = await supabase.from('plantillas_predeterminadas').select('id').ilike('name', `%${base_chequeo}%`).limit(1).single();
+          if (bData) finalPlantillaId = bData.id;
+        }
+        const newOTP = {
+          fecha: new Date().toISOString().split('T')[0],
+          plantilla_base_id: finalPlantillaId,
+          creado_por: `[OTP] ${currentUser} | ${plantillaName} | ${tipoRolName}`,
+          rows: rows
+        };
+        const { data: inserted, error } = await supabase.from('roles_del_dia').insert([newOTP]).select('id').single();
+        if (inserted && !error) {
+          setActiveRolId(inserted.id);
+          setLastSavedTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+        }
+      }
+    } catch (e) {
+      console.log('Error en autoguardado:', e);
+    }
+  };
+
   const fetchUnidades = async () => {
-    const { data } = await supabase.from('unidades').select('id, numero, tipo').eq('activo', true);
+    const { data } = await supabase.from('unidades').select('*').eq('activo', true);
     if (data) {
+      setUnidadesList(data);
       return data;
     }
+    setUnidadesList([]);
     return [];
+  };
+
+  const fetchPaxPromedioDia = async (baseName: string, fechaStr?: string, rolName?: string) => {
+    try {
+      if (!baseName) return;
+      const targetDate = fechaStr && fechaStr.includes('-') ? new Date(fechaStr + 'T12:00:00') : new Date();
+      const targetDayOfWeek = targetDate.getDay();
+
+      const twoMonthsAgo = new Date();
+      twoMonthsAgo.setDate(twoMonthsAgo.getDate() - 60);
+      const dateLimitStr = twoMonthsAgo.toISOString().split('T')[0];
+
+      const { data } = await supabase
+        .from('roles_del_dia')
+        .select('fecha, rows, creado_por, plantillas_predeterminadas(name)')
+        .gte('fecha', dateLimitStr)
+        .ilike('creado_por', '[OTP]%');
+
+      if (!data || data.length === 0) {
+        setPaxPromedioDia(0);
+        return;
+      }
+
+      const matchingRoles = data.filter(d => {
+        const parts = d.creado_por?.split('|') || [];
+        const bName = parts.length > 1 ? parts[1].trim() : (d.plantillas_predeterminadas?.name || '');
+        const rName = parts.length > 2 ? parts[2].trim() : (d.plantillas_predeterminadas?.name || '');
+        
+        // 1. Coincidencia de Base
+        if (!bName.toLowerCase().includes(baseName.toLowerCase()) && !baseName.toLowerCase().includes(bName.toLowerCase())) {
+          return false;
+        }
+
+        // 2. Coincidencia de Rol (Mismo tipo de rol e.g. Entre Semana, Sabatino, Dominical)
+        const targetRol = (rolName || tipoRolName || '').toLowerCase();
+        const currentRol = rName.toLowerCase();
+        if (targetRol.includes('entre semana') && !currentRol.includes('entre semana')) return false;
+        if (targetRol.includes('sabatino') && !currentRol.includes('sabatino')) return false;
+        if (targetRol.includes('dominical') && !currentRol.includes('dominical')) return false;
+        if (!targetRol.includes('entre semana') && !targetRol.includes('sabatino') && !targetRol.includes('dominical') && targetRol !== '') {
+          if (!currentRol.includes(targetRol) && !targetRol.includes(currentRol)) return false;
+        }
+
+        // 3. Coincidencia de Día de la semana (miércoles con miércoles, etc.)
+        if (!d.fecha || !d.fecha.includes('-')) return false;
+        const dDate = new Date(d.fecha + 'T12:00:00');
+        return dDate.getDay() === targetDayOfWeek;
+      });
+
+      if (matchingRoles.length === 0) {
+        setPaxPromedioDia(0);
+        return;
+      }
+
+      // Agrupar por fecha única para sumar todas las tablas creadas en ese mismo día
+      const paxPorFecha: { [fecha: string]: number } = {};
+      matchingRoles.forEach(r => {
+        const rRows = r.rows || [];
+        const sumThisRol = rRows.reduce((sum: number, row: any) => {
+          const p = parseInt(String(row.pax || '').replace(/[^0-9]/g, ''));
+          return sum + (!isNaN(p) ? p : 0);
+        }, 0);
+        if (!paxPorFecha[r.fecha]) paxPorFecha[r.fecha] = 0;
+        paxPorFecha[r.fecha] += sumThisRol;
+      });
+
+      const fechas = Object.keys(paxPorFecha);
+      const totalPaxSum = fechas.reduce((sum, f) => sum + paxPorFecha[f], 0);
+      const prom = fechas.length > 0 ? Math.round(totalPaxSum / fechas.length) : 0;
+      setPaxPromedioDia(prom);
+    } catch (e) {
+      console.log('Error calculando pax promedio dia:', e);
+    }
   };
 
   const fetchRol = async () => {
@@ -144,7 +280,8 @@ export default function EditorOTPScreen() {
     const parts = data.creado_por?.split('|') || [];
     const savedName = parts.length > 1 ? parts[1].trim() : '';
     const savedTipoRol = parts.length > 2 ? parts[2].trim() : (data.plantillas_predeterminadas?.name || '');
-    setPlantillaName(savedName || data.plantillas_predeterminadas?.name || 'Proyección Sin Nombre');
+    const baseToUse = savedName || data.plantillas_predeterminadas?.name || 'Proyección Sin Nombre';
+    setPlantillaName(baseToUse);
     setTipoRolName(savedTipoRol);
     let rawCreador = parts[0]?.replace('[OTP]', '').trim() || '';
     if (!rawCreador || rawCreador.toLowerCase() === 'tablerista') {
@@ -152,6 +289,7 @@ export default function EditorOTPScreen() {
     }
     setCreadorName(`[OTP] ${rawCreador}`);
     setRows(data.rows || []);
+    await fetchPaxPromedioDia(baseToUse, data.fecha, savedTipoRol);
     setLoading(false);
   };
 
@@ -239,6 +377,7 @@ export default function EditorOTPScreen() {
     }
 
     setRows(processedRows);
+    await fetchPaxPromedioDia(effectiveBase, undefined, baseName);
     setLoading(false);
   };
 
@@ -503,15 +642,16 @@ export default function EditorOTPScreen() {
   const handleSaveOTP = async () => {
     setSaving(true);
     let errorObj = null;
+    const targetId = activeRolId || (rol_id as string);
 
-    if (rol_id) {
-      // Editando OTP existente
+    if (targetId) {
+      // Editando o finalizando OTP existente / autoguardado
       let currentUser = await AsyncStorage.getItem('apolo11_user_name');
       if (!currentUser || currentUser.toLowerCase() === 'tablerista') {
         currentUser = 'Emiliano';
       }
       const newCreadorPor = `[OTP] ${currentUser} | ${plantillaName} | ${tipoRolName}`;
-      const { error } = await supabase.from('roles_del_dia').update({ rows: rows, creado_por: newCreadorPor }).eq('id', rol_id);
+      const { error } = await supabase.from('roles_del_dia').update({ rows: rows, creado_por: newCreadorPor }).eq('id', targetId);
       errorObj = error;
     } else {
       // Creando nuevo OTP
@@ -569,6 +709,78 @@ export default function EditorOTPScreen() {
     }, 400);
   };
 
+  // Cálculo de Frecuencia Promedio, Pasajeros Totales, Capacidad Proyectada y Mapa de Unidades
+  const { frecPromedioMin, pasajerosTotales, capacidadRestante, proyeccionTotalPax, unidadesMap } = React.useMemo(() => {
+    // Construir mapa de unidades por número ECO para búsqueda rápida O(1)
+    const uMap: { [ecoNum: string]: number } = {};
+    (unidadesList || []).forEach(u => {
+      const numStr = String(u.numero || '').replace(/[^0-9]/g, '');
+      if (numStr) {
+        const cap = Number(u.capacidad || u.pasajeros || u.aforo || u.asientos || 0);
+        if (cap > 0) {
+          uMap[numStr] = cap;
+        }
+      }
+    });
+
+    if (!rows || rows.length === 0) {
+      return { frecPromedioMin: 0, pasajerosTotales: 0, capacidadRestante: 0, proyeccionTotalPax: 0, unidadesMap: uMap };
+    }
+
+    // 1. Calcular Pasajeros Totales (suma de todos los pax escritos en las unidades)
+    const totalPax = rows.reduce((acc, r) => {
+      const p = parseInt(String(r.pax || '').replace(/[^0-9]/g, ''));
+      return acc + (!isNaN(p) ? p : 0);
+    }, 0);
+
+    // 2. Encontrar el índice de la última unidad que tenga escritos pasajeros (> 0 o texto numérico válido)
+    let lastPaxIndex = -1;
+    for (let i = rows.length - 1; i >= 0; i--) {
+      const pStr = String(rows[i].pax || '').trim();
+      const p = parseInt(pStr.replace(/[^0-9]/g, ''));
+      if (pStr !== '' && !isNaN(p)) {
+        lastPaxIndex = i;
+        break;
+      }
+    }
+
+    // Si todavía ninguna unidad tiene pasajeros escritos, tomamos la última unidad del listado
+    const targetIndex = lastPaxIndex !== -1 ? lastPaxIndex : rows.length - 1;
+
+    // 3. Tomar los últimos 7 turnos (incluyendo unidades con marcatextos sin discriminación) desde targetIndex hacia arriba
+    const startIndex = Math.max(0, targetIndex - 6);
+    const last7Turns = rows.slice(startIndex, targetIndex + 1);
+    
+    // Sumar los minutos de carga (frec) y dividir entre la cantidad de turnos tomada (hasta 7)
+    const countTurns = last7Turns.length;
+    const sumFrec = last7Turns.reduce((acc, r) => {
+      const f = parseInt(String(r.frec || '0').replace(/[^0-9]/g, ''));
+      return acc + (!isNaN(f) ? f : 0);
+    }, 0);
+
+    const frecProm = countTurns > 0 ? Math.round(sumFrec / countTurns) : 0;
+
+    // 4. Calcular la capacidad restante de todas las unidades que aún no han entrado a cargar (sin pax registrado)
+    let capRest = 0;
+    for (let i = 0; i < rows.length; i++) {
+      const r = rows[i];
+      if (!r.pax || String(r.pax).trim() === '') {
+        const ecoNum = String(r.eco || '').replace(/[^0-9]/g, '');
+        if (ecoNum && uMap[ecoNum]) {
+          capRest += uMap[ecoNum];
+        }
+      }
+    }
+
+    return { 
+      frecPromedioMin: frecProm, 
+      pasajerosTotales: totalPax,
+      capacidadRestante: capRest,
+      proyeccionTotalPax: totalPax + capRest,
+      unidadesMap: uMap
+    };
+  }, [rows, unidadesList]);
+
   if (loading) {
     return (
       <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
@@ -578,18 +790,19 @@ export default function EditorOTPScreen() {
   }
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}>
       <SafeAreaView style={[styles.container, isDarkMode && { backgroundColor: "#1A1A1A" }]}>
-        <View style={styles.header}>
+        <View style={[styles.header, isDarkMode && { backgroundColor: '#1A1A1A', borderBottomColor: '#333' }]}>
           <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
             <Feather name="arrow-left" size={24} color="#006847" />
           </TouchableOpacity>
           <View style={{ alignItems: 'center' }}>
             <Text style={[styles.title, isDarkMode && { color: "#F5F5DC" }]}>OTP - {plantillaName}</Text>
             {tipoRolName ? <Text style={{ fontSize: 11, color: isDarkMode ? '#aaa' : '#64748b', fontWeight: 'bold' }}>Rol: {tipoRolName}</Text> : null}
+            {lastSavedTime ? <Text style={{ fontSize: 10, color: '#10b981', fontWeight: 'bold' }}>⚡ Guardado {lastSavedTime}</Text> : null}
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 15 }}>
-            <TouchableOpacity onPress={() => setIsDarkMode(!isDarkMode)}>
+            <TouchableOpacity onPress={toggleDarkMode}>
               <Feather name={isDarkMode ? 'sun' : 'moon'} size={24} color={isDarkMode ? '#F5F5DC' : '#006847'} />
             </TouchableOpacity>
             <View style={{ width: 10 }} />
@@ -597,46 +810,69 @@ export default function EditorOTPScreen() {
         </View>
 
         {!isExporting && (
-          <View style={{ paddingHorizontal: 15, paddingTop: 10, paddingBottom: 5 }}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-              <View style={{ flexDirection: 'row', flex: 1, backgroundColor: '#ffffff', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, alignItems: 'center', borderWidth: 1, borderColor: '#D9D2C2', shadowColor: '#000', shadowOffset: {width: 0, height: 2}, shadowOpacity: 0.05, shadowRadius: 3, elevation: 2 }}>
-                <Feather name="search" size={20} color="#94a3b8" />
+          <View style={{ paddingHorizontal: 15, paddingTop: 6, paddingBottom: 5 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', marginBottom: 6 }}>
+              <View style={[
+                { flexDirection: 'row', width: 210, height: 32, borderRadius: 16, paddingHorizontal: 10, alignItems: 'center', borderWidth: 1 },
+                isDarkMode ? { backgroundColor: '#262626', borderColor: '#404040' } : { backgroundColor: '#ffffff', borderColor: '#CBD5E1' }
+              ]}>
+                <Feather name="search" size={15} color={isDarkMode ? '#A3A3A3' : '#64748b'} />
                 <TextInput 
-                  style={{ flex: 1, marginLeft: 10, fontSize: 14, color: '#000000' }}
-                  placeholder="Buscar ECO (Modo Foco)"
-                  placeholderTextColor="#94a3b8"
+                  style={{ flex: 1, marginLeft: 6, fontSize: 13, paddingVertical: 0, color: isDarkMode ? '#F5F5DC' : '#1E293B' }}
+                  placeholder="Buscar ECO..."
+                  placeholderTextColor={isDarkMode ? '#737373' : '#94a3b8'}
                   value={searchEco}
                   onChangeText={setSearchEco}
                   keyboardType="number-pad"
                 />
                 {searchEco.length > 0 && (
                   <TouchableOpacity onPress={() => setSearchEco('')}>
-                    <Feather name="x-circle" size={20} color="#ef4444" />
+                    <Feather name="x-circle" size={16} color="#ef4444" />
                   </TouchableOpacity>
                 )}
               </View>
             </View>
 
-            <View style={{ backgroundColor: '#006847', borderRadius: 8, padding: 8, flexDirection: 'row', justifyContent: 'space-between', shadowColor: '#000', shadowOffset: {width: 0, height: 4}, shadowOpacity: 0.15, shadowRadius: 6, elevation: 4 }}>
-              <View style={{ alignItems: 'center', flex: 1 }}>
-                <Text style={{ color: '#88D8C0', fontSize: 9, fontWeight: 'bold' }}>FREC. PROM.</Text>
-                <Text style={{ color: '#FFFFFF', fontSize: 14, fontWeight: 'bold' }}>
-                  {rows.length > 0 ? Math.round(rows.reduce((acc, r) => acc + (parseInt(r.frec) || 15), 0) / rows.length) + ' min' : '--'}
-                </Text>
+            <View style={{ backgroundColor: '#006847', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, shadowColor: '#000', shadowOffset: {width: 0, height: 3}, shadowOpacity: 0.15, shadowRadius: 4, elevation: 3 }}>
+              {/* Hilera 1: Datos en vivo (Minimalista) */}
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 4, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.15)' }}>
+                <View style={{ alignItems: 'center', flex: 1 }}>
+                  <Text style={{ color: '#88D8C0', fontSize: 8.5, fontWeight: 'bold' }}>FREC. PROM.</Text>
+                  <Text style={{ color: '#FFFFFF', fontSize: 13, fontWeight: 'bold' }}>
+                    {rows.length > 0 ? `${frecPromedioMin} min` : '--'}
+                  </Text>
+                </View>
+                <View style={{ width: 1, height: 20, backgroundColor: '#88D8C0', opacity: 0.4 }} />
+                <View style={{ alignItems: 'center', flex: 1 }}>
+                  <Text style={{ color: '#88D8C0', fontSize: 8.5, fontWeight: 'bold' }}>T. AUTOBUSES</Text>
+                  <Text style={{ color: '#FFFFFF', fontSize: 13, fontWeight: 'bold' }}>
+                    {new Set(rows.filter(r => r.eco && r.highlightColor).map(r => r.eco)).size} / {new Set(rows.filter(r => r.eco).map(r => r.eco)).size}
+                  </Text>
+                </View>
+                <View style={{ width: 1, height: 20, backgroundColor: '#88D8C0', opacity: 0.4 }} />
+                <View style={{ alignItems: 'center', flex: 1 }}>
+                  <Text style={{ color: '#88D8C0', fontSize: 8.5, fontWeight: 'bold' }}>PAX ABORDADOS</Text>
+                  <Text style={{ color: '#FFFFFF', fontSize: 13, fontWeight: 'bold' }}>
+                    {pasajerosTotales}
+                  </Text>
+                </View>
               </View>
-              <View style={{ width: 1, backgroundColor: '#88D8C0', opacity: 0.5 }} />
-              <View style={{ alignItems: 'center', flex: 1 }}>
-                <Text style={{ color: '#88D8C0', fontSize: 9, fontWeight: 'bold' }}>T. AUTOBUSES</Text>
-                <Text style={{ color: '#FFFFFF', fontSize: 14, fontWeight: 'bold' }}>
-                  {new Set(rows.filter(r => r.eco && r.highlightColor).map(r => r.eco)).size} / {new Set(rows.filter(r => r.eco).map(r => r.eco)).size}
-                </Text>
-              </View>
-              <View style={{ width: 1, backgroundColor: '#88D8C0', opacity: 0.5 }} />
-              <View style={{ alignItems: 'center', flex: 1 }}>
-                <Text style={{ color: '#88D8C0', fontSize: 9, fontWeight: 'bold' }}>TÉRMINO</Text>
-                <Text style={{ color: '#FFFFFF', fontSize: 14, fontWeight: 'bold' }}>
-                  {rows.length > 0 ? rows[rows.length - 1].horario || '--:--' : '--:--'}
-                </Text>
+
+              {/* Hilera 2: Proyección y Cierre (Promedio del Día vs Capacidad Proyectada) */}
+              <View style={{ flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center', paddingTop: 4 }}>
+                <View style={{ alignItems: 'center', flex: 1 }}>
+                  <Text style={{ color: '#A7F3D0', fontSize: 8.5, fontWeight: 'bold' }}>PROM. DEL DÍA</Text>
+                  <Text style={{ color: '#FFFFFF', fontSize: 12, fontWeight: 'bold' }}>
+                    {paxPromedioDia > 0 ? `${paxPromedioDia} pax` : '--'}
+                  </Text>
+                </View>
+                <View style={{ width: 1, height: 20, backgroundColor: '#88D8C0', opacity: 0.4 }} />
+                <View style={{ alignItems: 'center', flex: 1 }}>
+                  <Text style={{ color: '#A7F3D0', fontSize: 8.5, fontWeight: 'bold' }}>CAP. PROYECTADA</Text>
+                  <Text style={{ color: '#FFFFFF', fontSize: 12, fontWeight: 'bold' }}>
+                    {proyeccionTotalPax} pax
+                  </Text>
+                </View>
               </View>
             </View>
           </View>
@@ -644,13 +880,13 @@ export default function EditorOTPScreen() {
 
         {!isExporting && (
           <View style={{ flexDirection: 'row', paddingHorizontal: 20, paddingVertical: 12, backgroundColor: isDarkMode ? '#1A1A1A' : '#FFFFFF', borderBottomWidth: 1, borderBottomColor: isDarkMode ? '#333' : '#D9D2C2' }}>
-            <View style={{ flex: 0.4 }}><Text style={[styles.th, {fontSize: 11}, isDarkMode && {color: '#888'}]}>NO.</Text></View>
-            <View style={{ flex: 0.7, paddingHorizontal: 1 }}><Text style={[styles.th, {fontSize: 11}]}>FREC</Text></View>
-            <View style={{ flex: 1.4, paddingHorizontal: 1 }}><Text style={[styles.th, {fontSize: 11}]}>HORA</Text></View>
-            <View style={{ flex: 1, paddingHorizontal: 1 }}><Text style={[styles.th, {fontSize: 11, color: '#000000'}]}>ECO</Text></View>
-            {!isIndios && <View style={{ flex: 0.7, paddingHorizontal: 1 }}><Text style={[styles.th, {fontSize: 11}]}>RUTA</Text></View>}
-            {(isIndios || isLagos) && <View style={{ flex: 0.6, paddingHorizontal: 1 }}><Text style={[styles.th, {fontSize: 11}]}>PAX</Text></View>}
-            <View style={{ flex: 0.5, paddingHorizontal: 1 }}><Text style={[styles.th, {fontSize: 11}]}>OBS</Text></View>
+            <View style={{ flex: 0.4 }}><Text style={[styles.th, {fontSize: 11}, isDarkMode && {color: '#aaa'}]}>NO.</Text></View>
+            <View style={{ flex: 0.7, paddingHorizontal: 1 }}><Text style={[styles.th, {fontSize: 11}, isDarkMode && {color: '#aaa'}]}>FREC</Text></View>
+            <View style={{ flex: 1.4, paddingHorizontal: 1 }}><Text style={[styles.th, {fontSize: 11}, isDarkMode && {color: '#aaa'}]}>HORA</Text></View>
+            <View style={{ flex: 1, paddingHorizontal: 1 }}><Text style={[styles.th, {fontSize: 11, color: isDarkMode ? '#aaa' : '#000000'}]}>ECO</Text></View>
+            {!isIndios && <View style={{ flex: 0.7, paddingHorizontal: 1 }}><Text style={[styles.th, {fontSize: 11}, isDarkMode && {color: '#aaa'}]}>RUTA</Text></View>}
+            {(isIndios || isLagos) && <View style={{ flex: 0.6, paddingHorizontal: 1 }}><Text style={[styles.th, {fontSize: 11}, isDarkMode && {color: '#aaa'}]}>PAX</Text></View>}
+            <View style={{ flex: 0.5, paddingHorizontal: 1 }}><Text style={[styles.th, {fontSize: 11}, isDarkMode && {color: '#aaa'}]}>OBS</Text></View>
             {!isReadOnly && <View style={{ width: 30 }} />}
           </View>
         )}
@@ -739,14 +975,15 @@ export default function EditorOTPScreen() {
                       )}
                     </View>
 
-                    {/* Total de Pasajeros */}
-                    {(isIndios || isLagos) && (
-                      <View style={{ marginTop: 20, alignItems: 'flex-end', borderTopWidth: 2, borderColor: '#0033A0', paddingTop: 10 }}>
-                        <Text style={{ color: '#0033A0', fontSize: 20, fontWeight: 'bold' }}>
-                          TOTAL PASAJEROS: {rows.reduce((sum, r) => sum + (parseInt(r.pax) || 0), 0)}
-                        </Text>
-                      </View>
-                    )}
+                    {/* Frecuencia Promedio y Total de Pasajeros en Exportación */}
+                    <View style={{ marginTop: 20, flexDirection: 'row', justifyContent: 'space-between', borderTopWidth: 2, borderColor: '#0033A0', paddingTop: 10 }}>
+                      <Text style={{ color: '#0033A0', fontSize: 18, fontWeight: 'bold' }}>
+                        FREC. PROMEDIO: {frecPromedioMin} MIN
+                      </Text>
+                      <Text style={{ color: '#0033A0', fontSize: 18, fontWeight: 'bold' }}>
+                        TOTAL PASAJEROS: {pasajerosTotales}
+                      </Text>
+                    </View>
                     </View>
                   </ScrollView>
                 </TouchableOpacity>
@@ -757,26 +994,29 @@ export default function EditorOTPScreen() {
           <FlatList
             data={rows}
             keyExtractor={item => item.id}
-            contentContainerStyle={[styles.content, { backgroundColor: isDarkMode ? '#1A1A1A' : '#F5F5DC' }]}
+            contentContainerStyle={[styles.content, { backgroundColor: isDarkMode ? '#1A1A1A' : '#F5F5DC', paddingBottom: 350 }]}
             onScrollBeginDrag={() => setExpandedRowId(null)}
+            keyboardShouldPersistTaps="handled"
             initialNumToRender={15}
             maxToRenderPerBatch={10}
             windowSize={5}
             removeClippedSubviews={true}
             renderItem={({ item: row, index }) => {
               const renderRightActions = () => (
-                <TouchableOpacity style={{ backgroundColor: '#ef4444', justifyContent: 'center', alignItems: 'center', width: 70, height: '90%', borderRadius: 8, marginVertical: 4, marginLeft: 8 }} onPress={() => handleRemoveRow(row.id)}>
-                  <Feather name="trash-2" size={24} color="#fff" />
-                </TouchableOpacity>
-              );
-              const renderLeftActions = () => (
-                <TouchableOpacity style={{ backgroundColor: '#10b981', justifyContent: 'center', alignItems: 'center', width: 70, height: '90%', borderRadius: 8, marginVertical: 4, marginRight: 8 }} onPress={() => handleInsertRow(index)}>
-                  <Feather name="plus-circle" size={24} color="#fff" />
-                </TouchableOpacity>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 4, marginLeft: 6 }}>
+                  <TouchableOpacity style={{ backgroundColor: '#10b981', justifyContent: 'center', alignItems: 'center', width: 62, height: '90%', borderRadius: 8, marginRight: 6 }} onPress={() => handleInsertRow(index)}>
+                    <Feather name="plus-circle" size={20} color="#fff" />
+                    <Text style={{ color: '#fff', fontSize: 10, fontWeight: 'bold', marginTop: 2 }}>Insertar</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={{ backgroundColor: '#ef4444', justifyContent: 'center', alignItems: 'center', width: 62, height: '90%', borderRadius: 8 }} onPress={() => handleRemoveRow(row.id)}>
+                    <Feather name="trash-2" size={20} color="#fff" />
+                    <Text style={{ color: '#fff', fontSize: 10, fontWeight: 'bold', marginTop: 2 }}>Borrar</Text>
+                  </TouchableOpacity>
+                </View>
               );
 
               return (
-              <Swipeable renderRightActions={!isReadOnly ? renderRightActions : undefined} renderLeftActions={!isReadOnly ? renderLeftActions : undefined}>
+              <Swipeable renderRightActions={!isReadOnly ? renderRightActions : undefined} friction={1} rightThreshold={15} overshootRight={true} overshootFriction={8}>
               <TouchableOpacity activeOpacity={0.8}
                 onPress={() => {
                   if (activeColor) handleApplyColor(row.id);
@@ -847,6 +1087,7 @@ export default function EditorOTPScreen() {
                         styles.inputCell, 
                         { justifyContent: 'center', paddingVertical: 8 }, 
                         row.ruta === 'MEX' ? { borderColor: '#10b981' } : row.ruta === 'REY' ? { borderColor: '#ef4444' } : { borderColor: '#a855f7' },
+                        isDarkMode && { backgroundColor: '#333', borderColor: '#444' },
                         isReadOnly && { opacity: 0.8, borderColor: 'transparent' }
                       ]}
                       onPress={() => handleToggleRuta(row.id)}
@@ -854,7 +1095,7 @@ export default function EditorOTPScreen() {
                     >
                       <Text style={[
                         { fontWeight: 'bold', textAlign: 'center', fontSize: 13 },
-                        row.ruta === 'MEX' ? { color: '#10b981' } : row.ruta === 'REY' ? { color: '#ef4444' } : { color: '#475569' }
+                        row.ruta === 'MEX' ? { color: '#10b981' } : row.ruta === 'REY' ? { color: '#ef4444' } : { color: isDarkMode ? '#aaa' : '#475569' }
                       ]}>
                         {row.ruta || '---'}
                       </Text>
@@ -864,16 +1105,30 @@ export default function EditorOTPScreen() {
 
                 {(isIndios || isLagos) && (
                   <View style={{ flex: 0.6, paddingHorizontal: 1 }}>
-                    <TextInput 
-                      style={[styles.inputCell, { color: '#000000', paddingVertical: 8, fontSize: 13 }, isDarkMode && { backgroundColor: '#333', borderColor: '#444', color: '#F5F5DC' }, isReadOnly && { opacity: 0.8, borderColor: 'transparent' }]}
-                      value={String(row.pax || '')}
-                      onChangeText={(t) => handleUpdateField(row.id, 'pax', t)}
-                      onFocus={() => { LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); toggleExpand(null); }}
-                      editable={!isReadOnly}
-                      keyboardType="number-pad"
-                      placeholder="--"
-                      placeholderTextColor={isDarkMode ? "#666" : "#475569"}
-                    />
+                    {(() => {
+                      const ecoClean = String(row.eco || '').replace(/[^0-9]/g, '');
+                      const unitCap = ecoClean ? (unidadesMap[ecoClean] || 0) : 0;
+                      const hasWrittenPax = row.pax !== undefined && row.pax !== null && String(row.pax).trim() !== '';
+                      
+                      return (
+                        <TextInput 
+                          style={[
+                            styles.inputCell, 
+                            { paddingVertical: 8, fontSize: 13 },
+                            hasWrittenPax ? { color: '#000000', fontWeight: 'bold' } : { color: '#94a3b8', fontStyle: 'italic', opacity: unitCap > 0 ? 0.9 : 1 },
+                            isDarkMode && { backgroundColor: '#333', borderColor: '#444', color: hasWrittenPax ? '#F5F5DC' : '#888' },
+                            isReadOnly && { opacity: 0.8, borderColor: 'transparent' }
+                          ]}
+                          value={hasWrittenPax ? String(row.pax) : ''}
+                          onChangeText={(t) => handleUpdateField(row.id, 'pax', t)}
+                          onFocus={() => { LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); toggleExpand(null); }}
+                          editable={!isReadOnly}
+                          keyboardType="number-pad"
+                          placeholder={unitCap > 0 ? `${unitCap}` : '--'}
+                          placeholderTextColor={unitCap > 0 ? (isDarkMode ? "#888" : "#94a3b8") : (isDarkMode ? "#666" : "#475569")}
+                        />
+                      );
+                    })()}
                   </View>
                 )}
 
@@ -894,12 +1149,12 @@ export default function EditorOTPScreen() {
             ListFooterComponent={
               !isReadOnly ? (
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 15, paddingVertical: 15 }}>
-                  <TouchableOpacity style={[styles.btnAddRow, { flex: 1, marginRight: 10, marginTop: 0 }]} onPress={handleAddRow}>
+                  <TouchableOpacity style={[styles.btnAddRow, { flex: 1, marginRight: 10, marginTop: 0 }, isDarkMode && { borderColor: '#444' }]} onPress={handleAddRow}>
                     <Feather name="plus" size={20} color="#8b5cf6" />
                     <Text style={{ color: '#8b5cf6', marginLeft: 8, fontWeight: 'bold' }}>Agregar Turno</Text>
                   </TouchableOpacity>
                   
-                  <TouchableOpacity style={[styles.btnAddRow, { flex: 1, marginLeft: 10, marginTop: 0, borderColor: '#eab308' }]} onPress={handleDuplicateRound}>
+                  <TouchableOpacity style={[styles.btnAddRow, { flex: 1, marginLeft: 10, marginTop: 0, borderColor: '#eab308' }, isDarkMode && { borderColor: '#a16207' }]} onPress={handleDuplicateRound}>
                     <Feather name="copy" size={20} color="#eab308" />
                     <Text style={{ color: '#eab308', marginLeft: 8, fontWeight: 'bold' }}>Duplicar Vuelta</Text>
                   </TouchableOpacity>
@@ -911,7 +1166,7 @@ export default function EditorOTPScreen() {
 
 
         {!isReadOnly && !isExporting && (
-          <View style={styles.marcatextosContainer}>
+          <View style={[styles.marcatextosContainer, isDarkMode && { backgroundColor: 'rgba(30, 30, 30, 0.95)', borderColor: '#444' }]}>
             <TouchableOpacity 
               style={[styles.colorCircle, { backgroundColor: 'transparent', borderWidth: 1, borderColor: '#64748b', marginRight: 10 }, activeColor === null && styles.colorCircleActive]} 
               onPress={() => setActiveColor(null)}
@@ -928,7 +1183,7 @@ export default function EditorOTPScreen() {
           </View>
         )}
 
-        <View style={styles.footer}>
+        <View style={[styles.footer, isDarkMode && { backgroundColor: '#1A1A1A', borderTopColor: '#333' }]}>
           <TouchableOpacity style={styles.btnShare} onPress={exportToWhatsApp}>
             <Feather name="share-2" size={20} color="#fff" />
             <Text style={styles.btnGuardarText}>Compartir</Text>
@@ -951,20 +1206,20 @@ export default function EditorOTPScreen() {
         {/* Modal Observaciones */}
         <Modal visible={obsModalVisible} animationType="fade" transparent={true} onRequestClose={() => setObsModalVisible(false)}>
           <View style={styles.modalOverlay}>
-            <View style={[styles.modalContent, { height: 'auto', paddingBottom: 30 }]}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Observaciones</Text>
+            <View style={[styles.modalContent, { height: 'auto', paddingBottom: 30 }, isDarkMode && { backgroundColor: '#222' }]}>
+              <View style={[styles.modalHeader, isDarkMode && { borderBottomColor: '#333' }]}>
+                <Text style={[styles.modalTitle, isDarkMode && { color: '#F5F5DC' }]}>Observaciones</Text>
                 <TouchableOpacity onPress={() => setObsModalVisible(false)}>
                   <Feather name="x" size={24} color="#94a3b8" />
                 </TouchableOpacity>
               </View>
               
               <TextInput 
-                style={{ backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#D9D2C2', borderRadius: 12, color: '#000000', padding: 18, fontSize: 16, marginBottom: 25, textAlignVertical: 'top' }}
+                style={[{ backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#D9D2C2', borderRadius: 12, color: '#000000', padding: 18, fontSize: 16, marginBottom: 25, textAlignVertical: 'top' }, isDarkMode && { backgroundColor: '#333', borderColor: '#444', color: '#F5F5DC' }]}
                 value={obsInputValue}
                 onChangeText={setObsInputValue}
                 placeholder="Ej. Salió a ruta 3 min tarde..."
-                placeholderTextColor="#94a3b8"
+                placeholderTextColor={isDarkMode ? '#888' : '#94a3b8'}
                 multiline={true}
                 numberOfLines={4}
               />

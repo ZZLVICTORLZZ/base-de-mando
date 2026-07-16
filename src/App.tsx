@@ -60,6 +60,7 @@ function App() {
           <Route path="/" element={session ? <Layout /> : <Navigate to="/login" />}>
             <Route index element={<Inicio />} />
             <Route path="estadisticas" element={<Estadisticas />} />
+            <Route path="analisis-servicio" element={<Estadisticas />} />
             <Route path="unidades" element={<Unidades />} />
             <Route path="servicio" element={<Servicio />} />
             <Route path="mantenimiento" element={<Mantenimiento />} />
@@ -69,6 +70,7 @@ function App() {
             <Route path="aforo" element={<Aforo />} />
             <Route path="taquilla" element={<Taquilla />} />
             <Route path="recursos-humanos" element={<RecursosHumanos />} />
+            <Route path="operadores" element={<RecursosHumanos />} />
           </Route>
         </Routes>
       </BrowserRouter>

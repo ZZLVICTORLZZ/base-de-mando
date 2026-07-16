@@ -64,7 +64,6 @@ export const Inicio = () => (
   </div>
 );
 
-export const Estadisticas = () => <PageTemplate title="Estadísticas" description="Análisis profundo y reportes detallados" icon={LayoutDashboard} />;
 export const Mantenimiento = () => <PageTemplate title="Mantenimiento" description="Control de estado y reparaciones de unidades" icon={Wrench} />;
 export const Archivo = () => <PageTemplate title="Archivo" description="Registros históricos y documentación" icon={Archive} />;
 
@@ -74,3 +73,4 @@ export { Recaudacion } from '../modules/recaudacion/Recaudacion';
 export { Taquilla } from '../modules/taquilla/Taquilla';
 export { Incidencias } from './Incidencias';
 export { RecursosHumanos } from './RecursosHumanos';
+export { Estadisticas } from './Estadisticas';

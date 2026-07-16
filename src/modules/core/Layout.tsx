@@ -8,10 +8,10 @@ import { supabase } from './supabaseClient';
 
 const navItems = [
   { path: '/', label: 'Inicio', icon: Home },
-  { path: '/estadisticas', label: 'Estadísticas', icon: LayoutDashboard },
+  { path: '/estadisticas', label: 'Estadísticas (Análisis)', icon: LayoutDashboard },
   { path: '/unidades', label: 'Unidades', icon: Truck },
   { path: '/servicio', label: 'Servicio', icon: Rocket },
-  { path: '/recursos-humanos', label: 'R. Humanos', icon: Briefcase },
+  { path: '/recursos-humanos', label: 'Operadores (R.H.)', icon: Briefcase },
   { path: '/mantenimiento', label: 'Mantenimiento', icon: Wrench },
   { path: '/administracion', label: 'Administración', icon: Users },
   { path: '/taquilla', label: 'Taquilla (PDV)', icon: Rocket },
