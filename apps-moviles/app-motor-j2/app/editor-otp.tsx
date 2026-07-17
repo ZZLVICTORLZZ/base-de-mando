@@ -781,6 +781,70 @@ export default function EditorOTPScreen() {
     };
   }, [rows, unidadesList]);
 
+  const renderTurnoIndicator = (row: any, isDark: boolean = false) => {
+    const ecoClean = String(row.eco || '').replace(/[^0-9]/g, '');
+    const unitCap = ecoClean ? (unidadesMap[ecoClean] || 0) : 0;
+    const hasWrittenPax = row.pax !== undefined && row.pax !== null && String(row.pax).trim() !== '';
+    const paxNum = hasWrittenPax ? parseInt(String(row.pax).replace(/[^0-9]/g, '')) : NaN;
+
+    let fillHeight = '0%';
+    let fillColor = 'transparent';
+    let showBox = false;
+
+    if (hasWrittenPax && !isNaN(paxNum) && unitCap > 0) {
+      showBox = true;
+      if (paxNum >= unitCap) {
+        fillHeight = '100%';
+        fillColor = '#10b981'; // Completo en verde si cubrió capacidad completa
+      } else if (paxNum >= unitCap * 0.5) {
+        fillHeight = '50%';
+        fillColor = '#f59e0b'; // La mitad en amarillo si se llevó por encima de capacidad media
+      } else {
+        fillHeight = '25%';
+        fillColor = '#ef4444'; // Un cuarto en rojo si se llevó menos de la mitad
+      }
+    }
+
+    return (
+      <View style={{ flex: 0.4, alignItems: 'center', justifyContent: 'center' }}>
+        {showBox ? (
+          <View style={{
+            width: 28,
+            height: 24,
+            borderRadius: 4,
+            overflow: 'hidden',
+            borderWidth: 1,
+            borderColor: isDark ? '#555' : '#CBD5E1',
+            justifyContent: 'center',
+            alignItems: 'center',
+            backgroundColor: isDark ? '#262626' : '#ffffff',
+            position: 'relative'
+          }}>
+            <View style={{
+              position: 'absolute',
+              bottom: 0,
+              left: 0,
+              right: 0,
+              height: fillHeight as any,
+              backgroundColor: fillColor
+            }} />
+            <Text style={[
+              styles.td,
+              { fontWeight: 'bold', fontSize: 13, zIndex: 1 },
+              isDark && { color: '#F5F5DC' },
+              (!isDark && fillHeight === '100%') && { color: '#ffffff' },
+              (isDark && fillHeight === '100%') && { color: '#000000' }
+            ]}>
+              {row.no}
+            </Text>
+          </View>
+        ) : (
+          <Text style={[styles.td, { fontWeight: 'bold' }, isDark && { color: '#F5F5DC' }]}>{row.no}</Text>
+        )}
+      </View>
+    );
+  };
+
   if (loading) {
     return (
       <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
@@ -937,7 +1001,7 @@ export default function EditorOTPScreen() {
                         </View>
                         {rows.slice(0, Math.ceil(rows.length / 2)).map((row) => (
                           <View key={row.id} style={{ flexDirection: 'row', backgroundColor: row.highlightColor ? `${row.highlightColor}60` : 'transparent', borderBottomWidth: 1, borderColor: '#0033A0', paddingVertical: 10, alignItems: 'center' }}>
-                            <Text style={{ flex: 0.4, color: '#000000', fontWeight: 'bold', fontSize: 13, textAlign: 'center' }}>{row.no}</Text>
+                            {renderTurnoIndicator(row, false)}
                             <Text style={{ flex: 0.6, color: '#000080', fontSize: 13, textAlign: 'center', fontWeight: 'bold' }}>{row.frec}</Text>
                             <Text style={{ flex: 1, color: '#000080', fontSize: 13, textAlign: 'center', fontWeight: 'bold' }}>{row.horario}</Text>
                             <Text style={{ flex: 1, color: '#000000', fontSize: 13, textAlign: 'center', fontWeight: 'bold' }}>{row.eco || '-'}</Text>
@@ -962,7 +1026,7 @@ export default function EditorOTPScreen() {
                           </View>
                           {rows.slice(Math.ceil(rows.length / 2)).map((row) => (
                             <View key={row.id} style={{ flexDirection: 'row', backgroundColor: row.highlightColor ? `${row.highlightColor}60` : 'transparent', borderBottomWidth: 1, borderColor: '#0033A0', paddingVertical: 10, alignItems: 'center' }}>
-                              <Text style={{ flex: 0.4, color: '#000000', fontWeight: 'bold', fontSize: 13, textAlign: 'center' }}>{row.no}</Text>
+                              {renderTurnoIndicator(row, false)}
                               <Text style={{ flex: 0.6, color: '#000080', fontSize: 13, textAlign: 'center', fontWeight: 'bold' }}>{row.frec}</Text>
                               <Text style={{ flex: 1, color: '#000080', fontSize: 13, textAlign: 'center', fontWeight: 'bold' }}>{row.horario}</Text>
                               <Text style={{ flex: 1, color: '#000000', fontSize: 13, textAlign: 'center', fontWeight: 'bold' }}>{row.eco || '-'}</Text>
@@ -1028,9 +1092,7 @@ export default function EditorOTPScreen() {
                   searchEco.trim() !== '' && String(row.eco) !== searchEco.trim() && { opacity: 0.15 }
                 ]}
               >
-                <View style={{ flex: 0.4 }}>
-                  <Text style={[styles.td, { fontWeight: 'bold' }, isDarkMode && { color: '#F5F5DC' }]}>{row.no}</Text>
-                </View>
+                {renderTurnoIndicator(row, isDarkMode)}
                 
                 <View style={{ flex: 0.7, paddingHorizontal: 1 }}>
                   <TouchableOpacity 
