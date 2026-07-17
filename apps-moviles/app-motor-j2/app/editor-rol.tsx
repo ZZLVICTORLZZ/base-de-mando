@@ -517,14 +517,9 @@ export default function EditorRolScreen() {
                       />
                     </View>
 
-                    <View style={{ flex: 1.5, paddingHorizontal: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
-                      {!isReadOnly && (
-                        <TouchableOpacity onPress={() => handleAdjustTime(row.id, -1)} style={{ padding: 2 }}>
-                          <Feather name="minus-circle" size={16} color="#ef4444" />
-                        </TouchableOpacity>
-                      )}
+                    <View style={{ flex: 1.5, paddingHorizontal: 1, justifyContent: 'center' }}>
                       <TextInput 
-                        style={[styles.inputCell, { flex: 1, paddingHorizontal: 2 }, isDarkMode && { backgroundColor: '#333', borderColor: '#444', color: '#F5F5DC' }, isReadOnly && { opacity: 0.8, borderColor: 'transparent' }]}
+                        style={[styles.inputCell, { flex: 1, paddingHorizontal: 2, textAlign: 'center' }, isDarkMode && { backgroundColor: '#333', borderColor: '#444', color: '#F5F5DC' }, isReadOnly && { opacity: 0.8, borderColor: 'transparent' }]}
                         value={row.horario}
                         onChangeText={(t) => handleUpdateField(row.id, 'horario', t)}
                         onFocus={() => toggleExpand(null)}
@@ -532,11 +527,6 @@ export default function EditorRolScreen() {
                         keyboardType="number-pad"
                         maxLength={5}
                       />
-                      {!isReadOnly && (
-                        <TouchableOpacity onPress={() => handleAdjustTime(row.id, 1)} style={{ padding: 2 }}>
-                          <Feather name="plus-circle" size={16} color="#10b981" />
-                        </TouchableOpacity>
-                      )}
                     </View>
                     
                     <View style={{ flex: 1.1, paddingHorizontal: 2 }}>

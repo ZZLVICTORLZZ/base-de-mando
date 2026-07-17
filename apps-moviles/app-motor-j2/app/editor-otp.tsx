@@ -261,9 +261,10 @@ export default function EditorOTPScreen() {
         paxPorFecha[r.fecha] += sumThisRol;
       });
 
-      const fechas = Object.keys(paxPorFecha);
-      const totalPaxSum = fechas.reduce((sum, f) => sum + paxPorFecha[f], 0);
-      const prom = fechas.length > 0 ? Math.round(totalPaxSum / fechas.length) : 0;
+      const fechas = Object.keys(paxPorFecha).sort();
+      const recentFechas = fechas.slice(-5); // Tomamos solo de 4 a 6 días recientes (5 fechas más recientes)
+      const totalPaxSum = recentFechas.reduce((sum, f) => sum + paxPorFecha[f], 0);
+      const prom = recentFechas.length > 0 ? Math.round(totalPaxSum / recentFechas.length) : 0;
       setPaxPromedioDia(prom);
     } catch (e) {
       console.log('Error calculando pax promedio dia:', e);
@@ -1106,14 +1107,9 @@ export default function EditorOTPScreen() {
                   </TouchableOpacity>
                 </View>
 
-                <View style={{ flex: 1.4, paddingHorizontal: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
-                  {!isReadOnly && (
-                    <TouchableOpacity onPress={() => handleAdjustTime(row.id, -1)} style={{ padding: 2 }}>
-                      <Feather name="minus-circle" size={16} color="#ef4444" />
-                    </TouchableOpacity>
-                  )}
+                <View style={{ flex: 1.4, paddingHorizontal: 1, justifyContent: 'center' }}>
                   <TextInput 
-                    style={[styles.inputCell, { flex: 1, color: '#000080', fontWeight: 'bold', paddingVertical: 8, fontSize: 13 }, isDarkMode && { backgroundColor: '#333', borderColor: '#444', color: '#F5F5DC' }, isReadOnly && { opacity: 0.8, borderColor: 'transparent' }]}
+                    style={[styles.inputCell, { flex: 1, color: '#000080', fontWeight: 'bold', paddingVertical: 8, fontSize: 13, textAlign: 'center' }, isDarkMode && { backgroundColor: '#333', borderColor: '#444', color: '#F5F5DC' }, isReadOnly && { opacity: 0.8, borderColor: 'transparent' }]}
                     value={row.horario}
                     onChangeText={(t) => handleUpdateField(row.id, 'horario', t)}
                     onFocus={() => toggleExpand(null)}
@@ -1121,11 +1117,6 @@ export default function EditorOTPScreen() {
                     keyboardType="number-pad"
                     maxLength={5}
                   />
-                  {!isReadOnly && (
-                    <TouchableOpacity onPress={() => handleAdjustTime(row.id, 1)} style={{ padding: 2 }}>
-                      <Feather name="plus-circle" size={16} color="#10b981" />
-                    </TouchableOpacity>
-                  )}
                 </View>
                 
                 <View style={{ flex: 1, paddingHorizontal: 1 }}>
