@@ -797,6 +797,9 @@ export default function EditorOTPScreen() {
       if (paxNum >= unitCap) {
         fillHeight = '100%';
         fillColor = '#10b981'; // Completo en verde si cubrió capacidad completa
+      } else if (paxNum >= unitCap * 0.75) {
+        fillHeight = '75%';
+        fillColor = '#f97316'; // 75% en naranja si se llevó por encima del 75% de capacidad
       } else if (paxNum >= unitCap * 0.5) {
         fillHeight = '50%';
         fillColor = '#f59e0b'; // La mitad en amarillo si se llevó por encima de capacidad media
