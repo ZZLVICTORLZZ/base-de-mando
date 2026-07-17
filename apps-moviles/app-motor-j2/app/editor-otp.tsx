@@ -790,7 +790,7 @@ export default function EditorOTPScreen() {
   }
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}>
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <SafeAreaView style={[styles.container, isDarkMode && { backgroundColor: "#1A1A1A" }]}>
         <View style={[styles.header, isDarkMode && { backgroundColor: '#1A1A1A', borderBottomColor: '#333' }]}>
           <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
@@ -994,9 +994,8 @@ export default function EditorOTPScreen() {
           <FlatList
             data={rows}
             keyExtractor={item => item.id}
-            contentContainerStyle={[styles.content, { backgroundColor: isDarkMode ? '#1A1A1A' : '#F5F5DC', paddingBottom: 350 }]}
+            contentContainerStyle={[styles.content, { backgroundColor: isDarkMode ? '#1A1A1A' : '#F5F5DC' }]}
             onScrollBeginDrag={() => setExpandedRowId(null)}
-            keyboardShouldPersistTaps="handled"
             initialNumToRender={15}
             maxToRenderPerBatch={10}
             windowSize={5}
