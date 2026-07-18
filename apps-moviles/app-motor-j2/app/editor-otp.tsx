@@ -202,6 +202,7 @@ export default function EditorOTPScreen() {
       if (!baseName) return;
       const targetDate = fechaStr && fechaStr.includes('-') ? new Date(fechaStr + 'T12:00:00') : new Date();
       const targetDayOfWeek = targetDate.getDay();
+      const targetDateStr = fechaStr && fechaStr.includes('-') ? fechaStr : new Date().toISOString().split('T')[0];
 
       const twoMonthsAgo = new Date();
       twoMonthsAgo.setDate(twoMonthsAgo.getDate() - 60);
@@ -211,6 +212,7 @@ export default function EditorOTPScreen() {
         .from('roles_del_dia')
         .select('fecha, rows, creado_por, plantillas_predeterminadas(name)')
         .gte('fecha', dateLimitStr)
+        .lt('fecha', targetDateStr)
         .ilike('creado_por', '[OTP]%');
 
       if (!data || data.length === 0) {
@@ -238,8 +240,9 @@ export default function EditorOTPScreen() {
           if (!currentRol.includes(targetRol) && !targetRol.includes(currentRol)) return false;
         }
 
-        // 3. Coincidencia de Día de la semana (miércoles con miércoles, etc.)
+        // 3. Coincidencia de Día de la semana y estrictamente fechas anteriores a la actual
         if (!d.fecha || !d.fecha.includes('-')) return false;
+        if (d.fecha >= targetDateStr) return false;
         const dDate = new Date(d.fecha + 'T12:00:00');
         return dDate.getDay() === targetDayOfWeek;
       });
