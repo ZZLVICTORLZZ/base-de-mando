@@ -11,7 +11,7 @@ const navItems = [
   { path: '/estadisticas', label: 'Estadísticas (Análisis)', icon: LayoutDashboard },
   { path: '/unidades', label: 'Unidades', icon: Truck },
   { path: '/servicio', label: 'Servicio', icon: Rocket },
-  { path: '/recursos-humanos', label: 'Operadores (R.H.)', icon: Briefcase },
+  { path: '/recursos-humanos', label: 'R.H.', icon: Briefcase },
   { path: '/mantenimiento', label: 'Mantenimiento', icon: Wrench },
   { path: '/administracion', label: 'Administración', icon: Users },
   { path: '/taquilla', label: 'Taquilla (PDV)', icon: Rocket },

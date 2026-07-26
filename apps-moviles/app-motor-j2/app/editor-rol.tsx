@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, KeyboardAvoidingView, Platform, Modal, Alert, LayoutAnimation, UIManager, Pressable, FlatList } from 'react-native';
 
 import { Feather } from '@expo/vector-icons';
@@ -22,6 +22,7 @@ export default function EditorRolScreen() {
   const [saving, setSaving] = useState(false);
   const [plantillaName, setPlantillaName] = useState('');
   const [rows, setRows] = useState<any[]>([]);
+  const swipeableRefs = useRef(new Map());
   const [unidades, setUnidades] = useState<any[]>([]);
   const [ecoModalVisible, setEcoModalVisible] = useState(false);
   const [selectedRowIdForEco, setSelectedRowIdForEco] = useState<string | null>(null);
@@ -479,7 +480,7 @@ export default function EditorRolScreen() {
             renderItem={({ item: row, index }) => {
               const renderRightActions = () => (
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 4, marginLeft: 6 }}>
-                  <TouchableOpacity style={{ backgroundColor: '#10b981', justifyContent: 'center', alignItems: 'center', width: 62, height: '90%', borderRadius: 8, marginRight: 6 }} onPress={() => handleInsertRow(index)}>
+                  <TouchableOpacity style={{ backgroundColor: '#10b981', justifyContent: 'center', alignItems: 'center', width: 62, height: '90%', borderRadius: 8, marginRight: 6 }} onPress={() => { swipeableRefs.current.get(row.id)?.close(); handleInsertRow(index); }}>
                     <Feather name="plus-circle" size={20} color="#fff" />
                     <Text style={{ color: '#fff', fontSize: 10, fontWeight: 'bold', marginTop: 2 }}>Insertar</Text>
                   </TouchableOpacity>
@@ -491,7 +492,15 @@ export default function EditorRolScreen() {
               );
 
               return (
-                <Swipeable renderRightActions={!isReadOnly ? renderRightActions : undefined} friction={1} rightThreshold={15} overshootRight={true} overshootFriction={8}>
+                <Swipeable 
+                  ref={(ref) => {
+                    if (ref) {
+                      swipeableRefs.current.set(row.id, ref);
+                    } else {
+                      swipeableRefs.current.delete(row.id);
+                    }
+                  }}
+                  renderRightActions={!isReadOnly ? renderRightActions : undefined} friction={1} rightThreshold={15} overshootRight={true} overshootFriction={8}>
                   <TouchableOpacity activeOpacity={0.8}
                     onPress={() => {
                       if (activeColor) handleApplyColor(row.id);
