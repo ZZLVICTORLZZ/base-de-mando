@@ -4,6 +4,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../src/services/supabaseClient';
 import { router } from 'expo-router';
 
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -12,19 +14,36 @@ export default function LoginScreen() {
   const handleLogin = async () => {
     // Bypass para poder ver la UI sin tener Supabase configurado
     if (email === '' && password === '') {
+      await AsyncStorage.setItem('apolo11_user_name', 'Bypass Admin');
       router.replace('/(tabs)');
       return;
     }
 
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    setLoading(false);
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     
     if (error) {
+      setLoading(false);
       Alert.alert('Error', error.message);
-    } else {
-      router.replace('/(tabs)');
+      return;
     }
+
+    if (data?.user) {
+      const { data: profile } = await supabase.from('profiles').select('nombre, access_level').eq('id', data.user.id).single();
+      
+      if (profile && profile.access_level < 2) {
+        await supabase.auth.signOut();
+        setLoading(false);
+        Alert.alert('Acceso Denegado', 'Tu nivel de acceso (Nivel 1) no permite ingresar a la App de Checadores (Requiere Nivel 2 o mayor).');
+        return;
+      }
+
+      const userName = profile?.nombre || email.split('@')[0] || 'Checador';
+      await AsyncStorage.setItem('apolo11_user_name', userName);
+    }
+    
+    setLoading(false);
+    router.replace('/(tabs)');
   };
 
   return (

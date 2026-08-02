@@ -24,14 +24,21 @@ export const Layout = () => {
   const navigate = useNavigate();
   const [theme, setTheme] = useState('tron');
   const [userEmail, setUserEmail] = useState<string | null>('Comandante');
+  const [canEdit, setCanEdit] = useState(true); // Por defecto true para testing
+  const [accessLevel, setAccessLevel] = useState(3);
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
     
-    // Obtener correo del usuario
-    supabase.auth.getUser().then(({ data: { user } }) => {
+    // Obtener correo y perfil del usuario
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (user?.email) {
         setUserEmail(user.email.split('@')[0]);
+        const { data: profile } = await supabase.from('profiles').select('can_edit, access_level').eq('id', user.id).single();
+        if (profile) {
+          setCanEdit(profile.can_edit);
+          setAccessLevel(profile.access_level);
+        }
       }
     });
   }, [theme]);
@@ -105,7 +112,7 @@ export const Layout = () => {
       </aside>
 
       <main className="main-content">
-        <Outlet />
+        <Outlet context={{ canEdit, accessLevel }} />
       </main>
     </div>
   );

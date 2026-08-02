@@ -1,68 +1,137 @@
 import React, { useState } from 'react';
-import { Shield, Key, Users as UsersIcon, Eye, Edit3, Trash2, Plus, Camera } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { Shield, Key, Users as UsersIcon, Eye, Edit3, Trash2, Plus, Camera, X, Save, UserCheck, Settings } from 'lucide-react';
 
 const rolesBasicos = [
   'Monitorista', 'Taquillero', 'Recaudador', 'Oficinista', 
   'Supervisor', 'Socio', 'Mecánico', 'Gerente', 'Administrador'
 ];
 
-const TabAccesos = () => (
-  <div className="animate-fade-in">
-    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1.5rem', alignItems: 'center' }}>
-      <div>
-        <h2 style={{ fontSize: '1.5rem', color: 'var(--text-main)' }}>Directorio de Personal</h2>
-        <p style={{ color: 'var(--text-muted)' }}>Crea y administra los usuarios del sistema.</p>
-      </div>
-      <button style={{ background: 'var(--primary)', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: 'var(--radius-sm)', fontWeight: 600, cursor: 'pointer', display: 'flex', gap: '8px', alignItems: 'center' }}>
-        <Plus size={18} /> Nuevo Empleado
-      </button>
-    </div>
-    
-    <div className="glass-panel" style={{ padding: '2rem' }}>
-      <h3 style={{ marginBottom: '1.5rem', color: 'var(--text-main)' }}>Formulario de Alta (Simulación)</h3>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '2rem' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
-          <div style={{ width: '120px', height: '120px', borderRadius: 'var(--radius-md)', background: 'var(--surface-color)', border: '1px dashed var(--glass-border)', display: 'flex', justifyContent: 'center', alignItems: 'center', cursor: 'pointer' }}>
-            <Camera size={32} color="var(--text-muted)" />
-          </div>
-          <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Subir Fotografía</p>
-        </div>
+// REGLA DE ORO: Toda pestaña que se integre en la BDM (Base de Mando) debe declararse aquí para su control de permisos SIEMPRE.
+export const APP_MODULES = [
+  { id: 'ini', label: 'Inicio' },
+  { id: 'est', label: 'Estadísticas' },
+  { id: 'uni', label: 'Unidades' },
+  { id: 'ser', label: 'Servicio' },
+  { id: 'rh', label: 'R.H.' },
+  { id: 'man', label: 'Mantenimiento' },
+  { id: 'adm', label: 'Administración' },
+  { id: 'taq', label: 'Taquilla' },
+  { id: 'afo', label: 'Aforo' },
+  { id: 'rec', label: 'Recaudación' },
+  { id: 'arc', label: 'Archivo' }
+];
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-            <div>
-              <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.5rem', color: 'var(--text-muted)' }}>Nombre Completo</label>
-              <input type="text" placeholder="Ej. Juan Pérez" style={{ width: '100%', padding: '10px', background: 'var(--surface-color)', border: '1px solid var(--glass-border)', color: 'var(--text-main)', borderRadius: 'var(--radius-sm)' }} />
-            </div>
-            <div>
-              <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.5rem', color: 'var(--text-muted)' }}>Teléfono</label>
-              <input type="text" placeholder="55 1234 5678" style={{ width: '100%', padding: '10px', background: 'var(--surface-color)', border: '1px solid var(--glass-border)', color: 'var(--text-main)', borderRadius: 'var(--radius-sm)' }} />
-            </div>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-            <div>
-              <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.5rem', color: 'var(--text-muted)' }}>Correo Electrónico (Acceso)</label>
-              <input type="email" placeholder="juan@apolo11.com" style={{ width: '100%', padding: '10px', background: 'var(--surface-color)', border: '1px solid var(--glass-border)', color: 'var(--text-main)', borderRadius: 'var(--radius-sm)' }} />
-            </div>
-            <div>
-              <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.5rem', color: 'var(--text-muted)' }}>Contraseña Inicial</label>
-              <input type="password" placeholder="••••••••" style={{ width: '100%', padding: '10px', background: 'var(--surface-color)', border: '1px solid var(--glass-border)', color: 'var(--text-main)', borderRadius: 'var(--radius-sm)' }} />
-            </div>
-          </div>
-          <div>
-            <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.5rem', color: 'var(--text-muted)' }}>Puesto (Rol Base)</label>
-            <select style={{ width: '100%', padding: '10px', background: 'var(--surface-color)', border: '1px solid var(--glass-border)', color: 'var(--text-main)', borderRadius: 'var(--radius-sm)' }}>
-              {rolesBasicos.map(r => <option key={r} value={r}>{r}</option>)}
-            </select>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1rem' }}>
-            <button style={{ background: 'var(--primary)', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: 'var(--radius-sm)', fontWeight: 600, cursor: 'pointer' }}>Guardar Perfil</button>
-          </div>
+const initialPermissions = [
+  { 
+    id: 1, name: 'Juan Pérez', role: 'Monitorista', nivel: 1,
+    perms: APP_MODULES.reduce((acc, mod) => ({
+      ...acc, 
+      [mod.id]: { r: ['ini', 'afo'].includes(mod.id), w: false }
+    }), {})
+  },
+  { 
+    id: 2, name: 'María López', role: 'Administrador', nivel: 3,
+    perms: APP_MODULES.reduce((acc, mod) => ({
+      ...acc, 
+      [mod.id]: { r: true, w: true }
+    }), {})
+  },
+];
+
+const TabAccesos = () => {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  return (
+    <div className="animate-fade-in">
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1.5rem', alignItems: 'center' }}>
+        <div>
+          <h2 style={{ fontSize: '1.5rem', color: 'var(--text-main)' }}>Directorio de Personal</h2>
+          <p style={{ color: 'var(--text-muted)' }}>Crea y administra los usuarios del sistema.</p>
         </div>
+        <button 
+          onClick={() => setIsModalOpen(true)}
+          style={{ background: 'var(--primary)', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: 'var(--radius-sm)', fontWeight: 600, cursor: 'pointer', display: 'flex', gap: '8px', alignItems: 'center' }}
+        >
+          <Plus size={18} /> Nuevo Registro
+        </button>
       </div>
+      
+      <div className="glass-panel" style={{ padding: '2rem' }}>
+        <h3 style={{ marginBottom: '1.5rem', color: 'var(--text-main)' }}>Usuarios Registrados (Simulación)</h3>
+        <p style={{ color: 'var(--text-muted)' }}>No hay usuarios mostrados en la simulación. Haz clic en "Nuevo Registro" para abrir el formulario.</p>
+      </div>
+
+      {isModalOpen && createPortal(
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 99999, display: 'grid', placeItems: 'center', padding: '20px', overflowY: 'auto' }}>
+          <div className="animate-fade-in" style={{ background: 'var(--surface-color)', padding: '30px', borderRadius: '16px', border: '1px solid var(--primary)', width: '100%', maxWidth: '700px', position: 'relative', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.7)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
+              <h3 style={{ color: 'var(--text-main)', margin: 0, fontSize: '1.5rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <UserCheck size={24} color="var(--primary)" /> Nuevo Registro de Personal
+              </h3>
+              <button onClick={() => setIsModalOpen(false)} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}><X size={24} /></button>
+            </div>
+            
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '2rem' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
+                <div style={{ width: '120px', height: '120px', borderRadius: 'var(--radius-md)', background: 'var(--bg-color)', border: '1px dashed var(--primary)', display: 'flex', justifyContent: 'center', alignItems: 'center', cursor: 'pointer' }}>
+                  <Camera size={32} color="var(--text-muted)" />
+                </div>
+                <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Subir Fotografía</p>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.5rem', color: 'var(--text-muted)' }}>Nombre Completo</label>
+                    <input type="text" placeholder="Ej. Juan Pérez" style={{ width: '100%', padding: '10px', background: 'var(--bg-color)', border: '1px solid var(--glass-border)', color: 'var(--text-main)', borderRadius: 'var(--radius-sm)' }} />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.5rem', color: 'var(--text-muted)' }}>Teléfono</label>
+                    <input type="text" placeholder="55 1234 5678" style={{ width: '100%', padding: '10px', background: 'var(--bg-color)', border: '1px solid var(--glass-border)', color: 'var(--text-main)', borderRadius: 'var(--radius-sm)' }} />
+                  </div>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.5rem', color: 'var(--text-muted)' }}>Correo Electrónico</label>
+                    <input type="email" placeholder="usuario@apolo11.com" style={{ width: '100%', padding: '10px', background: 'var(--bg-color)', border: '1px solid var(--glass-border)', color: 'var(--text-main)', borderRadius: 'var(--radius-sm)' }} />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.5rem', color: 'var(--text-muted)' }}>Contraseña Inicial</label>
+                    <input type="password" placeholder="••••••••" style={{ width: '100%', padding: '10px', background: 'var(--bg-color)', border: '1px solid var(--glass-border)', color: 'var(--text-main)', borderRadius: 'var(--radius-sm)' }} />
+                  </div>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.5rem', color: 'var(--text-muted)' }}>Puesto (Rol Base)</label>
+                    <select style={{ width: '100%', padding: '10px', background: 'var(--bg-color)', border: '1px solid var(--glass-border)', color: 'var(--text-main)', borderRadius: 'var(--radius-sm)' }}>
+                      {rolesBasicos.map(r => <option key={r} value={r}>{r}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.5rem', color: 'var(--text-muted)' }}>Nivel de Acceso</label>
+                    <select style={{ width: '100%', padding: '10px', background: 'var(--bg-color)', border: '1px solid var(--glass-border)', color: 'var(--text-main)', borderRadius: 'var(--radius-sm)' }}>
+                      <option value="1">Nivel 1 (Básico)</option>
+                      <option value="2">Nivel 2 (Intermedio)</option>
+                      <option value="3">Nivel 3 (BDM - Personalizado)</option>
+                    </select>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1rem', gap: '10px' }}>
+                  <button onClick={() => setIsModalOpen(false)} style={{ background: 'transparent', color: 'var(--text-main)', border: '1px solid var(--glass-border)', padding: '10px 20px', borderRadius: 'var(--radius-sm)', fontWeight: 600, cursor: 'pointer' }}>Cancelar</button>
+                  <button onClick={() => setIsModalOpen(false)} style={{ background: 'var(--primary)', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: 'var(--radius-sm)', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Save size={18} /> Guardar Perfil
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
-  </div>
-);
+  );
+};
 
 const TabRoles = () => (
   <div className="animate-fade-in">
@@ -92,42 +161,20 @@ const TabRoles = () => (
   </div>
 );
 
-const initialPermissions = [
-  { 
-    id: 1, name: 'Juan Pérez', role: 'Monitorista', 
-    perms: { 
-      aforo: { r: true, w: true }, 
-      rec: { r: false, w: false }, 
-      man: { r: false, w: false }, 
-      est: { r: true, w: false },
-      uni: { r: true, w: false }
-    } 
-  },
-  { 
-    id: 2, name: 'María López', role: 'Recaudador', 
-    perms: { 
-      aforo: { r: true, w: false }, 
-      rec: { r: true, w: true }, 
-      man: { r: false, w: false }, 
-      est: { r: true, w: false },
-      uni: { r: false, w: false }
-    } 
-  },
-];
-
 const TabPermisos = () => {
   const [permissions, setPermissions] = useState(initialPermissions);
 
-  const togglePerm = (userId: number, module: string, type: 'r' | 'w') => {
+  const togglePerm = (userId: number, moduleId: string, type: 'r' | 'w') => {
     setPermissions(permissions.map(user => {
       if (user.id === userId) {
+        const currentPerms: any = user.perms[moduleId as keyof typeof user.perms] || { r: false, w: false };
         return {
           ...user,
           perms: {
             ...user.perms,
-            [module as keyof typeof user.perms]: {
-              ...user.perms[module as keyof typeof user.perms],
-              [type]: !user.perms[module as keyof typeof user.perms][type]
+            [moduleId]: {
+              ...currentPerms,
+              [type]: !currentPerms[type]
             }
           }
         };
@@ -136,9 +183,14 @@ const TabPermisos = () => {
     }));
   };
 
-  const renderIcon = (userId: number, module: string, type: 'r' | 'w', IconProps: any) => {
+  const renderIcon = (userId: number, moduleId: string, type: 'r' | 'w', IconProps: any) => {
     const user = permissions.find(p => p.id === userId);
-    const isActive = user?.perms[module as keyof typeof user.perms][type];
+    const modPerms: any = user?.perms[moduleId as keyof typeof user?.perms] || { r: false, w: false };
+    const isActive = modPerms[type];
+    
+    // Si es Nivel 3 y estamos renderizando iconos, Nivel 3 puede ver BDM y customizar pestañas.
+    // Si no es nivel 3, tal vez bloqueamos edición? Pero la UI es interactiva para todos en este demo.
+    
     const title = type === 'r' ? (isActive ? 'Lectura Activada' : 'Lectura Desactivada') : (isActive ? 'Escritura Activada' : 'Escritura Desactivada');
 
     return (
@@ -147,42 +199,53 @@ const TabPermisos = () => {
         color={isActive ? "var(--primary)" : "rgba(255,255,255,0.1)"} 
         cursor="pointer" 
         title={title} 
-        onClick={() => togglePerm(userId, module, type)}
+        onClick={() => togglePerm(userId, moduleId, type)}
         style={{ transition: 'var(--transition)' }}
+        className="hover:scale-110"
       />
     );
   };
 
   return (
     <div className="animate-fade-in">
+      <div style={{ marginBottom: '1.5rem', background: 'rgba(59, 130, 246, 0.1)', padding: '1rem', borderLeft: '4px solid #3b82f6', borderRadius: 'var(--radius-sm)' }}>
+        <h4 style={{ margin: '0 0 8px 0', color: '#60a5fa', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Settings size={18} /> Regla de Oro BDM
+        </h4>
+        <p style={{ color: 'var(--text-main)', fontSize: '0.9rem', margin: 0 }}>
+          Toda pestaña que integremos en la BDM deberá integrarse también en este módulo de permisos. El Nivel 3 de acceso incluye entrada a la BDM con la capacidad de personalizar exactamente qué pestañas visualizar (Lectura) o modificar (Escritura).
+        </p>
+      </div>
+
       <div style={{ marginBottom: '1.5rem' }}>
         <h2 style={{ fontSize: '1.5rem', color: 'var(--text-main)' }}>Matriz de Permisos Interactiva (RBAC)</h2>
-        <p style={{ color: 'var(--text-muted)', marginTop: '0.5rem' }}>Da clic en los iconos para activar o desactivar el acceso granular para cada usuario. <br/> <Eye size={14} style={{display:'inline'}}/> = Lectura (Solo ver) | <Edit3 size={14} style={{display:'inline'}}/> = Escritura (Crear/Modificar).</p>
+        <p style={{ color: 'var(--text-muted)', marginTop: '0.5rem' }}>Da clic en los iconos para activar o desactivar el acceso granular a cada módulo de la BDM. <br/> <Eye size={14} style={{display:'inline'}}/> = Lectura (Ver) | <Edit3 size={14} style={{display:'inline'}}/> = Escritura (Modificar).</p>
       </div>
-      <div className="glass-panel" style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse' }}>
+      
+      <div className="glass-panel" style={{ overflowX: 'auto', paddingBottom: '1rem' }}>
+        <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse', minWidth: '1000px' }}>
           <thead>
             <tr style={{ borderBottom: '1px solid var(--glass-border)', background: 'rgba(0,0,0,0.2)' }}>
-              <th style={{ padding: '16px', color: 'var(--text-muted)' }}>Usuario</th>
-              <th style={{ padding: '16px', textAlign: 'center', color: 'var(--text-muted)' }}>Unidades</th>
-              <th style={{ padding: '16px', textAlign: 'center', color: 'var(--text-muted)' }}>Aforo</th>
-              <th style={{ padding: '16px', textAlign: 'center', color: 'var(--text-muted)' }}>Recaudación</th>
-              <th style={{ padding: '16px', textAlign: 'center', color: 'var(--text-muted)' }}>Mantenimiento</th>
-              <th style={{ padding: '16px', textAlign: 'center', color: 'var(--text-muted)' }}>Estadísticas</th>
+              <th style={{ padding: '16px', color: 'var(--text-muted)', position: 'sticky', left: 0, background: 'var(--surface-color)', zIndex: 10 }}>Usuario / Nivel</th>
+              {APP_MODULES.map(mod => (
+                <th key={mod.id} style={{ padding: '16px 8px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                  {mod.label}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
             {permissions.map(user => (
-              <tr key={user.id} style={{ borderBottom: '1px solid var(--glass-border)' }}>
-                <td style={{ padding: '16px' }}>
+              <tr key={user.id} style={{ borderBottom: '1px solid var(--glass-border)' }} className="table-row-hover">
+                <td style={{ padding: '16px', position: 'sticky', left: 0, background: 'var(--surface-color)', zIndex: 10 }}>
                   <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>{user.name}</div>
-                  <div style={{ fontSize: '0.8rem', color: 'var(--primary)' }}>{user.role}</div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--primary)' }}>{user.role} - Nivel {user.nivel}</div>
                 </td>
-                {['uni', 'aforo', 'rec', 'man', 'est'].map(mod => (
-                  <td key={mod} style={{ padding: '16px', textAlign: 'center' }}>
-                    <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
-                      {renderIcon(user.id, mod, 'r', Eye)}
-                      {renderIcon(user.id, mod, 'w', Edit3)}
+                {APP_MODULES.map(mod => (
+                  <td key={mod.id} style={{ padding: '16px 8px', textAlign: 'center' }}>
+                    <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                      {renderIcon(user.id, mod.id, 'r', Eye)}
+                      {renderIcon(user.id, mod.id, 'w', Edit3)}
                     </div>
                   </td>
                 ))}
@@ -196,7 +259,7 @@ const TabPermisos = () => {
 };
 
 export const Administracion = () => {
-  const [activeTab, setActiveTab] = useState('permisos'); // Puesto por defecto para prueba
+  const [activeTab, setActiveTab] = useState('permisos');
 
   const tabs = [
     { id: 'accesos', label: 'Accesos (Directorio)', icon: UsersIcon },
@@ -205,15 +268,17 @@ export const Administracion = () => {
   ];
 
   return (
-    <div className="animate-fade-in">
-      <div className="topbar">
+    <div className="animate-fade-in p-6 h-full flex flex-col">
+      <div className="mb-8">
         <div>
-          <h1 className="page-title">Administración del Sistema</h1>
-          <p className="page-subtitle">Gestión de personal, seguridad y control de accesos a la Base de Mando</p>
+          <h1 className="text-4xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 via-teal-400 to-blue-500 mb-2 tracking-tight">
+            Administración del Sistema
+          </h1>
+          <p className="text-slate-400 text-lg font-medium">Gestión de personal, seguridad y control de accesos a la Base de Mando</p>
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem', borderBottom: '1px solid var(--glass-border)', paddingBottom: '1rem' }}>
+      <div style={{ display: 'flex', gap: '1rem', marginBottom: '2rem', borderBottom: '1px solid var(--glass-border)', paddingBottom: '1rem', overflowX: 'auto' }}>
         {tabs.map(tab => (
           <button
             key={tab.id}
@@ -221,13 +286,14 @@ export const Administracion = () => {
             style={{
               display: 'flex', alignItems: 'center', gap: '8px',
               padding: '10px 20px',
-              background: activeTab === tab.id ? 'var(--surface-glass)' : 'transparent',
-              border: activeTab === tab.id ? '1px solid var(--primary)' : '1px solid transparent',
+              background: activeTab === tab.id ? 'var(--primary)' : 'rgba(255,255,255,0.05)',
+              border: activeTab === tab.id ? '1px solid var(--primary)' : '1px solid var(--glass-border)',
               borderRadius: 'var(--radius-sm)',
-              color: activeTab === tab.id ? 'var(--primary)' : 'var(--text-muted)',
+              color: activeTab === tab.id ? '#fff' : 'var(--text-muted)',
               cursor: 'pointer',
-              fontWeight: 500,
-              transition: 'var(--transition)'
+              fontWeight: 600,
+              transition: 'var(--transition)',
+              whiteSpace: 'nowrap'
             }}
           >
             <tab.icon size={18} />
@@ -236,7 +302,7 @@ export const Administracion = () => {
         ))}
       </div>
 
-      <div className="tab-content">
+      <div className="tab-content" style={{ flex: 1, overflowY: 'auto' }}>
         {activeTab === 'accesos' && <TabAccesos />}
         {activeTab === 'roles' && <TabRoles />}
         {activeTab === 'permisos' && <TabPermisos />}
