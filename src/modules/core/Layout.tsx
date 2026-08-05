@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { 
   Rocket, Wrench, Users, Archive, Banknote, UsersRound, 
   LayoutDashboard, Truck, LogOut, Home, Palette, AlertCircle, Briefcase
@@ -7,37 +7,47 @@ import {
 import { supabase } from './supabaseClient';
 
 const navItems = [
-  { path: '/', label: 'Inicio', icon: Home },
-  { path: '/estadisticas', label: 'Estadísticas (Análisis)', icon: LayoutDashboard },
-  { path: '/unidades', label: 'Unidades', icon: Truck },
-  { path: '/servicio', label: 'Servicio', icon: Rocket },
-  { path: '/recursos-humanos', label: 'R.H.', icon: Briefcase },
-  { path: '/mantenimiento', label: 'Mantenimiento', icon: Wrench },
-  { path: '/administracion', label: 'Administración', icon: Users },
-  { path: '/taquilla', label: 'Taquilla (PDV)', icon: Rocket },
-  { path: '/aforo', label: 'Aforo (Checador)', icon: UsersRound },
-  { path: '/recaudacion', label: 'Recaudación', icon: Banknote },
-  { path: '/archivo', label: 'Archivo', icon: Archive },
+  { path: '/', label: 'Inicio', icon: Home, moduleId: 'inicio' },
+  { path: '/estadisticas', label: 'Estadísticas (Análisis)', icon: LayoutDashboard, moduleId: 'estadisticas' },
+  { path: '/unidades', label: 'Unidades', icon: Truck, moduleId: 'unidades' },
+  { path: '/servicio', label: 'Servicio', icon: Rocket, moduleId: 'servicio' },
+  { path: '/recursos-humanos', label: 'R.H.', icon: Briefcase, moduleId: 'recursos_humanos' },
+  { path: '/mantenimiento', label: 'Mantenimiento', icon: Wrench, moduleId: 'mantenimiento' },
+  { path: '/administracion', label: 'Administración', icon: Users, moduleId: 'administracion' },
+  { path: '/taquilla', label: 'Taquilla (PDV)', icon: Rocket, moduleId: 'taquilla' },
+  { path: '/aforo', label: 'Aforo (Checador)', icon: UsersRound, moduleId: 'j2' },
+  { path: '/recaudacion', label: 'Recaudación', icon: Banknote, moduleId: 'finanzas' },
+  { path: '/archivo', label: 'Archivo', icon: Archive, moduleId: 'archivo' },
 ];
 
 export const Layout = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [theme, setTheme] = useState('tron');
   const [userEmail, setUserEmail] = useState<string | null>('Comandante');
-  const [canEdit, setCanEdit] = useState(true); // Por defecto true para testing
+  const [canEdit, setCanEdit] = useState(true);
   const [accessLevel, setAccessLevel] = useState(3);
+  const [modulesAccess, setModulesAccess] = useState<any>({});
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
     
     // Obtener correo y perfil del usuario
     supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (localStorage.getItem('apolo11_bypass') === 'true') {
+        setUserEmail('Admin Bypass');
+        setAccessLevel(10);
+        setCanEdit(true);
+        return;
+      }
+
       if (user?.email) {
         setUserEmail(user.email.split('@')[0]);
-        const { data: profile } = await supabase.from('profiles').select('can_edit, access_level').eq('id', user.id).single();
+        const { data: profile } = await supabase.from('profiles').select('can_edit, access_level, modules_access').eq('id', user.id).single();
         if (profile) {
           setCanEdit(profile.can_edit);
           setAccessLevel(profile.access_level);
+          setModulesAccess(profile.modules_access || {});
         }
       }
     });
@@ -50,8 +60,20 @@ export const Layout = () => {
   };
 
   const handleLogout = async () => {
+    if (localStorage.getItem('apolo11_bypass') === 'true') {
+      localStorage.removeItem('apolo11_bypass');
+      window.location.href = '/login';
+      return;
+    }
     await supabase.auth.signOut();
   };
+
+  // Filtrar items según permisos (Admin=9 y Dev=10 ven todo, el resto ve según módulos)
+  const visibleNavItems = navItems.filter(item => {
+    if (accessLevel >= 9) return true;
+    if (item.moduleId === 'inicio') return true; // Siempre ven inicio
+    return modulesAccess[item.moduleId] === true;
+  });
 
   return (
     <div className="app-container">
@@ -67,7 +89,7 @@ export const Layout = () => {
         </div>
 
         <nav style={{ flex: 1 }}>
-          {navItems.map((item) => (
+          {visibleNavItems.map((item) => (
             <NavLink 
               key={item.path} 
               to={item.path} 
@@ -99,11 +121,7 @@ export const Layout = () => {
               >
                 <Palette size={16} />
               </button>
-              <button 
-                onClick={handleLogout} 
-                style={{ background: 'transparent', padding: '8px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--glass-border)', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center' }} 
-                title="Cerrar Sesión"
-              >
+              <button onClick={handleLogout} className="logout-btn" title="Cerrar Sesión">
                 <LogOut size={16} />
               </button>
             </div>
@@ -111,8 +129,28 @@ export const Layout = () => {
         </div>
       </aside>
 
-      <main className="main-content">
-        <Outlet context={{ canEdit, accessLevel }} />
+      <main className="main-content" style={{ flex: 1 }}>
+        {(() => {
+          const currentPath = location.pathname;
+          // Si es admin supremo, siempre pasa.
+          if (accessLevel >= 9) return <Outlet context={{ canEdit, accessLevel }} />;
+          // Buscar el navItem que corresponde a la ruta
+          const matchingItem = navItems.find(item => item.path === currentPath || (item.path !== '/' && currentPath.startsWith(item.path + '/')));
+          // Si no encontramos un item o si el item no está visible en el menú
+          if (matchingItem && !visibleNavItems.find(v => v.path === matchingItem.path)) {
+            return (
+              <div style={{ padding: '3rem', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+                <AlertCircle size={64} color="var(--primary)" style={{ marginBottom: '1rem' }} />
+                <h2 style={{ color: 'var(--text-main)', fontSize: '2rem', marginBottom: '1rem' }}>Acceso Denegado</h2>
+                <p style={{ color: 'var(--text-muted)', fontSize: '1.2rem', maxWidth: '500px' }}>
+                  Tu nivel de acceso ({accessLevel}) no te permite visualizar este módulo de la Base de Mando. Si crees que es un error, contacta al Nivel 9 o 10.
+                </p>
+              </div>
+            );
+          }
+          // De lo contrario, renderizamos
+          return <Outlet context={{ canEdit, accessLevel }} />;
+        })()}
       </main>
     </div>
   );

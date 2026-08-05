@@ -12,10 +12,15 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
-    // Bypass para poder ver la UI sin tener Supabase configurado
+    // BYPASS: Restaurado temporalmente para pruebas
     if (email === '' && password === '') {
       await AsyncStorage.setItem('apolo11_user_name', 'Bypass Admin');
       router.replace('/(tabs)');
+      return;
+    }
+
+    if (!email || !password) {
+      Alert.alert('Error', 'Por favor ingresa tu correo y contraseña.');
       return;
     }
 
@@ -29,7 +34,7 @@ export default function LoginScreen() {
     }
 
     if (data?.user) {
-      const { data: profile } = await supabase.from('profiles').select('nombre, access_level').eq('id', data.user.id).single();
+      const { data: profile } = await supabase.from('profiles').select('nombre, username, access_level').eq('id', data.user.id).single();
       
       if (profile && profile.access_level < 2) {
         await supabase.auth.signOut();
@@ -38,7 +43,18 @@ export default function LoginScreen() {
         return;
       }
 
-      const userName = profile?.nombre || email.split('@')[0] || 'Checador';
+      // Guardamos Nombre Completo y Username (ID)
+      let userName = 'Checador';
+      if (profile?.nombre && profile?.username) {
+        userName = `${profile.nombre} - ${profile.username}`;
+      } else if (profile?.nombre) {
+        userName = profile.nombre;
+      } else if (profile?.username) {
+        userName = profile.username;
+      } else {
+        userName = email.split('@')[0];
+      }
+      
       await AsyncStorage.setItem('apolo11_user_name', userName);
     }
     

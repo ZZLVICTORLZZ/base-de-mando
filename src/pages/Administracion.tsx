@@ -63,66 +63,69 @@ const TabAccesos = () => {
       </div>
 
       {isModalOpen && createPortal(
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 99999, display: 'grid', placeItems: 'center', padding: '20px', overflowY: 'auto' }}>
-          <div className="animate-fade-in" style={{ background: 'var(--surface-color)', padding: '30px', borderRadius: '16px', border: '1px solid var(--primary)', width: '100%', maxWidth: '700px', position: 'relative', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.7)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
-              <h3 style={{ color: 'var(--text-main)', margin: 0, fontSize: '1.5rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <UserCheck size={24} color="var(--primary)" /> Nuevo Registro de Personal
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 99999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '15px' }}>
+          <div className="animate-fade-in" style={{ background: 'var(--surface-color)', padding: '25px', borderRadius: '16px', border: '1px solid var(--primary)', width: '100%', maxWidth: '500px', maxHeight: '95vh', overflowY: 'auto', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.7)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px', alignItems: 'center' }}>
+              <h3 style={{ color: 'var(--text-main)', margin: 0, fontSize: '1.3rem', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <UserCheck size={22} color="var(--primary)" /> Nuevo Personal
               </h3>
-              <button onClick={() => setIsModalOpen(false)} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}><X size={24} /></button>
+              <button onClick={() => setIsModalOpen(false)} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 0 }}><X size={24} /></button>
             </div>
             
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '2rem' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
-                <div style={{ width: '120px', height: '120px', borderRadius: 'var(--radius-md)', background: 'var(--bg-color)', border: '1px dashed var(--primary)', display: 'flex', justifyContent: 'center', alignItems: 'center', cursor: 'pointer' }}>
-                  <Camera size={32} color="var(--text-muted)" />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
+                <div style={{ width: '80px', height: '80px', borderRadius: '50%', background: 'var(--bg-color)', border: '1px dashed var(--primary)', display: 'flex', justifyContent: 'center', alignItems: 'center', cursor: 'pointer' }}>
+                  <Camera size={24} color="var(--text-muted)" />
                 </div>
-                <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Subir Fotografía</p>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: 0 }}>Subir Foto</p>
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.4rem', color: 'var(--text-muted)' }}>Nombre Completo</label>
+                  <input type="text" placeholder="Ej. Juan Pérez" style={{ width: '100%', padding: '10px', background: 'var(--bg-color)', border: '1px solid var(--glass-border)', color: 'var(--text-main)', borderRadius: 'var(--radius-sm)' }} />
+                </div>
+                
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                   <div>
-                    <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.5rem', color: 'var(--text-muted)' }}>Nombre Completo</label>
-                    <input type="text" placeholder="Ej. Juan Pérez" style={{ width: '100%', padding: '10px', background: 'var(--bg-color)', border: '1px solid var(--glass-border)', color: 'var(--text-main)', borderRadius: 'var(--radius-sm)' }} />
-                  </div>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.5rem', color: 'var(--text-muted)' }}>Teléfono</label>
+                    <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.4rem', color: 'var(--text-muted)' }}>Teléfono</label>
                     <input type="text" placeholder="55 1234 5678" style={{ width: '100%', padding: '10px', background: 'var(--bg-color)', border: '1px solid var(--glass-border)', color: 'var(--text-main)', borderRadius: 'var(--radius-sm)' }} />
                   </div>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                   <div>
-                    <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.5rem', color: 'var(--text-muted)' }}>Correo Electrónico</label>
-                    <input type="email" placeholder="usuario@apolo11.com" style={{ width: '100%', padding: '10px', background: 'var(--bg-color)', border: '1px solid var(--glass-border)', color: 'var(--text-main)', borderRadius: 'var(--radius-sm)' }} />
-                  </div>
-                  <div>
-                    <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.5rem', color: 'var(--text-muted)' }}>Contraseña Inicial</label>
+                    <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.4rem', color: 'var(--text-muted)' }}>Contraseña</label>
                     <input type="password" placeholder="••••••••" style={{ width: '100%', padding: '10px', background: 'var(--bg-color)', border: '1px solid var(--glass-border)', color: 'var(--text-main)', borderRadius: 'var(--radius-sm)' }} />
                   </div>
                 </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.4rem', color: 'var(--text-muted)' }}>Correo Electrónico</label>
+                  <input type="email" placeholder="usuario@apolo11.com" style={{ width: '100%', padding: '10px', background: 'var(--bg-color)', border: '1px solid var(--glass-border)', color: 'var(--text-main)', borderRadius: 'var(--radius-sm)' }} />
+                </div>
+
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                   <div>
-                    <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.5rem', color: 'var(--text-muted)' }}>Puesto (Rol Base)</label>
+                    <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.4rem', color: 'var(--text-muted)' }}>Puesto (Rol)</label>
                     <select style={{ width: '100%', padding: '10px', background: 'var(--bg-color)', border: '1px solid var(--glass-border)', color: 'var(--text-main)', borderRadius: 'var(--radius-sm)' }}>
                       {rolesBasicos.map(r => <option key={r} value={r}>{r}</option>)}
                     </select>
                   </div>
                   <div>
-                    <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.5rem', color: 'var(--text-muted)' }}>Nivel de Acceso</label>
+                    <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '0.4rem', color: 'var(--text-muted)' }}>Nivel de Acceso</label>
                     <select style={{ width: '100%', padding: '10px', background: 'var(--bg-color)', border: '1px solid var(--glass-border)', color: 'var(--text-main)', borderRadius: 'var(--radius-sm)' }}>
-                      <option value="1">Nivel 1 (Básico)</option>
-                      <option value="2">Nivel 2 (Intermedio)</option>
-                      <option value="3">Nivel 3 (BDM - Personalizado)</option>
+                      <option value="1">Nivel 1</option>
+                      <option value="2">Nivel 2</option>
+                      <option value="3">Nivel 3</option>
                     </select>
                   </div>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1rem', gap: '10px' }}>
-                  <button onClick={() => setIsModalOpen(false)} style={{ background: 'transparent', color: 'var(--text-main)', border: '1px solid var(--glass-border)', padding: '10px 20px', borderRadius: 'var(--radius-sm)', fontWeight: 600, cursor: 'pointer' }}>Cancelar</button>
-                  <button onClick={() => setIsModalOpen(false)} style={{ background: 'var(--primary)', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: 'var(--radius-sm)', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Save size={18} /> Guardar Perfil
-                  </button>
-                </div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.5rem', gap: '10px' }}>
+                <button onClick={() => setIsModalOpen(false)} style={{ background: 'transparent', color: 'var(--text-main)', border: '1px solid var(--glass-border)', padding: '10px 15px', borderRadius: 'var(--radius-sm)', fontWeight: 600, cursor: 'pointer' }}>Cancelar</button>
+                <button onClick={() => setIsModalOpen(false)} style={{ background: 'var(--primary)', color: '#fff', border: 'none', padding: '10px 15px', borderRadius: 'var(--radius-sm)', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Save size={18} /> Guardar
+                </button>
               </div>
             </div>
           </div>

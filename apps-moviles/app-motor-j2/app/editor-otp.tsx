@@ -125,9 +125,26 @@ export default function EditorOTPScreen() {
   const COLORS = ['#FF1493', '#00FFFF', '#39FF14', '#FFFF00', '#FF8C00'];
   const [creadorName, setCreadorName] = useState<string>('');
 
-  // Exportación
+// Exportación
   const [isExporting, setIsExporting] = useState(false);
   const viewShotRef = React.useRef<any>(null);
+
+  const getBaseColor = (name: string) => {
+    const lower = (name || '').toLowerCase();
+    
+    // Las 3 bases reales
+    if (lower.includes('indios verdes')) return '#00502A'; // Verde oscuro muy legible
+    if (lower.includes('paseos del lago 2') || lower.includes('lagos')) return '#990000'; // Rojo oscuro / Carmesí
+    if (lower.includes('nuevos paseos')) return '#A04000'; // Naranja oscuro / Óxido
+    
+    // Color por defecto si no coincide exactamente pero contiene palabras clave
+    if (lower.includes('indios')) return '#00502A';
+    if (lower.includes('lago')) return '#990000';
+    if (lower.includes('paseos')) return '#A04000';
+
+    return '#002244'; // Azul marino muy oscuro por defecto
+  };
+  const baseColor = getBaseColor(plantillaName);
 
   useEffect(() => {
     const init = async () => {
@@ -972,8 +989,8 @@ export default function EditorOTPScreen() {
                   <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                     <View style={{ width: 900, backgroundColor: '#FDF8ED', padding: 30 }}>
                     {/* Header de Exportación OTP */}
-                    <View style={{ flexDirection: 'column', borderBottomWidth: 2, borderColor: '#0033A0', paddingBottom: 15, marginBottom: 20 }}>
-                      <Text style={{ color: '#0033A0', fontSize: 24, fontWeight: 'bold', textAlign: 'center', marginBottom: tipoRolName ? 4 : 10 }}>
+                    <View style={{ flexDirection: 'column', borderBottomWidth: 2, borderColor: baseColor, paddingBottom: 15, marginBottom: 20 }}>
+                      <Text style={{ color: baseColor, fontSize: 24, fontWeight: 'bold', textAlign: 'center', marginBottom: tipoRolName ? 4 : 10 }}>
                         PROYECCIÓN OTP - {plantillaName?.toUpperCase()}
                       </Text>
                       {tipoRolName ? (
@@ -989,7 +1006,7 @@ export default function EditorOTPScreen() {
                             return name;
                           })()}
                         </Text>
-                        <Text style={{ color: '#0033A0', fontSize: 16, fontWeight: 'bold' }}>Fecha: {new Date().toLocaleDateString()}</Text>
+                        <Text style={{ color: baseColor, fontSize: 16, fontWeight: 'bold' }}>Fecha: {new Date().toLocaleDateString()}</Text>
                       </View>
                     </View>
 
@@ -1008,10 +1025,10 @@ export default function EditorOTPScreen() {
                           <Text style={{ flex: 2.2, color: '#000000', fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>OBS</Text>
                         </View>
                         {rows.slice(0, Math.ceil(rows.length / 2)).map((row) => (
-                          <View key={row.id} style={{ flexDirection: 'row', backgroundColor: row.highlightColor ? `${row.highlightColor}60` : 'transparent', borderBottomWidth: 1, borderColor: '#0033A0', paddingVertical: 10, alignItems: 'center' }}>
+                          <View key={row.id} style={{ flexDirection: 'row', backgroundColor: row.highlightColor ? `${row.highlightColor}60` : 'transparent', borderBottomWidth: 1, borderColor: baseColor, paddingVertical: 10, alignItems: 'center' }}>
                             {renderTurnoIndicator(row, false)}
-                            <Text style={{ flex: 0.6, color: '#000080', fontSize: 13, textAlign: 'center', fontWeight: 'bold' }}>{row.frec}</Text>
-                            <Text style={{ flex: 1, color: '#000080', fontSize: 13, textAlign: 'center', fontWeight: 'bold' }}>{row.horario}</Text>
+                            <Text style={{ flex: 0.6, color: baseColor, fontSize: 13, textAlign: 'center', fontWeight: 'bold' }}>{row.frec}</Text>
+                            <Text style={{ flex: 1, color: baseColor, fontSize: 13, textAlign: 'center', fontWeight: 'bold' }}>{row.horario}</Text>
                             <Text style={{ flex: 1, color: '#000000', fontSize: 13, textAlign: 'center', fontWeight: 'bold' }}>{row.eco || '-'}</Text>
                             {!isIndios && <Text style={{ flex: 0.6, color: row.ruta === 'MEX' ? '#008000' : row.ruta === 'REY' ? '#D22B2B' : '#4B0082', fontSize: 13, textAlign: 'center', fontWeight: 'bold' }}>{row.ruta || '-'}</Text>}
                             {(isIndios || isLagos) && <Text style={{ flex: 0.5, color: '#000000', fontSize: 13, textAlign: 'center' }}>{row.pax || '-'}</Text>}
@@ -1033,10 +1050,10 @@ export default function EditorOTPScreen() {
                             <Text style={{ flex: 2.2, color: '#000000', fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>OBS</Text>
                           </View>
                           {rows.slice(Math.ceil(rows.length / 2)).map((row) => (
-                            <View key={row.id} style={{ flexDirection: 'row', backgroundColor: row.highlightColor ? `${row.highlightColor}60` : 'transparent', borderBottomWidth: 1, borderColor: '#0033A0', paddingVertical: 10, alignItems: 'center' }}>
+                            <View key={row.id} style={{ flexDirection: 'row', backgroundColor: row.highlightColor ? `${row.highlightColor}60` : 'transparent', borderBottomWidth: 1, borderColor: baseColor, paddingVertical: 10, alignItems: 'center' }}>
                               {renderTurnoIndicator(row, false)}
-                              <Text style={{ flex: 0.6, color: '#000080', fontSize: 13, textAlign: 'center', fontWeight: 'bold' }}>{row.frec}</Text>
-                              <Text style={{ flex: 1, color: '#000080', fontSize: 13, textAlign: 'center', fontWeight: 'bold' }}>{row.horario}</Text>
+                              <Text style={{ flex: 0.6, color: baseColor, fontSize: 13, textAlign: 'center', fontWeight: 'bold' }}>{row.frec}</Text>
+                              <Text style={{ flex: 1, color: baseColor, fontSize: 13, textAlign: 'center', fontWeight: 'bold' }}>{row.horario}</Text>
                               <Text style={{ flex: 1, color: '#000000', fontSize: 13, textAlign: 'center', fontWeight: 'bold' }}>{row.eco || '-'}</Text>
                               {!isIndios && <Text style={{ flex: 0.6, color: row.ruta === 'MEX' ? '#008000' : row.ruta === 'REY' ? '#D22B2B' : '#4B0082', fontSize: 13, textAlign: 'center', fontWeight: 'bold' }}>{row.ruta || '-'}</Text>}
                               {(isIndios || isLagos) && <Text style={{ flex: 0.5, color: '#000000', fontSize: 13, textAlign: 'center' }}>{row.pax || '-'}</Text>}
@@ -1048,11 +1065,11 @@ export default function EditorOTPScreen() {
                     </View>
 
                     {/* Frecuencia Promedio y Total de Pasajeros en Exportación */}
-                    <View style={{ marginTop: 20, flexDirection: 'row', justifyContent: 'space-between', borderTopWidth: 2, borderColor: '#0033A0', paddingTop: 10 }}>
-                      <Text style={{ color: '#0033A0', fontSize: 18, fontWeight: 'bold' }}>
+                    <View style={{ marginTop: 20, flexDirection: 'row', justifyContent: 'space-between', borderTopWidth: 2, borderColor: baseColor, paddingTop: 10 }}>
+                      <Text style={{ color: baseColor, fontSize: 18, fontWeight: 'bold' }}>
                         FREC. PROMEDIO: {frecPromedioMin} MIN
                       </Text>
-                      <Text style={{ color: '#0033A0', fontSize: 18, fontWeight: 'bold' }}>
+                      <Text style={{ color: baseColor, fontSize: 18, fontWeight: 'bold' }}>
                         TOTAL PASAJEROS: {pasajerosTotales}
                       </Text>
                     </View>

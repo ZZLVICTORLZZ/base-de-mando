@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, Key, Users as UsersIcon, Eye, Edit3, Trash2, Plus, DollarSign, Save, LayoutGrid, ArrowLeft, X, Smartphone, Monitor } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { Shield, Key, Users as UsersIcon, Eye, Edit3, Trash2, Plus, DollarSign, Save, LayoutGrid, ArrowLeft, X, Smartphone, Monitor, UserCheck } from 'lucide-react';
 import { supabase } from '../core/supabaseClient';
 import { createClient } from '@supabase/supabase-js';
 
@@ -15,27 +16,42 @@ const TabAccesos = ({ perfiles, roles, onRefresh, onBack, canEdit }: { perfiles:
   const [editForm, setEditForm] = useState<any>({});
   
   const [isAddingNew, setIsAddingNew] = useState(false);
-  const [newUserForm, setNewUserForm] = useState({ email: '', password: '', nombre: '', role_id: '', access_level: 1, can_edit: false });
+  const [newUserForm, setNewUserForm] = useState({ 
+    email: '', password: '', nombre: '', username: '', role_id: '', access_level: 1, can_edit: false, 
+    modules_access: { administracion: true, j2: true, finanzas: false, recursos_humanos: false } 
+  });
   const [loading, setLoading] = useState(false);
 
   const handleEdit = (perfil: any) => {
     setEditingId(perfil.id);
-    setEditForm({ ...perfil, access_level: perfil.access_level || 1, can_edit: perfil.can_edit || false });
+    setEditForm({ 
+      ...perfil, 
+      username: perfil.username || '',
+      access_level: perfil.access_level || 1, 
+      can_edit: perfil.can_edit || false,
+      modules_access: perfil.modules_access || { administracion: false, j2: false }
+    });
   };
 
   const handleSave = async () => {
     try {
-      await supabase
+      const { error } = await supabase
         .from('profiles')
         .update({
-          role_id: editForm.role_id,
-          nfc_tag: editForm.nfc_tag,
-          is_shadow_mode: editForm.is_shadow_mode,
-          status: editForm.status,
+          nombre: editForm.nombre,
+          username: editForm.username,
           access_level: editForm.access_level,
-          can_edit: editForm.can_edit
+          can_edit: editForm.can_edit,
+          modules_access: editForm.modules_access
         })
         .eq('id', editingId);
+        
+      if (error) {
+        alert("Error de guardado: " + error.message);
+        console.error("Update error:", error);
+        return;
+      }
+
       setEditingId(null);
       onRefresh();
     } catch (error) {
@@ -53,6 +69,12 @@ const TabAccesos = ({ perfiles, roles, onRefresh, onBack, canEdit }: { perfiles:
       const { data, error } = await altSupabase.auth.signUp({
         email: newUserForm.email,
         password: newUserForm.password,
+        options: {
+          data: {
+            nombre: newUserForm.nombre,
+            username: newUserForm.username
+          }
+        }
       });
 
       if (error) {
@@ -62,22 +84,30 @@ const TabAccesos = ({ perfiles, roles, onRefresh, onBack, canEdit }: { perfiles:
       }
 
       if (data.user) {
-        const { error: profileError } = await supabase.from('profiles').upsert({
-          id: data.user.id,
+        // Usamos update en lugar de upsert porque el trigger de Supabase ya creó el perfil en Level 1.
+        // Si usamos upsert y no tenemos permiso de INSERT, falla silenciosamente por RLS.
+        const { error: profileError } = await supabase.from('profiles').update({
           nombre: newUserForm.nombre,
+          username: newUserForm.username,
           role_id: newUserForm.role_id || null,
           status: 'activo',
           access_level: newUserForm.access_level,
-          can_edit: newUserForm.can_edit
-        });
+          can_edit: newUserForm.can_edit,
+          modules_access: newUserForm.modules_access
+        }).eq('id', data.user.id);
+        
         if (profileError) {
           console.error(profileError);
+          alert("Aviso: El usuario fue creado, pero hubo un error al guardar sus permisos: " + profileError.message);
         }
       }
 
       alert('Acceso generado con éxito.');
       setIsAddingNew(false);
-      setNewUserForm({ email: '', password: '', nombre: '', role_id: '', access_level: 1, can_edit: false });
+      setNewUserForm({ 
+        email: '', password: '', nombre: '', username: '', role_id: '', access_level: 1, can_edit: false, 
+        modules_access: { administracion: true, j2: true, finanzas: false, recursos_humanos: false } 
+      });
       onRefresh();
     } catch (e) {
       console.error(e);
@@ -86,17 +116,19 @@ const TabAccesos = ({ perfiles, roles, onRefresh, onBack, canEdit }: { perfiles:
   };
 
   const renderLevelSelector = (currentLevel: number, setLevel: (level: number) => void) => (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginTop: '10px' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '10px', marginTop: '10px' }}>
       {[
-        { level: 1, title: 'Nivel 1 (Operador)', apps: 'Solo App Operadores', icon: Smartphone },
-        { level: 2, title: 'Nivel 2 (Checador)', apps: 'App J2 + Operadores', icon: Smartphone },
-        { level: 3, title: 'Nivel 3 (Admin)', apps: 'Base de Mando + Todas las Apps', icon: Monitor }
+        { level: 1, title: 'Nivel 1', apps: 'Motor F1 (Operadores)', icon: Smartphone },
+        { level: 2, title: 'Nivel 2', apps: 'Motor J2 (Tableristas)', icon: Smartphone },
+        { level: 3, title: 'Nivel 3', apps: 'Motor SPS (Mecánicos)', icon: Smartphone },
+        { level: 9, title: 'Nivel 9', apps: 'Admin Supremo BDM', icon: Monitor },
+        { level: 10, title: 'Nivel 10', apps: 'Dev Supremo BDM', icon: Monitor }
       ].map(opt => (
         <div 
           key={opt.level}
           onClick={() => setLevel(opt.level)}
           style={{ 
-            padding: '15px', 
+            padding: '12px 10px', 
             borderRadius: '12px', 
             border: currentLevel === opt.level ? '2px solid var(--primary)' : '1px solid var(--glass-border)',
             background: currentLevel === opt.level ? 'rgba(0, 104, 71, 0.1)' : 'var(--bg-color)',
@@ -105,13 +137,34 @@ const TabAccesos = ({ perfiles, roles, onRefresh, onBack, canEdit }: { perfiles:
             flexDirection: 'column',
             alignItems: 'center',
             textAlign: 'center',
-            gap: '8px'
+            gap: '6px'
           }}
         >
-          <opt.icon size={24} color={currentLevel === opt.level ? 'var(--primary)' : 'var(--text-muted)'} />
-          <strong style={{ color: currentLevel === opt.level ? 'var(--primary)' : 'var(--text-main)' }}>{opt.title}</strong>
+          <opt.icon size={20} color={currentLevel === opt.level ? 'var(--primary)' : 'var(--text-muted)'} />
+          <strong style={{ color: currentLevel === opt.level ? 'var(--primary)' : 'var(--text-main)', fontSize: '14px' }}>{opt.title}</strong>
           <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{opt.apps}</span>
         </div>
+      ))}
+    </div>
+  );
+
+  const renderModulesAccess = (modules: any, setModules: (m: any) => void) => (
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginTop: '15px' }}>
+      {[
+        { id: 'administracion', label: 'Administración BDM' },
+        { id: 'j2', label: 'Monitor J2 BDM' },
+        { id: 'finanzas', label: 'Finanzas BDM' },
+        { id: 'recursos_humanos', label: 'Recursos Humanos BDM' }
+      ].map(mod => (
+        <label key={mod.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', background: 'var(--bg-color)', padding: '10px', borderRadius: '8px', border: '1px solid var(--glass-border)' }}>
+          <input 
+            type="checkbox" 
+            checked={!!modules[mod.id]}
+            onChange={e => setModules({ ...modules, [mod.id]: e.target.checked })}
+            style={{ width: '18px', height: '18px', accentColor: 'var(--primary)' }}
+          />
+          <span style={{ color: 'var(--text-main)', fontSize: '13px' }}>{mod.label}</span>
+        </label>
       ))}
     </div>
   );
@@ -142,82 +195,138 @@ const TabAccesos = ({ perfiles, roles, onRefresh, onBack, canEdit }: { perfiles:
       </div>
 
       {/* MODAL CREAR NUEVO USUARIO */}
-      {isAddingNew && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 100, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-          <div style={{ background: 'var(--surface-color)', padding: '30px', borderRadius: '16px', border: '1px solid var(--primary)', width: '90%', maxWidth: '700px', maxHeight: '90vh', overflowY: 'auto' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
-              <h3 style={{ color: 'var(--text-main)', margin: 0, fontSize: '1.5rem' }}>Crear Nuevo Usuario</h3>
-              <button onClick={() => setIsAddingNew(false)} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
+      {isAddingNew && createPortal(
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 1000, padding: '2rem', overflowY: 'auto' }}>
+          <div className="animate-fade-in" style={{ background: 'var(--surface-color)', borderRadius: '16px', border: '1px solid var(--glass-border)', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.7)', maxWidth: '1100px', margin: '0 auto' }}>
+            
+            {/* Encabezado */}
+            <div style={{ padding: '2rem', borderBottom: '1px solid var(--glass-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.02)', borderRadius: '16px 16px 0 0' }}>
+              <div>
+                <h3 style={{ color: 'var(--text-main)', margin: 0, fontSize: '1.75rem' }}>Generar Nuevo Acceso</h3>
+                <p style={{ color: 'var(--text-muted)', margin: '5px 0 0 0' }}>Completa los datos para dar de alta a un nuevo integrante del equipo en el sistema.</p>
+              </div>
+              <button onClick={() => setIsAddingNew(false)} style={{ background: 'var(--bg-color)', border: '1px solid var(--glass-border)', color: 'var(--text-main)', cursor: 'pointer', padding: '10px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <X size={24} />
               </button>
             </div>
             
-            <div style={{ display: 'flex', gap: '15px', marginBottom: '15px' }}>
-              <div style={{ flex: 1 }}>
-                <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '12px', marginBottom: '5px' }}>Nombre Completo</label>
-                <input type="text" value={newUserForm.nombre} onChange={e => setNewUserForm({...newUserForm, nombre: e.target.value})} style={{ width: '100%', padding: '10px', background: 'var(--bg-color)', border: '1px solid var(--glass-border)', color: 'var(--text-main)', borderRadius: '6px' }} />
-              </div>
-              <div style={{ flex: 1 }}>
-                <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '12px', marginBottom: '5px' }}>Correo Electrónico</label>
-                <input type="email" value={newUserForm.email} onChange={e => setNewUserForm({...newUserForm, email: e.target.value})} style={{ width: '100%', padding: '10px', background: 'var(--bg-color)', border: '1px solid var(--glass-border)', color: 'var(--text-main)', borderRadius: '6px' }} />
+            {/* Contenido distribuido en Grid */}
+            <div style={{ padding: '2rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '2rem' }}>
+                
+                {/* Columna 1: Credenciales */}
+                <div style={{ background: 'var(--bg-color)', padding: '2rem', borderRadius: '12px', border: '1px solid var(--glass-border)' }}>
+                  <h4 style={{ color: 'var(--primary)', marginBottom: '1.5rem', fontSize: '1.25rem', display: 'flex', alignItems: 'center', gap: '10px' }}><UserCheck size={22}/> Datos de Credenciales</h4>
+                  
+                  <div style={{ marginBottom: '1.5rem' }}>
+                    <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '14px', marginBottom: '8px' }}>Nombre de Usuario (Ecosistema Saturno V)</label>
+                    <input type="text" value={newUserForm.username} onChange={e => setNewUserForm({...newUserForm, username: e.target.value})} placeholder="Ej. jperez_op" style={{ width: '100%', padding: '14px', background: 'var(--surface-color)', border: '1px solid var(--glass-border)', color: 'var(--text-main)', borderRadius: '8px', fontSize: '16px' }} />
+                  </div>
+                  <div style={{ marginBottom: '1.5rem' }}>
+                    <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '14px', marginBottom: '8px' }}>Nombre Completo</label>
+                    <input type="text" value={newUserForm.nombre} onChange={e => setNewUserForm({...newUserForm, nombre: e.target.value})} style={{ width: '100%', padding: '14px', background: 'var(--surface-color)', border: '1px solid var(--glass-border)', color: 'var(--text-main)', borderRadius: '8px', fontSize: '16px' }} />
+                  </div>
+                  <div style={{ marginBottom: '1.5rem' }}>
+                    <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '14px', marginBottom: '8px' }}>Correo Electrónico</label>
+                    <input type="email" value={newUserForm.email} onChange={e => setNewUserForm({...newUserForm, email: e.target.value})} style={{ width: '100%', padding: '14px', background: 'var(--surface-color)', border: '1px solid var(--glass-border)', color: 'var(--text-main)', borderRadius: '8px', fontSize: '16px' }} />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '14px', marginBottom: '8px' }}>Contraseña (Min. 6 car.)</label>
+                    <input type="password" value={newUserForm.password} onChange={e => setNewUserForm({...newUserForm, password: e.target.value})} style={{ width: '100%', padding: '14px', background: 'var(--surface-color)', border: '1px solid var(--glass-border)', color: 'var(--text-main)', borderRadius: '8px', fontSize: '16px' }} />
+                  </div>
+                </div>
+                
+                {/* Columna 2: Permisos y Nivel */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+                  <div style={{ background: 'var(--bg-color)', padding: '2rem', borderRadius: '12px', border: '1px solid var(--glass-border)', flex: 1 }}>
+                    <h4 style={{ color: 'var(--primary)', marginBottom: '1.5rem', fontSize: '1.25rem', display: 'flex', alignItems: 'center', gap: '10px' }}><Key size={22}/> Nivel de Acceso y Apps</h4>
+                    {renderLevelSelector(newUserForm.access_level, (lvl) => setNewUserForm({...newUserForm, access_level: lvl}))}
+                  </div>
+                  
+                  {/* Panel de Permisos Modulares */}
+                  <div style={{ background: 'var(--bg-color)', padding: '1.5rem', borderRadius: '12px', border: '1px solid var(--glass-border)' }}>
+                    <h4 style={{ color: 'var(--secondary)', marginBottom: '0.5rem', fontSize: '1.1rem' }}>Permisos de Pestañas BDM</h4>
+                    <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Activa o desactiva qué módulos puede ver este usuario. (Si el Nivel es 9 o 10, verá todo de todas formas).</p>
+                    {renderModulesAccess(newUserForm.modules_access, (m) => setNewUserForm({...newUserForm, modules_access: m}))}
+                  </div>
+
+                  <div style={{ background: 'var(--bg-color)', padding: '2rem', borderRadius: '12px', border: '1px solid var(--glass-border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div>
+                      <strong style={{ color: 'var(--text-main)', display: 'block', fontSize: '16px' }}>Privilegios de Edición</strong>
+                      <span style={{ fontSize: '14px', color: 'var(--text-muted)' }}>Activa esto para permitirle hacer modificaciones.</span>
+                    </div>
+                    <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', gap: '12px' }}>
+                      <span style={{ color: newUserForm.can_edit ? 'var(--primary)' : 'var(--text-muted)', fontWeight: 'bold', fontSize: '15px' }}>{newUserForm.can_edit ? 'Habilitado' : 'Solo Lectura'}</span>
+                      <input 
+                        type="checkbox" 
+                        checked={newUserForm.can_edit} 
+                        onChange={e => setNewUserForm({...newUserForm, can_edit: e.target.checked})}
+                        style={{ width: '28px', height: '28px', accentColor: 'var(--primary)', cursor: 'pointer' }}
+                      />
+                    </label>
+                  </div>
+
+                  <div style={{ background: 'var(--bg-color)', padding: '2rem', borderRadius: '12px', border: '1px solid var(--glass-border)' }}>
+                    <label style={{ display: 'block', color: 'var(--text-main)', fontSize: '16px', fontWeight: 'bold', marginBottom: '10px' }}>Asignar Rol Interno (Opcional)</label>
+                    <select value={newUserForm.role_id || ''} onChange={e => setNewUserForm({...newUserForm, role_id: e.target.value})} style={{ width: '100%', padding: '14px', background: 'var(--surface-color)', border: '1px solid var(--glass-border)', color: 'var(--text-main)', borderRadius: '8px', fontSize: '16px' }}>
+                      <option value="">Ninguno</option>
+                      {roles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                    </select>
+                  </div>
+                </div>
+                
               </div>
             </div>
             
-            <div style={{ display: 'flex', gap: '15px', marginBottom: '20px' }}>
-              <div style={{ flex: 1 }}>
-                <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '12px', marginBottom: '5px' }}>Contraseña (Min. 6 caracteres)</label>
-                <input type="password" value={newUserForm.password} onChange={e => setNewUserForm({...newUserForm, password: e.target.value})} style={{ width: '100%', padding: '10px', background: 'var(--bg-color)', border: '1px solid var(--glass-border)', color: 'var(--text-main)', borderRadius: '6px' }} />
-              </div>
-            </div>
-
-            <div style={{ marginBottom: '25px' }}>
-              <label style={{ display: 'block', color: 'var(--text-main)', fontSize: '14px', fontWeight: 'bold', marginBottom: '5px' }}>Nivel de Acceso (Apps)</label>
-              {renderLevelSelector(newUserForm.access_level, (lvl) => setNewUserForm({...newUserForm, access_level: lvl}))}
-            </div>
-
-            <div style={{ marginBottom: '25px', padding: '15px', background: 'var(--bg-color)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', border: '1px solid var(--glass-border)' }}>
-              <div>
-                <strong style={{ color: 'var(--text-main)', display: 'block' }}>Permiso de Edición</strong>
-                <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Si está inactivo, el usuario solo tendrá permisos de lectura (Ver).</span>
-              </div>
-              <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', gap: '10px' }}>
-                <span style={{ color: newUserForm.can_edit ? 'var(--primary)' : 'var(--text-muted)', fontWeight: 'bold' }}>{newUserForm.can_edit ? 'Modo Editar' : 'Modo Lectura'}</span>
-                <input 
-                  type="checkbox" 
-                  checked={newUserForm.can_edit} 
-                  onChange={e => setNewUserForm({...newUserForm, can_edit: e.target.checked})}
-                  style={{ width: '20px', height: '20px' }}
-                />
-              </label>
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-              <button onClick={() => setIsAddingNew(false)} style={{ background: 'var(--bg-color)', color: 'var(--text-main)', border: '1px solid var(--glass-border)', padding: '10px 20px', borderRadius: '6px', cursor: 'pointer' }}>Cancelar</button>
-              <button onClick={handleCreateUser} disabled={loading} style={{ background: 'var(--primary)', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '6px', fontWeight: 600, cursor: 'pointer' }}>
-                {loading ? 'Generando...' : 'Guardar y Generar Acceso'}
+            {/* Footer fijo con acciones */}
+            <div style={{ padding: '2rem', borderTop: '1px solid var(--glass-border)', background: 'rgba(255,255,255,0.02)', display: 'flex', justifyContent: 'flex-end', gap: '20px', borderRadius: '0 0 16px 16px' }}>
+              <button onClick={() => setIsAddingNew(false)} style={{ background: 'var(--bg-color)', color: 'var(--text-main)', border: '1px solid var(--glass-border)', padding: '14px 28px', borderRadius: '8px', cursor: 'pointer', fontSize: '16px', fontWeight: 500 }}>Cancelar Operación</button>
+              <button onClick={handleCreateUser} disabled={loading} style={{ background: 'var(--primary)', color: '#fff', border: 'none', padding: '14px 28px', borderRadius: '8px', fontWeight: 600, cursor: 'pointer', fontSize: '16px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <UserCheck size={20}/> {loading ? 'Creando Usuario...' : 'Generar Acceso Oficial'}
               </button>
             </div>
+            
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* MODAL EDITAR USUARIO EXISTENTE */}
-      {editingId && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 100, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-          <div style={{ background: 'var(--surface-color)', padding: '30px', borderRadius: '16px', border: '1px solid var(--primary)', width: '90%', maxWidth: '700px', maxHeight: '90vh', overflowY: 'auto' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
-              <h3 style={{ color: 'var(--text-main)', margin: 0, fontSize: '1.5rem' }}>Gestionar Permisos: {editForm.nombre}</h3>
-              <button onClick={() => setEditingId(null)} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
-                <X size={24} />
+      {editingId && createPortal(
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 1000, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '2rem' }}>
+          <div className="animate-fade-in" style={{ background: 'var(--surface-color)', padding: '30px', borderRadius: '16px', border: '1px solid var(--primary)', width: '100%', maxWidth: '800px', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.7)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px', borderBottom: '1px solid var(--glass-border)', paddingBottom: '15px' }}>
+              <div>
+                <h3 style={{ color: 'var(--text-main)', margin: 0, fontSize: '1.5rem' }}>Configurar Accesos</h3>
+                <p style={{ color: 'var(--text-muted)', margin: '5px 0 0 0' }}>Estás modificando el perfil de: <strong style={{color: 'var(--primary)'}}>{editForm.nombre}</strong></p>
+              </div>
+              <button onClick={() => setEditingId(null)} style={{ background: 'var(--bg-color)', border: '1px solid var(--glass-border)', color: 'var(--text-main)', cursor: 'pointer', padding: '8px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <X size={20} />
               </button>
             </div>
 
-            <div style={{ marginBottom: '25px' }}>
-              <label style={{ display: 'block', color: 'var(--text-main)', fontSize: '14px', fontWeight: 'bold', marginBottom: '5px' }}>Nivel de Acceso a Aplicaciones</label>
-              {renderLevelSelector(editForm.access_level, (lvl) => setEditForm({...editForm, access_level: lvl}))}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '14px', marginBottom: '8px' }}>Nombre de Usuario</label>
+                <input type="text" value={editForm.username} onChange={e => setEditForm({...editForm, username: e.target.value})} style={{ width: '100%', padding: '12px', background: 'var(--bg-color)', border: '1px solid var(--glass-border)', color: 'var(--text-main)', borderRadius: '8px', fontSize: '16px' }} />
+              </div>
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '14px', marginBottom: '8px' }}>Nombre Completo</label>
+                <input type="text" value={editForm.nombre} onChange={e => setEditForm({...editForm, nombre: e.target.value})} style={{ width: '100%', padding: '12px', background: 'var(--bg-color)', border: '1px solid var(--glass-border)', color: 'var(--text-main)', borderRadius: '8px', fontSize: '16px' }} />
+              </div>
             </div>
 
-            <div style={{ marginBottom: '25px', padding: '15px', background: 'var(--bg-color)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', border: '1px solid var(--glass-border)' }}>
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '14px', marginBottom: '8px' }}>Nivel de Acceso</label>
+              {renderLevelSelector(editForm.access_level, (lvl) => setEditForm({...editForm, access_level: lvl}))}
+            </div>
+            
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '14px', marginBottom: '8px' }}>Permisos Modulares BDM</label>
+              {renderModulesAccess(editForm.modules_access, (m) => setEditForm({...editForm, modules_access: m}))}
+            </div>
+
+            <div style={{ marginBottom: '30px', padding: '18px', background: 'var(--bg-color)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', border: '1px solid var(--glass-border)' }}>
               <div>
                 <strong style={{ color: 'var(--text-main)', display: 'block' }}>Privilegios de Edición global</strong>
                 <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Habilita los botones de editar y configurar.</span>
@@ -250,39 +359,42 @@ const TabAccesos = ({ perfiles, roles, onRefresh, onBack, canEdit }: { perfiles:
               </div>
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-              <button onClick={() => setEditingId(null)} style={{ background: 'var(--bg-color)', color: 'var(--text-main)', border: '1px solid var(--glass-border)', padding: '10px 20px', borderRadius: '6px', cursor: 'pointer' }}>Cancelar</button>
-              <button onClick={handleSave} style={{ background: 'var(--primary)', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '6px', fontWeight: 600, cursor: 'pointer' }}>
-                Guardar Cambios
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', borderTop: '1px solid var(--glass-border)', paddingTop: '20px' }}>
+              <button onClick={() => setEditingId(null)} style={{ background: 'var(--bg-color)', color: 'var(--text-main)', border: '1px solid var(--glass-border)', padding: '12px 24px', borderRadius: '6px', cursor: 'pointer', fontSize: '14px', fontWeight: 500 }}>Descartar</button>
+              <button onClick={handleSave} style={{ background: 'var(--primary)', color: '#fff', border: 'none', padding: '12px 24px', borderRadius: '6px', fontWeight: 600, cursor: 'pointer', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Save size={18}/> Guardar Cambios
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
       
       <div className="glass-panel" style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse' }}>
           <thead>
-            <tr style={{ borderBottom: '1px solid var(--glass-border)', background: 'rgba(0,0,0,0.2)' }}>
-              <th style={{ padding: '16px', color: 'var(--text-muted)' }}>Nombre</th>
-              <th style={{ padding: '16px', color: 'var(--text-muted)' }}>Nivel de Acceso</th>
-              <th style={{ padding: '16px', color: 'var(--text-muted)' }}>Rol</th>
-              <th style={{ padding: '16px', color: 'var(--text-muted)' }}>Permisos</th>
-              <th style={{ padding: '16px', color: 'var(--text-muted)' }}>Estado</th>
-              <th style={{ padding: '16px', textAlign: 'center', color: 'var(--text-muted)' }}>Acciones</th>
+            <tr>
+              <th style={{ padding: '16px', borderBottom: '1px solid var(--glass-border)', textAlign: 'left', color: 'var(--text-muted)' }}>Usuario (ID)</th>
+              <th style={{ padding: '16px', borderBottom: '1px solid var(--glass-border)', textAlign: 'left', color: 'var(--text-muted)' }}>Nombre Completo</th>
+              <th style={{ padding: '16px', borderBottom: '1px solid var(--glass-border)', textAlign: 'left', color: 'var(--text-muted)' }}>Nivel</th>
+              <th style={{ padding: '16px', borderBottom: '1px solid var(--glass-border)', textAlign: 'left', color: 'var(--text-muted)' }}>Rol</th>
+              <th style={{ padding: '16px', borderBottom: '1px solid var(--glass-border)', textAlign: 'left', color: 'var(--text-muted)' }}>Permisos</th>
+              <th style={{ padding: '16px', borderBottom: '1px solid var(--glass-border)', textAlign: 'left', color: 'var(--text-muted)' }}>Estado</th>
+              <th style={{ padding: '16px', borderBottom: '1px solid var(--glass-border)', textAlign: 'center', color: 'var(--text-muted)' }}>Acciones</th>
             </tr>
           </thead>
           <tbody>
-            {perfiles.map(user => (
-              <tr key={user.id} style={{ borderBottom: '1px solid var(--glass-border)', cursor: 'pointer', transition: 'background 0.2s' }} onClick={() => handleEdit(user)} className="hover:bg-slate-800/30">
+            {perfiles.map((user) => (
+              <tr key={user.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                <td style={{ padding: '16px', color: 'var(--primary)', fontWeight: 600 }}>@{user.username || 'sin_usuario'}</td>
                 <td style={{ padding: '16px', fontWeight: 500, color: 'var(--text-main)' }}>{user.nombre}</td>
                 <td style={{ padding: '16px' }}>
                   <span style={{ 
-                    background: user.access_level === 3 ? 'rgba(0, 104, 71, 0.2)' : user.access_level === 2 ? 'rgba(59, 130, 246, 0.2)' : 'rgba(107, 114, 128, 0.2)',
-                    color: user.access_level === 3 ? '#34d399' : user.access_level === 2 ? '#60a5fa' : '#9ca3af',
+                    background: user.access_level >= 9 ? 'rgba(0, 104, 71, 0.2)' : user.access_level === 3 ? 'rgba(234, 179, 8, 0.2)' : user.access_level === 2 ? 'rgba(59, 130, 246, 0.2)' : 'rgba(107, 114, 128, 0.2)',
+                    color: user.access_level >= 9 ? '#34d399' : user.access_level === 3 ? '#facc15' : user.access_level === 2 ? '#60a5fa' : '#9ca3af',
                     padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold' 
                   }}>
-                    {user.access_level === 3 ? 'Nivel 3 (Admin)' : user.access_level === 2 ? 'Nivel 2 (J2)' : 'Nivel 1 (Operador)'}
+                    {user.access_level === 10 ? 'Nivel 10 (Dev)' : user.access_level === 9 ? 'Nivel 9 (Admin)' : user.access_level === 3 ? 'Nivel 3 (SPS)' : user.access_level === 2 ? 'Nivel 2 (J2)' : 'Nivel 1 (F1)'}
                   </span>
                 </td>
                 <td style={{ padding: '16px', color: 'var(--text-muted)' }}>{user.roles?.name || '---'}</td>

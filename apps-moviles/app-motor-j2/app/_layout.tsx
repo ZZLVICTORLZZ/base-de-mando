@@ -29,7 +29,7 @@ export default function RootLayout() {
   useEffect(() => {
     if (loading) return;
 
-    // BYPASS TEMPORAL: Comentamos la guardia de seguridad para probar la UI
+    // BYPASS TEMPORAL: Guardia de seguridad comentada para pruebas
     // const inAuthGroup = segments[0] === '(tabs)';
     // if (!session && inAuthGroup) {
     //   router.replace('/login');
