@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTheme } from '../../src/theme/ThemeContext';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, ActivityIndicator, Alert } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
@@ -9,6 +10,8 @@ import { isAdmin } from '../../lib/permissions';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function RDScreen() {
+  const { theme } = useTheme();
+  const styles = getStyles(theme);
   const today = new Date();
   const todayStr = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
   const [dateDesde, setDateDesde] = useState(todayStr);
@@ -224,25 +227,25 @@ export default function RDScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F5F5DC' },
+function getStyles(theme: any) { return StyleSheet.create({
+  container: { flex: 1, backgroundColor: theme.background },
   header: { 
     alignItems: 'center', 
     paddingHorizontal: 20,
     paddingTop: 20,
     paddingBottom: 15,
   },
-  title: { fontSize: 24, fontWeight: '700', color: '#000000', letterSpacing: -0.5, marginBottom: 15 },
+  title: { fontSize: 24, fontWeight: '700', color: theme.text, letterSpacing: -0.5, marginBottom: 15 },
   btnNuevo: { 
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#006847', 
+    backgroundColor: theme.primary, 
     paddingHorizontal: 24, 
     paddingVertical: 12, 
     borderRadius: 12,
     alignSelf: 'center'
   },
-  btnTextBold: { color: '#ffffff', fontWeight: '600', fontSize: 14 },
+  btnTextBold: { color: theme.headerText, fontWeight: '600', fontSize: 14 },
   
   // Filtros
   filtersContainer: {
@@ -251,13 +254,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#D9D2C2'
+    borderBottomColor: theme.border
   },
   filterIcon: { marginRight: 15 },
   dateInputWrapper: { flex: 1 },
-  dateLabel: { fontSize: 11, color: '#4A4A4A', marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 },
+  dateLabel: { fontSize: 11, color: theme.textMuted, marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 },
   dateInput: { 
-    color: '#000000', 
+    color: theme.text, 
     fontSize: 14, 
     borderBottomWidth: 1, 
     borderBottomColor: '#C8C1B2',
@@ -268,7 +271,7 @@ const styles = StyleSheet.create({
   // Lista
   listPadding: { padding: 20 },
   card: { 
-    backgroundColor: '#F5F5DC', 
+    backgroundColor: theme.background, 
     borderRadius: 12, 
     marginBottom: 12, 
     flexDirection: 'row', 
@@ -276,14 +279,15 @@ const styles = StyleSheet.create({
     alignItems: 'center', 
     padding: 16,
     borderWidth: 1, 
-    borderColor: '#D9D2C2' 
+    borderColor: theme.border 
   },
   cardContent: { flex: 1 },
   cardHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
   statusIndicator: { width: 8, height: 8, borderRadius: 4, marginRight: 8 },
-  cardTitle: { fontSize: 16, fontWeight: '600', color: '#000000' },
+  cardTitle: { fontSize: 16, fontWeight: '600', color: theme.text },
   cardDate: { fontSize: 13, color: '#666666', paddingLeft: 16 },
   
   actionsRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingLeft: 15 },
-  iconBtn: { padding: 8, backgroundColor: '#F5F5DC', borderRadius: 6, borderWidth: 1, borderColor: '#D9D2C2' },
+  iconBtn: { padding: 8, backgroundColor: theme.background, borderRadius: 6, borderWidth: 1, borderColor: theme.border },
 });
+}

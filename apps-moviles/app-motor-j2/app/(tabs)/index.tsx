@@ -1,3 +1,4 @@
+import { useTheme } from '../../src/theme/ThemeContext';
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
 import { useState, useEffect, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -5,6 +6,8 @@ import { supabase } from '../../src/services/supabaseClient';
 import { useFocusEffect } from 'expo-router';
 
 export default function DashboardScreen() {
+  const { theme } = useTheme();
+  const styles = getStyles(theme);
   const [tableristaNombre, setTableristaNombre] = useState('Cargando...');
   const [horasTrabajadas, setHorasTrabajadas] = useState('00:00');
   const [tablasCompletadas, setTablasCompletadas] = useState(0);
@@ -24,7 +27,7 @@ export default function DashboardScreen() {
       // Obtener nombre del usuario desde AsyncStorage
       let name = await AsyncStorage.getItem('apolo11_user_name');
       if (!name) name = 'Checador';
-      setTableristaNombre(name);
+      setTableristaNombre(name.includes(' - ') ? name.split(' - ')[1] : name);
 
       // Obtener fecha actual en formato YYYY-MM-DD local
       const now = new Date();
@@ -102,7 +105,7 @@ export default function DashboardScreen() {
           
           <View style={[styles.metricBox, { flex: 1 }]}>
             <Text style={styles.metricValue}>{promedioCorridas}</Text>
-            <Text style={styles.metricLabel}>Prom. Corridas</Text>
+            <Text style={styles.metricLabel}>Horas Trabajadas</Text>
           </View>
         </View>
 
@@ -114,7 +117,7 @@ export default function DashboardScreen() {
         <View style={{ flexDirection: 'row', gap: 16, marginTop: 16 }}>
           <View style={[styles.metricBox, { flex: 1, backgroundColor: '#EAEAD2', borderColor: '#C8C8B4' }]}>
             <Text style={[styles.metricValue, { color: '#737365' }]}>--</Text>
-            <Text style={[styles.metricLabel, { color: '#737365' }]}>Unidades Activas (F1)</Text>
+            <Text style={[styles.metricLabel, { color: '#737365' }]}>Unidades Activas (F1 - Pendiente)</Text>
           </View>
         </View>
         
@@ -124,40 +127,41 @@ export default function DashboardScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F5F5DC', padding: 20 },
+function getStyles(theme: any) { return StyleSheet.create({
+  container: { flex: 1, backgroundColor: theme.background, padding: 20 },
   headerCard: {
-    backgroundColor: '#F5F5DC',
+    backgroundColor: theme.background,
     padding: 24,
     borderRadius: 16,
     marginBottom: 24,
     borderLeftWidth: 4,
-    borderLeftColor: '#006847',
+    borderLeftColor: theme.primary,
     borderWidth: 1,
-    borderColor: '#D9D2C2'
+    borderColor: theme.border
   },
-  welcomeText: { fontSize: 16, color: '#4A4A4A' },
-  nameText: { fontSize: 28, fontWeight: 'bold', color: '#000000', marginTop: 4 },
-  sectionTitle: { fontSize: 18, fontWeight: '600', color: '#000000' },
+  welcomeText: { fontSize: 16, color: theme.textMuted },
+  nameText: { fontSize: 28, fontWeight: 'bold', color: theme.text, marginTop: 4 },
+  sectionTitle: { fontSize: 18, fontWeight: '600', color: theme.text },
   metricsContainer: { gap: 16 },
   metricBox: {
-    backgroundColor: '#F5F5DC',
+    backgroundColor: theme.background,
     padding: 20,
     borderRadius: 12,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#D9D2C2'
+    borderColor: theme.border
   },
-  metricValue: { fontSize: 32, fontWeight: 'bold', color: '#006847' },
-  metricLabel: { fontSize: 14, color: '#4A4A4A', marginTop: 4 },
+  metricValue: { fontSize: 32, fontWeight: 'bold', color: theme.primary },
+  metricLabel: { fontSize: 14, color: theme.textMuted, marginTop: 4 },
   metricHighlight: {
-    backgroundColor: '#006847',
-    borderColor: '#006847',
-    shadowColor: '#006847',
+    backgroundColor: theme.primary,
+    borderColor: theme.primary,
+    shadowColor: theme.primary,
     shadowOpacity: 0.3,
     shadowRadius: 10,
     elevation: 4
   },
-  metricValueHighlight: { fontSize: 40, fontWeight: 'bold', color: '#ffffff' },
+  metricValueHighlight: { fontSize: 40, fontWeight: 'bold', color: theme.headerText },
   metricLabelHighlight: { fontSize: 14, color: '#e0e7ff', marginTop: 4, fontWeight: '500' },
 });
+}

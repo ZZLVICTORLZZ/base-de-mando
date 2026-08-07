@@ -5,16 +5,24 @@ import { supabase } from '../../src/services/supabaseClient';
 import { Session } from '@supabase/supabase-js';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Feather } from '@expo/vector-icons';
+import { useTheme } from '../../src/theme/ThemeContext';
+import { TouchableOpacity } from 'react-native';
 
 export default function TabLayout() {
+  const { theme, cycleTheme, themeName } = useTheme();
   return (
     <Tabs
       screenOptions={{
-        headerStyle: { backgroundColor: '#F5F5DC' },
-        headerTintColor: '#000000',
-        tabBarStyle: { backgroundColor: '#F5F5DC', borderTopColor: '#D9D2C2' },
-        tabBarActiveTintColor: '#006847',
-        tabBarInactiveTintColor: '#4A4A4A',
+        headerStyle: { backgroundColor: theme.background },
+        headerRight: () => (
+          <TouchableOpacity onPress={cycleTheme} style={{ marginRight: 15 }}>
+            <Text style={{ fontSize: 20, color: theme.primary, fontWeight: 'bold' }}>@</Text>
+          </TouchableOpacity>
+        ),
+        headerTintColor: theme.text,
+        tabBarStyle: { backgroundColor: theme.surface, borderTopColor: theme.border },
+        tabBarActiveTintColor: theme.primary,
+        tabBarInactiveTintColor: theme.textMuted,
       }}>
       <Tabs.Screen
         name="index"

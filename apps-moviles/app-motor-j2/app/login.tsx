@@ -15,6 +15,7 @@ export default function LoginScreen() {
     // BYPASS: Restaurado temporalmente para pruebas
     if (email === '' && password === '') {
       await AsyncStorage.setItem('apolo11_user_name', 'Bypass Admin');
+      await AsyncStorage.setItem('apolo11_user_level', '10');
       router.replace('/(tabs)');
       return;
     }
@@ -43,19 +44,19 @@ export default function LoginScreen() {
         return;
       }
 
-      // Guardamos Nombre Completo y Username (ID)
+      // Guardamos Solo el Username (Nombre ID) según solicitud del usuario
       let userName = 'Checador';
-      if (profile?.nombre && profile?.username) {
-        userName = `${profile.nombre} - ${profile.username}`;
+      if (profile?.username) {
+        userName = profile.username;
       } else if (profile?.nombre) {
         userName = profile.nombre;
-      } else if (profile?.username) {
-        userName = profile.username;
       } else {
         userName = email.split('@')[0];
       }
       
       await AsyncStorage.setItem('apolo11_user_name', userName);
+      await AsyncStorage.setItem('apolo11_user_level', profile?.access_level?.toString() || '0');
+      await AsyncStorage.setItem('apolo11_user_uuid', data.user.id);
     }
     
     setLoading(false);

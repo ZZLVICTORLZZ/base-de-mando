@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useTheme } from '../../src/theme/ThemeContext';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, ActivityIndicator, Alert, Modal } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
@@ -7,6 +8,8 @@ import { supabase } from '../../src/services/supabaseClient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function IncidenciasScreen() {
+  const { theme } = useTheme();
+  const styles = getStyles(theme);
   const today = new Date();
   const todayStr = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
   const [search, setSearch] = useState('');
@@ -116,7 +119,7 @@ export default function IncidenciasScreen() {
             </View>
           </View>
           <Text style={styles.cardSubtitle}>
-            <Feather name="map-pin" size={14} color="#94a3b8" /> Base: <Text style={{ color: '#000000', fontWeight: 'bold' }}>{item.base}</Text>
+            <Feather name="map-pin" size={14} color="#94a3b8" /> Base: <Text style={{ color: theme.text, fontWeight: 'bold' }}>{item.base}</Text>
           </Text>
           <Text style={styles.cardSubtitle}>
             <Feather name="calendar" size={14} color="#94a3b8" /> Fecha: {item.fecha}
@@ -174,9 +177,9 @@ export default function IncidenciasScreen() {
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           <Feather name="calendar" size={16} color="#64748b" style={styles.filterIcon} />
           <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 11, color: '#4A4A4A', marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 }}>Desde</Text>
+            <Text style={{ fontSize: 11, color: theme.textMuted, marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 }}>Desde</Text>
             <TextInput 
-              style={{ color: '#000000', fontSize: 14, borderBottomWidth: 1, borderBottomColor: '#C8C1B2', paddingVertical: 4 }}
+              style={{ color: theme.text, fontSize: 14, borderBottomWidth: 1, borderBottomColor: '#C8C1B2', paddingVertical: 4 }}
               value={dateDesde}
               onChangeText={setDateDesde}
               placeholder="DD/MM/YYYY"
@@ -185,9 +188,9 @@ export default function IncidenciasScreen() {
           </View>
           <View style={{ width: 1, height: 20, backgroundColor: '#C8C1B2', marginHorizontal: 15, marginTop: 15 }} />
           <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 11, color: '#4A4A4A', marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 }}>Hasta</Text>
+            <Text style={{ fontSize: 11, color: theme.textMuted, marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 }}>Hasta</Text>
             <TextInput 
-              style={{ color: '#000000', fontSize: 14, borderBottomWidth: 1, borderBottomColor: '#C8C1B2', paddingVertical: 4 }}
+              style={{ color: theme.text, fontSize: 14, borderBottomWidth: 1, borderBottomColor: '#C8C1B2', paddingVertical: 4 }}
               value={dateHasta}
               onChangeText={setDateHasta}
               placeholder="DD/MM/YYYY"
@@ -253,17 +256,17 @@ export default function IncidenciasScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F5F5DC' },
+function getStyles(theme: any) { return StyleSheet.create({
+  container: { flex: 1, backgroundColor: theme.background },
   header: { 
     alignItems: 'center', 
     paddingHorizontal: 20,
     paddingTop: 20,
     paddingBottom: 15,
   },
-  title: { fontSize: 24, fontWeight: '700', color: '#000000', letterSpacing: -0.5, marginBottom: 15 },
+  title: { fontSize: 24, fontWeight: '700', color: theme.text, letterSpacing: -0.5, marginBottom: 15 },
   btnNuevo: {
-    backgroundColor: '#006847',
+    backgroundColor: theme.primary,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 24,
@@ -271,35 +274,35 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignSelf: 'center'
   },
-  btnTextBold: { color: '#ffffff', fontWeight: 'bold', fontSize: 14 },
+  btnTextBold: { color: theme.headerText, fontWeight: 'bold', fontSize: 14 },
   
   filtersContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F5F5DC',
+    backgroundColor: theme.background,
     marginHorizontal: 20,
     paddingHorizontal: 15,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#D9D2C2',
+    borderColor: theme.border,
     marginBottom: 10
   },
   filterIcon: { marginRight: 10 },
-  searchInput: { flex: 1, color: '#000000', fontSize: 14, paddingVertical: 12 },
+  searchInput: { flex: 1, color: theme.text, fontSize: 14, paddingVertical: 12 },
 
   listPadding: { padding: 20 },
   card: { 
-    backgroundColor: '#F5F5DC', 
+    backgroundColor: theme.background, 
     borderRadius: 12, 
     marginBottom: 16, 
     borderWidth: 1, 
-    borderColor: '#D9D2C2',
+    borderColor: theme.border,
     overflow: 'hidden'
   },
   cardInfo: {
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#D9D2C2'
+    borderBottomColor: theme.border
   },
   titleRow: {
     flexDirection: 'row',
@@ -310,7 +313,7 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#000000'
+    color: theme.text
   },
   statusBadge: {
     paddingHorizontal: 8,
@@ -323,13 +326,13 @@ const styles = StyleSheet.create({
   },
   cardSubtitle: {
     fontSize: 14,
-    color: '#4A4A4A',
+    color: theme.textMuted,
     marginBottom: 4
   },
   actionsRow: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    backgroundColor: '#F5F5DC',
+    backgroundColor: theme.background,
     padding: 12,
     gap: 15
   },
@@ -343,7 +346,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end'
   },
   modalContent: {
-    backgroundColor: '#F5F5DC',
+    backgroundColor: theme.background,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 20,
@@ -358,12 +361,12 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#000000'
+    color: theme.text
   },
   label: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#4A4A4A',
+    color: theme.textMuted,
     marginBottom: 10
   },
   baseSelector: {
@@ -373,34 +376,35 @@ const styles = StyleSheet.create({
     marginBottom: 30
   },
   baseBtn: {
-    backgroundColor: '#F5F5DC',
+    backgroundColor: theme.background,
     paddingVertical: 10,
     paddingHorizontal: 15,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#D9D2C2'
+    borderColor: theme.border
   },
   baseBtnActive: {
-    backgroundColor: '#006847',
-    borderColor: '#006847'
+    backgroundColor: theme.primary,
+    borderColor: theme.primary
   },
   baseBtnText: {
-    color: '#4A4A4A',
+    color: theme.textMuted,
     fontWeight: '500'
   },
   baseBtnTextActive: {
-    color: '#fff',
+    color: theme.headerText,
     fontWeight: 'bold'
   },
   saveBtn: {
-    backgroundColor: '#006847',
+    backgroundColor: theme.primary,
     paddingVertical: 15,
     borderRadius: 10,
     alignItems: 'center'
   },
   saveBtnText: {
-    color: '#ffffff',
+    color: theme.headerText,
     fontWeight: 'bold',
     fontSize: 16
   }
 });
+}

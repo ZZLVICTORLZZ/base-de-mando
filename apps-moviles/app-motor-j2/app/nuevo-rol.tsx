@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTheme } from '../src/theme/ThemeContext';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, Modal } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -6,6 +7,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../src/services/supabaseClient';
 
 export default function NuevoRolScreen() {
+  const { theme } = useTheme();
+  const styles = getStyles(theme);
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
   
   // Date Picker States
@@ -59,7 +62,7 @@ export default function NuevoRolScreen() {
             setCalendarVisible(false);
           }}
         >
-          <Text style={[styles.calDayText, isSelected && { color: '#fff', fontWeight: 'bold' }]}>{d}</Text>
+          <Text style={[styles.calDayText, isSelected && { color: theme.headerText, fontWeight: 'bold' }]}>{d}</Text>
         </TouchableOpacity>
       );
     }
@@ -179,8 +182,8 @@ export default function NuevoRolScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F5F5DC' },
+function getStyles(theme: any) { return StyleSheet.create({
+  container: { flex: 1, backgroundColor: theme.background },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -188,36 +191,36 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 15,
     borderBottomWidth: 1,
-    borderBottomColor: '#D9D2C2'
+    borderBottomColor: theme.border
   },
   backBtn: { padding: 4 },
-  title: { fontSize: 18, fontWeight: '600', color: '#000000' },
+  title: { fontSize: 18, fontWeight: '600', color: theme.text },
   
   content: { padding: 20 },
-  sectionTitle: { fontSize: 14, color: '#4A4A4A', marginBottom: 15, textTransform: 'uppercase', letterSpacing: 0.5 },
+  sectionTitle: { fontSize: 14, color: theme.textMuted, marginBottom: 15, textTransform: 'uppercase', letterSpacing: 0.5 },
   
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 15, marginBottom: 30 },
   templateCard: {
     width: '47%',
     aspectRatio: 1,
-    backgroundColor: '#F5F5DC',
+    backgroundColor: theme.background,
     borderRadius: 16,
     padding: 15,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: '#D9D2C2',
+    borderColor: theme.border,
     position: 'relative'
   },
-  templateCardSelected: { borderColor: '#006847', backgroundColor: '#F5F5DC' },
+  templateCardSelected: { borderColor: theme.primary, backgroundColor: theme.background },
   templateIcon: { marginBottom: 12 },
-  templateText: { color: '#4A4A4A', fontSize: 14, fontWeight: '500', textAlign: 'center' },
-  templateTextSelected: { color: '#006847', fontWeight: 'bold' },
+  templateText: { color: theme.textMuted, fontSize: 14, fontWeight: '500', textAlign: 'center' },
+  templateTextSelected: { color: theme.primary, fontWeight: 'bold' },
   checkBadge: {
     position: 'absolute',
     top: 10,
     right: 10,
-    backgroundColor: '#006847',
+    backgroundColor: theme.primary,
     borderRadius: 10,
     width: 20,
     height: 20,
@@ -226,25 +229,25 @@ const styles = StyleSheet.create({
   },
 
   inputGroup: { marginBottom: 20 },
-  label: { fontSize: 13, color: '#4A4A4A', marginBottom: 8, fontWeight: '500' },
+  label: { fontSize: 13, color: theme.textMuted, marginBottom: 8, fontWeight: '500' },
   input: {
-    backgroundColor: '#F5F5DC',
+    backgroundColor: theme.background,
     borderWidth: 1,
-    borderColor: '#D9D2C2',
+    borderColor: theme.border,
     borderRadius: 10,
     padding: 15,
-    color: '#000000',
+    color: theme.text,
     fontSize: 16
   },
 
   footer: {
     padding: 20,
     borderTopWidth: 1,
-    borderTopColor: '#D9D2C2',
-    backgroundColor: '#F5F5DC'
+    borderTopColor: theme.border,
+    backgroundColor: theme.background
   },
   btnContinuar: {
-    backgroundColor: '#006847',
+    backgroundColor: theme.primary,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -252,7 +255,7 @@ const styles = StyleSheet.create({
     borderRadius: 12
   },
   btnContinuarDisabled: { backgroundColor: '#334155', opacity: 0.7 },
-  btnContinuarText: { color: '#ffffff', fontSize: 16, fontWeight: '600' },
+  btnContinuarText: { color: theme.headerText, fontSize: 16, fontWeight: '600' },
 
   // Calendar styles
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: 20 },
@@ -267,3 +270,4 @@ const styles = StyleSheet.create({
   calDaySelected: { backgroundColor: '#3b82f6', borderRadius: 20 },
   calDayText: { color: '#cbd5e1', fontSize: 16 }
 });
+}

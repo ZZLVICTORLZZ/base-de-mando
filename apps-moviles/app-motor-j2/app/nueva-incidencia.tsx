@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTheme } from '../src/theme/ThemeContext';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Modal, Alert } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -18,6 +19,8 @@ const TIPOS_INCIDENCIA = [
 ];
 
 export default function NuevaIncidenciaScreen() {
+  const { theme } = useTheme();
+  const styles = getStyles(theme);
   const [eco, setEco] = useState('');
   const [tipo, setTipo] = useState('');
   const [descripcion, setDescripcion] = useState('');
@@ -191,25 +194,26 @@ export default function NuevaIncidenciaScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F5F5DC' },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: '#D9D2C2' },
+function getStyles(theme: any) { return StyleSheet.create({
+  container: { flex: 1, backgroundColor: theme.background },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: theme.border },
   backBtn: { padding: 4 },
-  title: { fontSize: 18, fontWeight: '600', color: '#000000' },
+  title: { fontSize: 18, fontWeight: '600', color: theme.text },
   content: { padding: 20 },
-  label: { color: '#4A4A4A', fontSize: 14, fontWeight: '500', marginBottom: 8, marginTop: 15 },
-  selectBtn: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#D9D2C2', borderRadius: 10, padding: 16 },
-  selectBtnText: { color: '#000000', fontSize: 16 },
-  textArea: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#D9D2C2', borderRadius: 10, padding: 16, color: '#000000', fontSize: 16, textAlignVertical: 'top', minHeight: 120 },
-  footer: { padding: 20, borderTopWidth: 1, borderTopColor: '#D9D2C2', backgroundColor: '#F5F5DC' },
-  btnGuardar: { backgroundColor: '#006847', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 16, borderRadius: 12, gap: 8 },
-  btnGuardarText: { color: '#ffffff', fontSize: 16, fontWeight: 'bold' },
+  label: { color: theme.textMuted, fontSize: 14, fontWeight: '500', marginBottom: 8, marginTop: 15 },
+  selectBtn: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: theme.headerText, borderWidth: 1, borderColor: theme.border, borderRadius: 10, padding: 16 },
+  selectBtnText: { color: theme.text, fontSize: 16 },
+  textArea: { backgroundColor: theme.headerText, borderWidth: 1, borderColor: theme.border, borderRadius: 10, padding: 16, color: theme.text, fontSize: 16, textAlignVertical: 'top', minHeight: 120 },
+  footer: { padding: 20, borderTopWidth: 1, borderTopColor: theme.border, backgroundColor: theme.background },
+  btnGuardar: { backgroundColor: theme.primary, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 16, borderRadius: 12, gap: 8 },
+  btnGuardarText: { color: theme.headerText, fontSize: 16, fontWeight: 'bold' },
   
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modalContent: { backgroundColor: '#F5F5DC', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, height: '70%' },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15, borderBottomWidth: 1, borderBottomColor: '#D9D2C2', paddingBottom: 15 },
-  modalTitle: { color: '#000000', fontSize: 18, fontWeight: 'bold' },
-  searchInput: { backgroundColor: '#FFFFFF', color: '#000000', padding: 12, borderRadius: 8, borderWidth: 1, borderColor: '#D9D2C2', fontSize: 16 },
-  modalItem: { paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: '#D9D2C2' },
-  modalItemText: { color: '#000000', fontSize: 16 },
+  modalContent: { backgroundColor: theme.background, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, height: '70%' },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15, borderBottomWidth: 1, borderBottomColor: theme.border, paddingBottom: 15 },
+  modalTitle: { color: theme.text, fontSize: 18, fontWeight: 'bold' },
+  searchInput: { backgroundColor: theme.headerText, color: theme.text, padding: 12, borderRadius: 8, borderWidth: 1, borderColor: theme.border, fontSize: 16 },
+  modalItem: { paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: theme.border },
+  modalItemText: { color: theme.text, fontSize: 16 },
 });
+}

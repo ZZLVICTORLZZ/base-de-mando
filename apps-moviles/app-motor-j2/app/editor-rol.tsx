@@ -1,19 +1,46 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useTheme } from '../src/theme/ThemeContext';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, KeyboardAvoidingView, Platform, Modal, Alert, LayoutAnimation, UIManager, Pressable, FlatList } from 'react-native';
 
 import { Feather } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
 import Swipeable from 'react-native-gesture-handler/Swipeable';
 import ViewShot from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../src/services/supabaseClient';
 
+const FrecModal = ({ visible, onClose, initialFrec, onSave, isDarkMode }: any) => {
+  const { theme } = useTheme();
+  const styles = getStyles(theme);
+  const [frec, setFrec] = useState(initialFrec);
+  return (
+    <Modal visible={visible} transparent animationType="fade">
+      <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 }}>
+        <View style={{ backgroundColor: 'white', padding: 20, borderRadius: 10 }}>
+          <Text style={{ fontSize: 18, marginBottom: 10 }}>Editar Frecuencia (minutos)</Text>
+          <TextInput 
+            style={{ borderWidth: 1, borderColor: '#ccc', padding: 10, borderRadius: 5, marginBottom: 20 }}
+            keyboardType="numeric"
+            value={frec}
+            onChangeText={setFrec}
+          />
+          <View style={{ flexDirection: 'row', justifyContent: 'flex-end' }}>
+            <TouchableOpacity onPress={onClose} style={{ marginRight: 20 }}><Text>Cancelar</Text></TouchableOpacity>
+            <TouchableOpacity onPress={() => onSave(frec)}><Text style={{ fontWeight: 'bold' }}>Guardar</Text></TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+};
+
 export default function EditorRolScreen() {
-  const { plantilla_id, rol_id, mode, fecha } = useLocalSearchParams();
-  
-  const pId = Array.isArray(plantilla_id) ? plantilla_id[0] : plantilla_id;
+  const { theme } = useTheme();
+  const styles = getStyles(theme);
+  const { pId, rol_id, fecha, mode } = useLocalSearchParams();
   const rId = Array.isArray(rol_id) ? rol_id[0] : rol_id;
   const fechaStr = Array.isArray(fecha) ? fecha[0] : fecha;
 
@@ -39,7 +66,7 @@ export default function EditorRolScreen() {
 
   // Marcatextos
   const [activeColor, setActiveColor] = useState<string | null>(null);
-  const COLORS = ['#FF1493', '#00FFFF', '#39FF14', '#FFFF00', '#FF8C00'];
+  const COLORS = ['#FF1493', '#00FFFF', '#39FF14', '#FFFF00', '#FF8C00', '#8A2BE2', '#FF4500'];
 
   // Exportación
   const [isExporting, setIsExporting] = useState(false);
@@ -385,7 +412,7 @@ export default function EditorRolScreen() {
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 15 }}>
             <TouchableOpacity onPress={() => setIsDarkMode(!isDarkMode)}>
-              <Feather name={isDarkMode ? 'sun' : 'moon'} size={24} color={isDarkMode ? '#F5F5DC' : '#006847'} />
+              <Feather name={isDarkMode ? 'sun' : 'moon'} size={24} color={isDarkMode ? theme.background : theme.primary} />
             </TouchableOpacity>
             <View style={{ width: 10 }} />
           </View>
@@ -393,10 +420,10 @@ export default function EditorRolScreen() {
 
         {!isExporting && (
           <View style={[styles.tableHeader, isDarkMode && { backgroundColor: '#333' }]}>
-            <Text style={[styles.th, { flex: 0.4 }, isDarkMode && { color: '#F5F5DC' }]}>NO.</Text>
-            <Text style={[styles.th, { flex: 0.9 }, isDarkMode && { color: '#F5F5DC' }]}>FREC.</Text>
-            <Text style={[styles.th, { flex: 1.5 }, isDarkMode && { color: '#F5F5DC' }]}>HORARIO</Text>
-            <Text style={[styles.th, { flex: 1.1, color: '#000000' }, isDarkMode && { color: '#F5F5DC' }]}>ECO</Text>
+            <Text style={[styles.th, { flex: 0.4 }, isDarkMode && { color: theme.text }]}>NO.</Text>
+            <Text style={[styles.th, { flex: 0.9 }, isDarkMode && { color: theme.text }]}>FREC.</Text>
+            <Text style={[styles.th, { flex: 1.5 }, isDarkMode && { color: theme.text }]}>HORARIO</Text>
+            <Text style={[styles.th, { flex: 1.1, color: theme.text }, isDarkMode && { color: theme.text }]}>ECO</Text>
           </View>
         )}
         {isExporting ? (
@@ -415,8 +442,8 @@ export default function EditorRolScreen() {
                           PLANTILLA: {plantillaName ? plantillaName.toUpperCase() : 'ENTRE SEMANA'}
                         </Text>
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                          <Text style={{ color: '#000000', fontSize: 16, fontWeight: 'bold' }}>Elaboró: Emiliano</Text>
-                          <Text style={{ color: '#4A4A4A', fontSize: 16, fontWeight: 'bold' }}>
+                          <Text style={{ color: '#0f172a', fontSize: 16, fontWeight: 'bold' }}>Tablerista: Emiliano</Text>
+                          <Text style={{ color: theme.textMuted, fontSize: 16, fontWeight: 'bold' }}>
                             Fecha elaboración: {new Date().toLocaleDateString('es-MX')}
                           </Text>
                         </View>
@@ -427,18 +454,18 @@ export default function EditorRolScreen() {
                         
                         {/* Columna Izquierda (1-25) */}
                         <View style={{ flex: 1 }}>
-                          <View style={{ flexDirection: 'row', backgroundColor: '#88D8C0', borderBottomWidth: 2, borderColor: '#000000', paddingVertical: 8, marginBottom: 8 }}>
-                            <Text style={{ flex: 0.5, color: '#000000', fontWeight: 'bold', fontSize: 18, textAlign: 'center' }}>NO.</Text>
-                            <Text style={{ flex: 1, color: '#000000', fontWeight: 'bold', fontSize: 18, textAlign: 'center' }}>FREC.</Text>
-                            <Text style={{ flex: 1.2, color: '#000000', fontWeight: 'bold', fontSize: 18, textAlign: 'center' }}>HORARIO</Text>
-                            <Text style={{ flex: 1.5, color: '#000000', fontWeight: 'bold', fontSize: 18, textAlign: 'center' }}>ECO</Text>
+                          <View style={{ flexDirection: 'row', backgroundColor: '#88D8C0', borderBottomWidth: 2, borderColor: theme.text, paddingVertical: 8, marginBottom: 8 }}>
+                            <Text style={{ flex: 0.5, color: '#0f172a', fontWeight: 'bold', fontSize: 18, textAlign: 'center' }}>NO.</Text>
+                            <Text style={{ flex: 1, color: '#0f172a', fontWeight: 'bold', fontSize: 18, textAlign: 'center' }}>FREC.</Text>
+                            <Text style={{ flex: 1.2, color: '#0f172a', fontWeight: 'bold', fontSize: 18, textAlign: 'center' }}>HORARIO</Text>
+                            <Text style={{ flex: 1.5, color: '#0f172a', fontWeight: 'bold', fontSize: 18, textAlign: 'center' }}>ECO</Text>
                           </View>
                           {rows.slice(0, 25).map((row) => (
-                            <View key={row.id} style={{ flexDirection: 'row', backgroundColor: row.highlightColor ? `${row.highlightColor}60` : 'transparent', borderBottomWidth: 1, borderColor: '#D9D2C2', paddingVertical: 10 }}>
-                              <Text style={{ flex: 0.5, color: '#000000', fontWeight: 'bold', fontSize: 18, textAlign: 'center', borderRightWidth: 1, borderColor: '#D9D2C2' }}>{row.no}</Text>
+                            <View key={row.id} style={{ flexDirection: 'row', backgroundColor: row.highlightColor ? `${row.highlightColor}60` : 'transparent', borderBottomWidth: 1, borderColor: theme.border, paddingVertical: 10 }}>
+                              <Text style={{ flex: 0.5, color: '#0f172a', fontWeight: 'bold', fontSize: 18, textAlign: 'center', borderRightWidth: 1, borderColor: theme.border }}>{row.no}</Text>
                               <Text style={{ flex: 1, color: '#000080', fontSize: 18, textAlign: 'center', fontWeight: 'bold' }}>{row.frec}</Text>
                               <Text style={{ flex: 1.2, color: '#000080', fontSize: 20, textAlign: 'center', fontWeight: 'bold' }}>{row.horario}</Text>
-                              <Text style={{ flex: 1.5, color: '#000000', fontSize: 20, textAlign: 'center', fontWeight: 'bold' }}>{row.eco || '-'}</Text>
+                              <Text style={{ flex: 1.5, color: '#0f172a', fontSize: 20, textAlign: 'center', fontWeight: 'bold' }}>{row.eco || '-'}</Text>
                             </View>
                           ))}
                         </View>
@@ -446,18 +473,18 @@ export default function EditorRolScreen() {
                         {/* Columna Derecha (26 en adelante) */}
                         {rows.length > 25 && (
                           <View style={{ flex: 1 }}>
-                            <View style={{ flexDirection: 'row', backgroundColor: '#88D8C0', borderBottomWidth: 2, borderColor: '#000000', paddingVertical: 8, marginBottom: 8 }}>
-                              <Text style={{ flex: 0.5, color: '#000000', fontWeight: 'bold', fontSize: 18, textAlign: 'center' }}>NO.</Text>
-                              <Text style={{ flex: 1, color: '#000000', fontWeight: 'bold', fontSize: 18, textAlign: 'center' }}>FREC.</Text>
-                              <Text style={{ flex: 1.2, color: '#000000', fontWeight: 'bold', fontSize: 18, textAlign: 'center' }}>HORARIO</Text>
-                              <Text style={{ flex: 1.5, color: '#000000', fontWeight: 'bold', fontSize: 18, textAlign: 'center' }}>ECO</Text>
+                            <View style={{ flexDirection: 'row', backgroundColor: '#88D8C0', borderBottomWidth: 2, borderColor: theme.text, paddingVertical: 8, marginBottom: 8 }}>
+                              <Text style={{ flex: 0.5, color: '#0f172a', fontWeight: 'bold', fontSize: 18, textAlign: 'center' }}>NO.</Text>
+                              <Text style={{ flex: 1, color: '#0f172a', fontWeight: 'bold', fontSize: 18, textAlign: 'center' }}>FREC.</Text>
+                              <Text style={{ flex: 1.2, color: '#0f172a', fontWeight: 'bold', fontSize: 18, textAlign: 'center' }}>HORARIO</Text>
+                              <Text style={{ flex: 1.5, color: '#0f172a', fontWeight: 'bold', fontSize: 18, textAlign: 'center' }}>ECO</Text>
                             </View>
                             {rows.slice(25).map((row) => (
-                              <View key={row.id} style={{ flexDirection: 'row', backgroundColor: row.highlightColor ? `${row.highlightColor}60` : 'transparent', borderBottomWidth: 1, borderColor: '#D9D2C2', paddingVertical: 10 }}>
-                                <Text style={{ flex: 0.5, color: '#000000', fontWeight: 'bold', fontSize: 20, textAlign: 'center', borderRightWidth: 1, borderColor: '#D9D2C2' }}>{row.no}</Text>
+                              <View key={row.id} style={{ flexDirection: 'row', backgroundColor: row.highlightColor ? `${row.highlightColor}60` : 'transparent', borderBottomWidth: 1, borderColor: theme.border, paddingVertical: 10 }}>
+                                <Text style={{ flex: 0.5, color: '#0f172a', fontWeight: 'bold', fontSize: 20, textAlign: 'center', borderRightWidth: 1, borderColor: theme.border }}>{row.no}</Text>
                                 <Text style={{ flex: 1, color: '#000080', fontSize: 20, textAlign: 'center', fontWeight: 'bold' }}>{row.frec}</Text>
                                 <Text style={{ flex: 1.2, color: '#000080', fontSize: 20, textAlign: 'center', fontWeight: 'bold' }}>{row.horario}</Text>
-                                <Text style={{ flex: 1.5, color: '#000000', fontSize: 20, textAlign: 'center', fontWeight: 'bold' }}>{row.eco || '-'}</Text>
+                                <Text style={{ flex: 1.5, color: '#0f172a', fontSize: 20, textAlign: 'center', fontWeight: 'bold' }}>{row.eco || '-'}</Text>
                               </View>
                             ))}
                           </View>
@@ -474,7 +501,7 @@ export default function EditorRolScreen() {
           <FlatList
             data={rows}
             keyExtractor={item => item.id}
-            contentContainerStyle={[styles.content, { backgroundColor: isDarkMode ? '#1A1A1A' : '#F5F5DC' }]}
+            contentContainerStyle={[styles.content, { backgroundColor: isDarkMode ? '#1A1A1A' : theme.background }]}
             onScrollBeginDrag={() => setExpandedRowId(null)}
             initialNumToRender={20}
             renderItem={({ item: row, index }) => {
@@ -482,11 +509,11 @@ export default function EditorRolScreen() {
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 4, marginLeft: 6 }}>
                   <TouchableOpacity style={{ backgroundColor: '#10b981', justifyContent: 'center', alignItems: 'center', width: 62, height: '90%', borderRadius: 8, marginRight: 6 }} onPress={() => { swipeableRefs.current.get(row.id)?.close(); handleInsertRow(index); }}>
                     <Feather name="plus-circle" size={20} color="#fff" />
-                    <Text style={{ color: '#fff', fontSize: 10, fontWeight: 'bold', marginTop: 2 }}>Insertar</Text>
+                    <Text style={{ color: theme.headerText, fontSize: 10, fontWeight: 'bold', marginTop: 2 }}>Insertar</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={{ backgroundColor: '#ef4444', justifyContent: 'center', alignItems: 'center', width: 62, height: '90%', borderRadius: 8 }} onPress={() => handleRemoveRow(row.id)}>
                     <Feather name="trash-2" size={20} color="#fff" />
-                    <Text style={{ color: '#fff', fontSize: 10, fontWeight: 'bold', marginTop: 2 }}>Borrar</Text>
+                    <Text style={{ color: theme.headerText, fontSize: 10, fontWeight: 'bold', marginTop: 2 }}>Borrar</Text>
                   </TouchableOpacity>
                 </View>
               );
@@ -512,11 +539,11 @@ export default function EditorRolScreen() {
                       row.highlightColor && { backgroundColor: `${row.highlightColor}40` }
                     ]}
                   >
-                    <Text style={[styles.td, { flex: 0.4, fontWeight: 'bold' }, isDarkMode && { color: '#F5F5DC' }]}>{row.no}</Text>
+                    <Text style={[styles.td, { flex: 0.4, fontWeight: 'bold' }, isDarkMode && { color: theme.text }]}>{row.no}</Text>
                     
                     <View style={{ flex: 0.9, paddingHorizontal: 2 }}>
                       <TextInput 
-                        style={[styles.inputCell, isDarkMode && { backgroundColor: '#333', borderColor: '#444', color: '#F5F5DC' }, isReadOnly && { opacity: 0.8, borderColor: 'transparent' }]}
+                        style={[styles.inputCell, isDarkMode && { backgroundColor: '#333', borderColor: '#444', color: theme.text }, isReadOnly && { opacity: 0.8, borderColor: 'transparent' }]}
                         value={row.frec}
                         onChangeText={(t) => handleUpdateField(row.id, 'frec', t)}
                         onFocus={() => toggleExpand(null)}
@@ -528,7 +555,7 @@ export default function EditorRolScreen() {
 
                     <View style={{ flex: 1.5, paddingHorizontal: 1, justifyContent: 'center' }}>
                       <TextInput 
-                        style={[styles.inputCell, { flex: 1, paddingHorizontal: 2, textAlign: 'center' }, isDarkMode && { backgroundColor: '#333', borderColor: '#444', color: '#F5F5DC' }, isReadOnly && { opacity: 0.8, borderColor: 'transparent' }]}
+                        style={[styles.inputCell, { flex: 1, paddingHorizontal: 2, textAlign: 'center' }, isDarkMode && { backgroundColor: '#333', borderColor: '#444', color: theme.text }, isReadOnly && { opacity: 0.8, borderColor: 'transparent' }]}
                         value={row.horario}
                         onChangeText={(t) => handleUpdateField(row.id, 'horario', t)}
                         onFocus={() => toggleExpand(null)}
@@ -544,7 +571,7 @@ export default function EditorRolScreen() {
                         onPress={() => handleOpenEcoSelector(row.id)}
                         disabled={isReadOnly}
                       >
-                        <Text style={[{ color: '#000000', fontWeight: 'bold', textAlign: 'center' }, isDarkMode && { color: '#F5F5DC' }]}>
+                        <Text style={[{ color: '#0f172a', fontWeight: 'bold', textAlign: 'center' }, isDarkMode && { color: theme.text }]}>
                           {row.eco || '---'}
                         </Text>
                       </TouchableOpacity>
@@ -557,7 +584,7 @@ export default function EditorRolScreen() {
               !isReadOnly && !isExporting ? (
                 <TouchableOpacity style={styles.btnAddRow} onPress={handleAddRow}>
                   <Feather name="plus" size={20} color="#006847" />
-                  <Text style={{ color: '#006847', marginLeft: 8, fontWeight: 'bold' }}>+ Agregar Turno al Final</Text>
+                  <Text style={{ color: theme.primary, marginLeft: 8, fontWeight: 'bold' }}>+ Agregar Turno al Final</Text>
                 </TouchableOpacity>
               ) : null
             )}
@@ -675,8 +702,8 @@ export default function EditorRolScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F5F5DC' },
+function getStyles(theme: any) { return StyleSheet.create({
+  container: { flex: 1, backgroundColor: theme.background },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -684,20 +711,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 15,
     borderBottomWidth: 1,
-    borderBottomColor: '#D9D2C2'
+    borderBottomColor: theme.border
   },
   backBtn: { padding: 4 },
-  title: { fontSize: 16, fontWeight: '600', color: '#000000' },
+  title: { fontSize: 16, fontWeight: '600', color: theme.text },
   
   tableHeader: {
     flexDirection: 'row',
     paddingHorizontal: 15,
     paddingVertical: 12,
-    backgroundColor: '#F5F5DC',
+    backgroundColor: theme.background,
     borderBottomWidth: 1,
-    borderBottomColor: '#D9D2C2'
+    borderBottomColor: theme.border
   },
-  th: { color: '#4A4A4A', fontSize: 12, fontWeight: '600', textAlign: 'center' },
+  th: { color: theme.textMuted, fontSize: 12, fontWeight: '600', textAlign: 'center' },
   
   content: { padding: 10, paddingBottom: 40 },
   tableRow: {
@@ -706,12 +733,12 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#D9D2C2',
+    borderBottomColor: theme.border,
     borderRadius: 12,
     marginBottom: 8,
-    backgroundColor: '#F5F5DC'
+    backgroundColor: theme.background
   },
-  td: { color: '#000000', fontSize: 14, textAlign: 'center' },
+  td: { color: theme.text, fontSize: 14, textAlign: 'center' },
   
   inputCell: {
     backgroundColor: '#EAE5CE', // Burbujas en contraste con Hueso
@@ -740,7 +767,7 @@ const styles = StyleSheet.create({
     paddingVertical: 15,
     marginTop: 10,
     borderWidth: 1,
-    borderColor: '#D9D2C2',
+    borderColor: theme.border,
     borderStyle: 'dashed',
     borderRadius: 8
   },
@@ -749,13 +776,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     padding: 15,
     borderTopWidth: 1,
-    borderTopColor: '#D9D2C2',
-    backgroundColor: '#F5F5DC',
+    borderTopColor: theme.border,
+    backgroundColor: theme.background,
     gap: 15
   },
   btnShare: {
     flex: 1,
-    backgroundColor: '#006847',
+    backgroundColor: theme.primary,
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
@@ -765,14 +792,14 @@ const styles = StyleSheet.create({
   },
   btnGuardar: {
     flex: 2,
-    backgroundColor: '#006847',
+    backgroundColor: theme.primary,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 16,
     borderRadius: 12
   },
-  btnGuardarText: { color: '#ffffff', fontSize: 16, fontWeight: 'bold' },
+  btnGuardarText: { color: theme.headerText, fontSize: 16, fontWeight: 'bold' },
   
   marcatextosContainer: {
     position: 'absolute',
@@ -792,7 +819,7 @@ const styles = StyleSheet.create({
     shadowRadius: 5,
     elevation: 8,
     borderWidth: 1,
-    borderColor: '#D9D2C2'
+    borderColor: theme.border
   },
   colorCircle: {
     width: 32,
@@ -801,19 +828,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center'
   },
-  colorCircleActive: {
-    borderWidth: 3,
-    borderColor: '#000000',
-    transform: [{ scale: 1.2 }]
-  },
+  colorCircleActive: { borderWidth: 3, borderColor: '#0f172a', transform: [{ scale: 1.2 }] },
 
   // Modal Selector
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modalContent: { backgroundColor: '#F5F5DC', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, height: '60%' },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, borderBottomWidth: 1, borderBottomColor: '#D9D2C2', paddingBottom: 15 },
-  modalTitle: { color: '#000000', fontSize: 18, fontWeight: 'bold' },
-  ecoItem: { padding: 15, borderBottomWidth: 1, borderBottomColor: '#D9D2C2', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  ecoItemText: { color: '#006847', fontSize: 18, fontWeight: 'bold' },
-  ecoItemSubtext: { color: '#4A4A4A', fontSize: 14 },
+  modalContent: { backgroundColor: theme.background, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, height: '60%' },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, borderBottomWidth: 1, borderBottomColor: theme.border, paddingBottom: 15 },
+  modalTitle: { color: theme.text, fontSize: 18, fontWeight: 'bold' },
+  ecoItem: { padding: 15, borderBottomWidth: 1, borderBottomColor: theme.border, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  ecoItemText: { color: theme.primary, fontSize: 18, fontWeight: 'bold' },
+  ecoItemSubtext: { color: theme.textMuted, fontSize: 14 },
   ecoItemClear: { padding: 15, marginTop: 10, backgroundColor: '#FFD1D1', borderRadius: 8, borderWidth: 1, borderColor: '#D2042D' }
 });
+}

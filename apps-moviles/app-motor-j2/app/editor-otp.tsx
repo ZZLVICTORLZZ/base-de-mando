@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useTheme } from '../src/theme/ThemeContext';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, KeyboardAvoidingView, Platform, Modal, Alert, LayoutAnimation, UIManager, Pressable, FlatList } from 'react-native';
 
 import { Feather } from '@expo/vector-icons';
@@ -9,8 +10,11 @@ import ViewShot from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
 import { supabase } from '../src/services/supabaseClient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { SyncManager } from '../src/services/SyncManager';
 
 const FrecModal = ({ visible, onClose, initialFrec, onSave, isDarkMode }: any) => {
+  const { theme, themeName } = useTheme();
+  const styles = getStyles(theme);
   const [val, setVal] = useState('');
   const [isCascada, setIsCascada] = useState(false);
   const [isSF, setIsSF] = useState(false);
@@ -28,14 +32,14 @@ const FrecModal = ({ visible, onClose, initialFrec, onSave, isDarkMode }: any) =
       <View style={styles.modalOverlay}>
         <View style={[styles.modalContent, isDarkMode && { backgroundColor: '#222' }]}>
           <View style={[styles.modalHeader, isDarkMode && { borderBottomColor: '#333' }]}>
-            <Text style={[styles.modalTitle, isDarkMode && { color: '#F5F5DC' }]}>Configurar Frecuencia</Text>
+            <Text style={[styles.modalTitle, isDarkMode && { color: theme.text }]}>Configurar Frecuencia</Text>
             <TouchableOpacity onPress={onClose}>
               <Feather name="x" size={24} color="#94a3b8" />
             </TouchableOpacity>
           </View>
           
           <TextInput 
-            style={[{ backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#D9D2C2', borderRadius: 12, color: '#000000', padding: 18, fontSize: 24, fontWeight: 'bold', marginBottom: 25, textAlign: 'center' }, isDarkMode && { backgroundColor: '#333', borderColor: '#444', color: '#F5F5DC' }]}
+            style={[{ backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: theme.border, borderRadius: 12, color: '#0f172a', padding: 18, fontSize: 24, fontWeight: 'bold', marginBottom: 25, textAlign: 'center' }, isDarkMode && { backgroundColor: '#333', borderColor: '#444', color: theme.text }]}
             value={val}
             onChangeText={setVal}
             keyboardType="number-pad"
@@ -45,21 +49,21 @@ const FrecModal = ({ visible, onClose, initialFrec, onSave, isDarkMode }: any) =
           />
 
           <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 20 }} onPress={() => { setIsCascada(!isCascada); setIsSF(false); }}>
-            <View style={{ width: 24, height: 24, borderWidth: 2, borderColor: isCascada ? '#006847' : '#94a3b8', borderRadius: 6, marginRight: 15, justifyContent: 'center', alignItems: 'center', backgroundColor: isCascada ? '#006847' : 'transparent' }}>
+            <View style={{ width: 24, height: 24, borderWidth: 2, borderColor: isCascada ? theme.primary : '#94a3b8', borderRadius: 6, marginRight: 15, justifyContent: 'center', alignItems: 'center', backgroundColor: isCascada ? theme.primary : 'transparent' }}>
               {isCascada && <Feather name="check" size={16} color="#fff" />}
             </View>
-            <Text style={{ color: isDarkMode ? '#F5F5DC' : '#000000', fontSize: 16 }}>Aplicar en Cascada a las demás</Text>
+            <Text style={{ color: isDarkMode ? theme.text : theme.text, fontSize: 16 }}>Aplicar en Cascada a las demás</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 30 }} onPress={() => { setIsSF(!isSF); setIsCascada(false); }}>
             <View style={{ width: 24, height: 24, borderWidth: 2, borderColor: isSF ? '#D2042D' : '#94a3b8', borderRadius: 6, marginRight: 15, justifyContent: 'center', alignItems: 'center', backgroundColor: isSF ? '#D2042D' : 'transparent' }}>
               {isSF && <Feather name="check" size={16} color="#fff" />}
             </View>
-            <Text style={{ color: isDarkMode ? '#F5F5DC' : '#000000', fontSize: 16 }}>S.F. (Sin Frecuencia - Aislada)</Text>
+            <Text style={{ color: isDarkMode ? theme.text : theme.text, fontSize: 16 }}>S.F. (Sin Frecuencia - Aislada)</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={{ backgroundColor: '#006847', padding: 18, borderRadius: 12 }} onPress={() => onSave(val, isSF, isCascada)}>
-            <Text style={{ color: '#fff', textAlign: 'center', fontWeight: 'bold', fontSize: 16 }}>Aceptar y Guardar</Text>
+          <TouchableOpacity style={{ backgroundColor: theme.primary, padding: 18, borderRadius: 12 }} onPress={() => onSave(val, isSF, isCascada)}>
+            <Text style={{ color: theme.headerText, textAlign: 'center', fontWeight: 'bold', fontSize: 16 }}>Aceptar y Guardar</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -68,6 +72,8 @@ const FrecModal = ({ visible, onClose, initialFrec, onSave, isDarkMode }: any) =
 };
 
 export default function EditorOTPScreen() {
+  const { theme, themeName } = useTheme();
+  const styles = getStyles(theme);
   const { source_rol_id, rol_id, mode, base_chequeo } = useLocalSearchParams();
   const isReadOnly = mode === 'view';
   const [loading, setLoading] = useState(true);
@@ -93,7 +99,38 @@ export default function EditorOTPScreen() {
   const [lastSavedTime, setLastSavedTime] = useState<string>('');
   const [unidadesList, setUnidadesList] = useState<any[]>([]);
   const [paxPromedioDia, setPaxPromedioDia] = useState<number>(0);
+  const [syncStatus, setSyncStatus] = useState<'online'|'offline'|'syncing'>('online');
+  const [userAccessLevel, setUserAccessLevel] = useState(0);
+  const [isAllowedToEdit, setIsAllowedToEdit] = useState(true);
   
+  
+  useEffect(() => {
+    AsyncStorage.getItem('apolo11_user_level').then(val => setUserAccessLevel(val ? parseInt(val) : 0));
+    
+    SyncManager.setOnSyncStatusChange((status) => {
+      setSyncStatus(status);
+    });
+
+    // Subscripción Realtime
+    const targetId = activeRolId || rol_id;
+    let channel;
+    if (targetId) {
+      channel = supabase.channel(`public:roles_del_dia:${targetId}`)
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'roles_del_dia', filter: `id=eq.${targetId}` }, (payload) => {
+          // Si otra persona actualizó los rows, los refrescamos si no estamos editando algo crítico localmente
+          if (payload.new && payload.new.rows) {
+             setRows(payload.new.rows);
+             setLastSavedTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' (Realtime)');
+          }
+        })
+        .subscribe();
+    }
+    
+    return () => {
+      if (channel) supabase.removeChannel(channel);
+    };
+  }, [activeRolId, rol_id]);
+
   useEffect(() => {
     AsyncStorage.getItem('OTP_DARK_MODE').then(val => {
       if (val === 'true') setIsDarkMode(true);
@@ -122,7 +159,7 @@ export default function EditorOTPScreen() {
   
   // Marcatextos
   const [activeColor, setActiveColor] = useState<string | null>(null);
-  const COLORS = ['#FF1493', '#00FFFF', '#39FF14', '#FFFF00', '#FF8C00'];
+  const COLORS = ['#FF1493', '#00FFFF', '#39FF14', '#FFFF00', '#FF8C00', '#8A2BE2', '#FF4500'];
   const [creadorName, setCreadorName] = useState<string>('');
 
 // Exportación
@@ -134,12 +171,12 @@ export default function EditorOTPScreen() {
     
     // Las 3 bases reales
     if (lower.includes('indios verdes')) return '#00502A'; // Verde oscuro muy legible
-    if (lower.includes('paseos del lago 2') || lower.includes('lagos')) return '#990000'; // Rojo oscuro / Carmesí
+    if (lower.includes('paseos del lago 2') || lower.includes('lagos')) return '#1D4ED8'; // Azul (Lagos 2)
     if (lower.includes('nuevos paseos')) return '#A04000'; // Naranja oscuro / Óxido
     
     // Color por defecto si no coincide exactamente pero contiene palabras clave
     if (lower.includes('indios')) return '#00502A';
-    if (lower.includes('lago')) return '#990000';
+    if (lower.includes('lago')) return '#1D4ED8';
     if (lower.includes('paseos')) return '#A04000';
 
     return '#002244'; // Azul marino muy oscuro por defecto
@@ -162,7 +199,7 @@ export default function EditorOTPScreen() {
 
   // Autoguardado silencioso cada vez que cambian las filas
   useEffect(() => {
-    if (isReadOnly || loading || rows.length === 0) return;
+    if (isReadOnly || !isAllowedToEdit || loading || rows.length === 0) return;
     const timer = setTimeout(async () => {
       await performAutoSave();
     }, 2500);
@@ -170,7 +207,7 @@ export default function EditorOTPScreen() {
   }, [rows]);
 
   const performAutoSave = async () => {
-    if (isReadOnly || loading || rows.length === 0) return;
+    if (isReadOnly || !isAllowedToEdit || loading || rows.length === 0) return;
     try {
       let currentUser = await AsyncStorage.getItem('apolo11_user_name');
       if (!currentUser || currentUser.toLowerCase() === 'tablerista') {
@@ -178,7 +215,7 @@ export default function EditorOTPScreen() {
       }
       const targetId = activeRolId || (rol_id as string);
       if (targetId) {
-        await supabase.from('roles_del_dia').update({ rows: rows }).eq('id', targetId);
+        const success = await SyncManager.queueOTPUpdate(targetId, rows);
         setLastSavedTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
       } else if (source_rol_id) {
         // Primera vez que se autoguarda un nuevo OTP
@@ -299,12 +336,15 @@ export default function EditorOTPScreen() {
       router.back();
       return;
     }
+    
     const parts = data.creado_por?.split('|') || [];
     const savedName = parts.length > 1 ? parts[1].trim() : '';
     const savedTipoRol = parts.length > 2 ? parts[2].trim() : (data.plantillas_predeterminadas?.name || '');
     const baseToUse = savedName || data.plantillas_predeterminadas?.name || 'Proyección Sin Nombre';
+    
     setPlantillaName(baseToUse);
     setTipoRolName(savedTipoRol);
+    
     let rawCreador = parts[0]?.replace('[OTP]', '').trim() || '';
     if (!rawCreador || rawCreador.toLowerCase() === 'tablerista') {
       rawCreador = 'Emiliano';
@@ -312,6 +352,21 @@ export default function EditorOTPScreen() {
     setCreadorName(`[OTP] ${rawCreador}`);
     setRows(data.rows || []);
     await fetchPaxPromedioDia(baseToUse, data.fecha, savedTipoRol);
+    
+    // Validar permisos: Solo el creador o un admin (nivel 10) pueden editar
+    const currentName = await AsyncStorage.getItem('apolo11_user_name');
+    const uLevel = await AsyncStorage.getItem('apolo11_user_level');
+    const levelNum = uLevel ? parseInt(uLevel) : 0;
+    
+    if (levelNum < 10 && currentName !== rawCreador) {
+       setIsAllowedToEdit(false);
+       if (!isReadOnly) {
+          alert('Solo el administrador o el creador original puede editar esta hoja. Activando Modo Lectura.');
+       }
+    } else {
+       setIsAllowedToEdit(true);
+    }
+    
     setLoading(false);
   };
 
@@ -460,12 +515,12 @@ export default function EditorOTPScreen() {
   };
 
   const handleUpdateECO = (id: string, text: string) => {
-    if (isReadOnly) return;
+    if (isReadOnly || !isAllowedToEdit) return;
     setRows(rows.map(r => r.id === id ? { ...r, eco: text } : r));
   };
 
   const handleToggleRuta = (id: string) => {
-    if (isReadOnly) return;
+    if (isReadOnly || !isAllowedToEdit) return;
     setRows(rows.map(r => {
       if (r.id === id) {
         if (r.ruta === 'MEX') return { ...r, ruta: 'REY' };
@@ -476,7 +531,7 @@ export default function EditorOTPScreen() {
   };
 
   const handleOpenFrecSelector = (rowId: string, currentFrec: string) => {
-    if (isReadOnly) return;
+    if (isReadOnly || !isAllowedToEdit) return;
     setSelectedRowIdForFrec(rowId);
     setInitialFrecForModal(currentFrec);
     setFrecModalVisible(true);
@@ -506,7 +561,7 @@ export default function EditorOTPScreen() {
   };
 
   const handleOpenObsModal = (rowId: string, currentObs: string) => {
-    if (isReadOnly) return;
+    if (isReadOnly || !isAllowedToEdit) return;
     setSelectedRowIdForObs(rowId);
     setObsInputValue(currentObs || '');
     setObsModalVisible(true);
@@ -521,7 +576,7 @@ export default function EditorOTPScreen() {
   };
 
   const handleUpdateField = (id: string, field: 'frec' | 'horario' | 'eco' | 'ruta' | 'observaciones' | 'pax', text: string) => {
-    if (isReadOnly) return;
+    if (isReadOnly || !isAllowedToEdit) return;
     let formattedText = text;
     if (field === 'horario' && text.length === 4 && !text.includes(':')) {
       formattedText = `${text.substring(0, 2)}:${text.substring(2, 4)}`;
@@ -535,7 +590,7 @@ export default function EditorOTPScreen() {
   };
 
   const handleAdjustTime = (id: string, minutesToAdd: number) => {
-    if (isReadOnly) return;
+    if (isReadOnly || !isAllowedToEdit) return;
     const rowIndex = rows.findIndex(r => r.id === id);
     if (rowIndex === -1) return;
     const currentRow = rows[rowIndex];
@@ -554,7 +609,7 @@ export default function EditorOTPScreen() {
   };
 
   const handleRemoveRow = (id: string) => {
-    if (isReadOnly) return;
+    if (isReadOnly || !isAllowedToEdit) return;
     Alert.alert('Eliminar Turno', '¿Seguro que quieres eliminar este turno?', [
       { text: 'Cancelar', style: 'cancel' },
       { text: 'Eliminar', style: 'destructive', onPress: () => {
@@ -577,7 +632,7 @@ export default function EditorOTPScreen() {
   };
 
   const handleInsertRow = (index: number) => {
-    if (isReadOnly) return;
+    if (isReadOnly || !isAllowedToEdit) return;
     const prevFrec = rows[index] ? rows[index].frec : '15';
     const newRow = { id: Date.now().toString(), no: 0, frec: prevFrec, horario: '--:--', eco: '', ruta: 'MEX', observaciones: '', pax: '' };
     const newRows = [...rows];
@@ -587,7 +642,7 @@ export default function EditorOTPScreen() {
   };
 
   const handleDuplicateRound = () => {
-    if (isReadOnly) return;
+    if (isReadOnly || !isAllowedToEdit) return;
     const currentRows = [...rows];
     if (currentRows.length === 0) return;
     
@@ -654,7 +709,7 @@ export default function EditorOTPScreen() {
   };
 
   const handleAddRow = () => {
-    if (isReadOnly) return;
+    if (isReadOnly || !isAllowedToEdit) return;
     const lastRow = rows[rows.length - 1];
     const prevFrec = lastRow ? lastRow.frec : '15';
     const newRow = { id: Date.now().toString(), no: (lastRow?.no || 0) + 1, frec: prevFrec, horario: '--:--', eco: '', ruta: 'MEX', observaciones: '', pax: '' };
@@ -803,7 +858,7 @@ export default function EditorOTPScreen() {
     };
   }, [rows, unidadesList]);
 
-  const renderTurnoIndicator = (row: any, isDark: boolean = false) => {
+  const renderTurnoIndicator = (row: any, isDark: boolean = false, isExport: boolean = false) => {
     const ecoClean = String(row.eco || '').replace(/[^0-9]/g, '');
     const unitCap = ecoClean ? (unidadesMap[ecoClean] || 0) : 0;
     const hasWrittenPax = row.pax !== undefined && row.pax !== null && String(row.pax).trim() !== '';
@@ -817,16 +872,16 @@ export default function EditorOTPScreen() {
       showBox = true;
       if (paxNum >= unitCap) {
         fillHeight = '100%';
-        fillColor = '#10b981'; // Completo en verde si cubrió capacidad completa
+        fillColor = '#10b981';
       } else if (paxNum >= unitCap * 0.75) {
         fillHeight = '75%';
-        fillColor = '#f97316'; // 75% en naranja si se llevó por encima del 75% de capacidad
+        fillColor = '#f97316';
       } else if (paxNum >= unitCap * 0.5) {
         fillHeight = '50%';
-        fillColor = '#f59e0b'; // La mitad en amarillo si se llevó por encima de capacidad media
+        fillColor = '#f59e0b';
       } else {
         fillHeight = '25%';
-        fillColor = '#ef4444'; // Un cuarto en rojo si se llevó menos de la mitad
+        fillColor = '#ef4444';
       }
     }
 
@@ -842,7 +897,7 @@ export default function EditorOTPScreen() {
             borderColor: isDark ? '#555' : '#CBD5E1',
             justifyContent: 'center',
             alignItems: 'center',
-            backgroundColor: isDark ? '#262626' : '#ffffff',
+            backgroundColor: '#000',
             position: 'relative'
           }}>
             <View style={{
@@ -855,16 +910,28 @@ export default function EditorOTPScreen() {
             }} />
             <Text style={[
               styles.td,
-              { fontWeight: 'bold', fontSize: 13, zIndex: 1 },
-              isDark && { color: '#F5F5DC' },
-              (!isDark && fillHeight === '100%') && { color: '#ffffff' },
-              (isDark && fillHeight === '100%') && { color: '#000000' }
+              { 
+                fontWeight: 'bold', 
+                fontSize: 13, 
+                zIndex: 1,
+                color: '#fff',
+                textShadowColor: 'rgba(0, 0, 0, 0.6)',
+                textShadowOffset: { width: 0, height: 1 },
+                textShadowRadius: 2
+              }
             ]}>
               {row.no}
             </Text>
           </View>
         ) : (
-          <Text style={[styles.td, { fontWeight: 'bold' }, isDark && { color: '#F5F5DC' }]}>{row.no}</Text>
+          <Text style={[
+            styles.td, 
+            { fontWeight: 'bold' }, 
+            isDark && { color: theme.text },
+            isExport && { color: '#0f172a' }
+          ]}>
+            {row.no}
+          </Text>
         )}
       </View>
     );
@@ -888,11 +955,19 @@ export default function EditorOTPScreen() {
           <View style={{ alignItems: 'center' }}>
             <Text style={[styles.title, isDarkMode && { color: "#F5F5DC" }]}>OTP - {plantillaName}</Text>
             {tipoRolName ? <Text style={{ fontSize: 11, color: isDarkMode ? '#aaa' : '#64748b', fontWeight: 'bold' }}>Rol: {tipoRolName}</Text> : null}
+            
             {lastSavedTime ? <Text style={{ fontSize: 10, color: '#10b981', fontWeight: 'bold' }}>⚡ Guardado {lastSavedTime}</Text> : null}
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
+              <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: syncStatus === 'online' ? '#10b981' : syncStatus === 'syncing' ? '#3b82f6' : '#f59e0b', marginRight: 4 }} />
+              <Text style={{ fontSize: 10, color: isDarkMode ? '#aaa' : '#64748b' }}>
+                {syncStatus === 'online' ? 'En línea' : syncStatus === 'syncing' ? 'Sincronizando...' : 'Sin conexión (Guardando local)'}
+              </Text>
+            </View>
+
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 15 }}>
             <TouchableOpacity onPress={toggleDarkMode}>
-              <Feather name={isDarkMode ? 'sun' : 'moon'} size={24} color={isDarkMode ? '#F5F5DC' : '#006847'} />
+              <Feather name={isDarkMode ? 'sun' : 'moon'} size={24} color={isDarkMode ? theme.background : theme.primary} />
             </TouchableOpacity>
             <View style={{ width: 10 }} />
           </View>
@@ -903,11 +978,11 @@ export default function EditorOTPScreen() {
             <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', marginBottom: 6 }}>
               <View style={[
                 { flexDirection: 'row', width: 210, height: 32, borderRadius: 16, paddingHorizontal: 10, alignItems: 'center', borderWidth: 1 },
-                isDarkMode ? { backgroundColor: '#262626', borderColor: '#404040' } : { backgroundColor: '#ffffff', borderColor: '#CBD5E1' }
+                isDarkMode ? { backgroundColor: '#262626', borderColor: '#404040' } : { backgroundColor: theme.headerText, borderColor: '#CBD5E1' }
               ]}>
                 <Feather name="search" size={15} color={isDarkMode ? '#A3A3A3' : '#64748b'} />
                 <TextInput 
-                  style={{ flex: 1, marginLeft: 6, fontSize: 13, paddingVertical: 0, color: isDarkMode ? '#F5F5DC' : '#1E293B' }}
+                  style={{ flex: 1, marginLeft: 6, fontSize: 13, paddingVertical: 0, color: (themeName === 'neon' || isDarkMode) ? '#FFFFFF' : '#1E293B' }}
                   placeholder="Buscar ECO..."
                   placeholderTextColor={isDarkMode ? '#737373' : '#94a3b8'}
                   value={searchEco}
@@ -922,26 +997,26 @@ export default function EditorOTPScreen() {
               </View>
             </View>
 
-            <View style={{ backgroundColor: '#006847', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, shadowColor: '#000', shadowOffset: {width: 0, height: 3}, shadowOpacity: 0.15, shadowRadius: 4, elevation: 3 }}>
+            <View style={{ backgroundColor: theme.primary, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, shadowColor: '#000', shadowOffset: {width: 0, height: 3}, shadowOpacity: 0.15, shadowRadius: 4, elevation: 3 }}>
               {/* Hilera 1: Datos en vivo (Minimalista) */}
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 4, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.15)' }}>
                 <View style={{ alignItems: 'center', flex: 1 }}>
                   <Text style={{ color: '#88D8C0', fontSize: 8.5, fontWeight: 'bold' }}>FREC. PROM.</Text>
-                  <Text style={{ color: '#FFFFFF', fontSize: 13, fontWeight: 'bold' }}>
+                  <Text style={{ color: theme.headerText, fontSize: 13, fontWeight: 'bold' }}>
                     {rows.length > 0 ? `${frecPromedioMin} min` : '--'}
                   </Text>
                 </View>
                 <View style={{ width: 1, height: 20, backgroundColor: '#88D8C0', opacity: 0.4 }} />
                 <View style={{ alignItems: 'center', flex: 1 }}>
                   <Text style={{ color: '#88D8C0', fontSize: 8.5, fontWeight: 'bold' }}>T. AUTOBUSES</Text>
-                  <Text style={{ color: '#FFFFFF', fontSize: 13, fontWeight: 'bold' }}>
+                  <Text style={{ color: theme.headerText, fontSize: 13, fontWeight: 'bold' }}>
                     {new Set(rows.filter(r => r.eco && r.highlightColor).map(r => r.eco)).size} / {new Set(rows.filter(r => r.eco).map(r => r.eco)).size}
                   </Text>
                 </View>
                 <View style={{ width: 1, height: 20, backgroundColor: '#88D8C0', opacity: 0.4 }} />
                 <View style={{ alignItems: 'center', flex: 1 }}>
                   <Text style={{ color: '#88D8C0', fontSize: 8.5, fontWeight: 'bold' }}>PAX ABORDADOS</Text>
-                  <Text style={{ color: '#FFFFFF', fontSize: 13, fontWeight: 'bold' }}>
+                  <Text style={{ color: theme.headerText, fontSize: 13, fontWeight: 'bold' }}>
                     {pasajerosTotales}
                   </Text>
                 </View>
@@ -951,14 +1026,14 @@ export default function EditorOTPScreen() {
               <View style={{ flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center', paddingTop: 4 }}>
                 <View style={{ alignItems: 'center', flex: 1 }}>
                   <Text style={{ color: '#A7F3D0', fontSize: 8.5, fontWeight: 'bold' }}>PROM. DEL DÍA</Text>
-                  <Text style={{ color: '#FFFFFF', fontSize: 12, fontWeight: 'bold' }}>
+                  <Text style={{ color: theme.headerText, fontSize: 12, fontWeight: 'bold' }}>
                     {paxPromedioDia > 0 ? `${paxPromedioDia} pax` : '--'}
                   </Text>
                 </View>
                 <View style={{ width: 1, height: 20, backgroundColor: '#88D8C0', opacity: 0.4 }} />
                 <View style={{ alignItems: 'center', flex: 1 }}>
                   <Text style={{ color: '#A7F3D0', fontSize: 8.5, fontWeight: 'bold' }}>CAP. PROYECTADA</Text>
-                  <Text style={{ color: '#FFFFFF', fontSize: 12, fontWeight: 'bold' }}>
+                  <Text style={{ color: theme.headerText, fontSize: 12, fontWeight: 'bold' }}>
                     {proyeccionTotalPax} pax
                   </Text>
                 </View>
@@ -968,14 +1043,14 @@ export default function EditorOTPScreen() {
         )}
 
         {!isExporting && (
-          <View style={{ flexDirection: 'row', paddingHorizontal: 20, paddingVertical: 12, backgroundColor: isDarkMode ? '#1A1A1A' : '#FFFFFF', borderBottomWidth: 1, borderBottomColor: isDarkMode ? '#333' : '#D9D2C2' }}>
+          <View style={{ flexDirection: 'row', paddingHorizontal: 20, paddingVertical: 12, backgroundColor: isDarkMode ? '#1A1A1A' : theme.headerText, borderBottomWidth: 1, borderBottomColor: isDarkMode ? '#333' : theme.border }}>
             <View style={{ flex: 0.4 }}><Text style={[styles.th, {fontSize: 11}, isDarkMode && {color: '#aaa'}]}>NO.</Text></View>
-            <View style={{ flex: 0.7, paddingHorizontal: 1 }}><Text style={[styles.th, {fontSize: 11}, isDarkMode && {color: '#aaa'}]}>FREC</Text></View>
-            <View style={{ flex: 1.4, paddingHorizontal: 1 }}><Text style={[styles.th, {fontSize: 11}, isDarkMode && {color: '#aaa'}]}>HORA</Text></View>
-            <View style={{ flex: 1, paddingHorizontal: 1 }}><Text style={[styles.th, {fontSize: 11, color: isDarkMode ? '#aaa' : '#000000'}]}>ECO</Text></View>
-            {!isIndios && <View style={{ flex: 0.7, paddingHorizontal: 1 }}><Text style={[styles.th, {fontSize: 11}, isDarkMode && {color: '#aaa'}]}>RUTA</Text></View>}
-            {(isIndios || isLagos) && <View style={{ flex: 0.6, paddingHorizontal: 1 }}><Text style={[styles.th, {fontSize: 11}, isDarkMode && {color: '#aaa'}]}>PAX</Text></View>}
-            <View style={{ flex: 0.5, paddingHorizontal: 1 }}><Text style={[styles.th, {fontSize: 11}, isDarkMode && {color: '#aaa'}]}>OBS</Text></View>
+            <View style={{ flex: 0.5, paddingHorizontal: 1 }}><Text style={[styles.th, {fontSize: 11}, isDarkMode && {color: '#aaa'}]}>FREC</Text></View>
+            <View style={{ flex: 0.8, paddingHorizontal: 1 }}><Text style={[styles.th, {fontSize: 11}, isDarkMode && {color: '#aaa'}]}>HORA</Text></View>
+            <View style={{ flex: 0.8, paddingHorizontal: 1 }}><Text style={[styles.th, {fontSize: 11, color: isDarkMode ? '#aaa' : theme.text}]}>ECO</Text></View>
+            {!isIndios && <View style={{ flex: 0.8, paddingHorizontal: 1 }}><Text style={[styles.th, {fontSize: 11}, isDarkMode && {color: '#aaa'}]}>RUTA</Text></View>}
+            {(isIndios || isLagos) && <View style={{ flex: 0.5, paddingHorizontal: 1 }}><Text style={[styles.th, {fontSize: 11}, isDarkMode && {color: '#aaa'}]}>PAX</Text></View>}
+            <View style={{ flex: 0.6, paddingHorizontal: 1 }}><Text style={[styles.th, {fontSize: 11}, isDarkMode && {color: '#aaa'}]}>OBS</Text></View>
             {!isReadOnly && <View style={{ width: 30 }} />}
           </View>
         )}
@@ -999,10 +1074,14 @@ export default function EditorOTPScreen() {
                         </Text>
                       ) : null}
                       <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                        <Text style={{ color: '#000000', fontSize: 16, fontWeight: 'bold' }}>
-                          Sistema Saturno V | Elaboró: {(() => {
-                            const name = creadorName.replace('[OTP] ', '').trim();
+                        <Text style={{ color: '#0f172a', fontSize: 16, fontWeight: 'bold' }}>
+                          Sistema Saturno V | Tablerista: {(() => {
+                            let name = creadorName.replace('[OTP] ', '').trim();
                             if (!name || name.toLowerCase() === 'tablerista') return 'Emiliano';
+                            // If the name is literally "Nombre Completo Nombre_ID" (duplicated words), we can deduplicate it if needed.
+                            // But since the user complained about "Emiliano R" becoming "R", we will just print the full name.
+                            // To fix double names like "Juan Perez JuanPerez", we could do a smart deduplication, but 
+                            // it's safer to just print what is stored. The user can fix their profile name.
                             return name;
                           })()}
                         </Text>
@@ -1015,24 +1094,24 @@ export default function EditorOTPScreen() {
                       
                       {/* Columna Izquierda */}
                       <View style={{ flex: 1 }}>
-                        <View style={{ flexDirection: 'row', backgroundColor: '#88D8C0', borderBottomWidth: 2, borderColor: '#000000', paddingVertical: 8, marginBottom: 8, alignItems: 'flex-end' }}>
-                          <Text style={{ flex: 0.4, color: '#000000', fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>NO.</Text>
-                          <Text style={{ flex: 0.6, color: '#000000', fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>FREC</Text>
-                          <Text style={{ flex: 1, color: '#000000', fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>HORA</Text>
-                          <Text style={{ flex: 1, color: '#000000', fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>ECO</Text>
-                          {!isIndios && <Text style={{ flex: 0.6, color: '#000000', fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>RUTA</Text>}
-                          {(isIndios || isLagos) && <Text style={{ flex: 0.5, color: '#000000', fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>PAX</Text>}
-                          <Text style={{ flex: 2.2, color: '#000000', fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>OBS</Text>
+                        <View style={{ flexDirection: 'row', backgroundColor: '#88D8C0', borderBottomWidth: 2, borderColor: theme.text, paddingVertical: 8, marginBottom: 8, alignItems: 'flex-end' }}>
+                          <Text style={{ flex: 0.4, color: '#0f172a', fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>NO.</Text>
+                          <Text style={{ flex: 0.5, color: '#0f172a', fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>FREC</Text>
+                          <Text style={{ flex: 0.8, color: '#0f172a', fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>HORA</Text>
+                          <Text style={{ flex: 0.8, color: '#0f172a', fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>ECO</Text>
+                          {!isIndios && <Text style={{ flex: 0.8, color: '#0f172a', fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>RUTA</Text>}
+                          {(isIndios || isLagos) && <Text style={{ flex: 0.5, color: '#0f172a', fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>PAX</Text>}
+                          <Text style={{ flex: (isIndios || !isLagos) ? 2.2 : 1.6, color: '#0f172a', fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>OBS</Text>
                         </View>
                         {rows.slice(0, Math.ceil(rows.length / 2)).map((row) => (
                           <View key={row.id} style={{ flexDirection: 'row', backgroundColor: row.highlightColor ? `${row.highlightColor}60` : 'transparent', borderBottomWidth: 1, borderColor: baseColor, paddingVertical: 10, alignItems: 'center' }}>
-                            {renderTurnoIndicator(row, false)}
-                            <Text style={{ flex: 0.6, color: baseColor, fontSize: 13, textAlign: 'center', fontWeight: 'bold' }}>{row.frec}</Text>
-                            <Text style={{ flex: 1, color: baseColor, fontSize: 13, textAlign: 'center', fontWeight: 'bold' }}>{row.horario}</Text>
-                            <Text style={{ flex: 1, color: '#000000', fontSize: 13, textAlign: 'center', fontWeight: 'bold' }}>{row.eco || '-'}</Text>
-                            {!isIndios && <Text style={{ flex: 0.6, color: row.ruta === 'MEX' ? '#008000' : row.ruta === 'REY' ? '#D22B2B' : '#4B0082', fontSize: 13, textAlign: 'center', fontWeight: 'bold' }}>{row.ruta || '-'}</Text>}
-                            {(isIndios || isLagos) && <Text style={{ flex: 0.5, color: '#000000', fontSize: 13, textAlign: 'center' }}>{row.pax || '-'}</Text>}
-                            <Text style={{ flex: 2.2, color: '#000000', fontSize: 11, textAlign: 'center', paddingHorizontal: 2, flexShrink: 1, flexWrap: 'wrap' }}>{row.observaciones || ''}</Text>
+                            {renderTurnoIndicator(row, false, true)}
+                            <Text style={{ flex: 0.5, color: baseColor, fontSize: 13, textAlign: 'center', fontWeight: 'bold' }}>{row.frec}</Text>
+                            <Text style={{ flex: 0.8, color: baseColor, fontSize: 13, textAlign: 'center', fontWeight: 'bold' }}>{row.horario}</Text>
+                            <Text style={{ flex: 0.8, color: '#0f172a', fontSize: 13, textAlign: 'center', fontWeight: 'bold' }}>{row.eco || '-'}</Text>
+                            {!isIndios && <Text style={{ flex: 0.8, color: row.ruta === 'MEX' ? '#008000' : row.ruta === 'REY' ? '#D22B2B' : '#4B0082', fontSize: 11, textAlign: 'center', fontWeight: 'bold' }}>{row.ruta || '-'}</Text>}
+                            {(isIndios || isLagos) && <Text style={{ flex: 0.5, color: '#0f172a', fontSize: 13, textAlign: 'center' }}>{row.pax || '-'}</Text>}
+                            <Text style={{ flex: (isIndios || !isLagos) ? 2.2 : 1.6, color: '#0f172a', fontSize: 11, textAlign: 'center', paddingHorizontal: 2, flexShrink: 1, flexWrap: 'wrap' }}>{row.observaciones || ''}</Text>
                           </View>
                         ))}
                       </View>
@@ -1040,24 +1119,24 @@ export default function EditorOTPScreen() {
                       {/* Columna Derecha */}
                       {rows.length > 1 && (
                         <View style={{ flex: 1 }}>
-                          <View style={{ flexDirection: 'row', backgroundColor: '#88D8C0', borderBottomWidth: 2, borderColor: '#000000', paddingVertical: 8, marginBottom: 8, alignItems: 'flex-end' }}>
-                            <Text style={{ flex: 0.4, color: '#000000', fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>NO.</Text>
-                            <Text style={{ flex: 0.6, color: '#000000', fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>FREC</Text>
-                            <Text style={{ flex: 1, color: '#000000', fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>HORA</Text>
-                            <Text style={{ flex: 1, color: '#000000', fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>ECO</Text>
-                            {!isIndios && <Text style={{ flex: 0.6, color: '#000000', fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>RUTA</Text>}
-                            {(isIndios || isLagos) && <Text style={{ flex: 0.5, color: '#000000', fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>PAX</Text>}
-                            <Text style={{ flex: 2.2, color: '#000000', fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>OBS</Text>
+                          <View style={{ flexDirection: 'row', backgroundColor: '#88D8C0', borderBottomWidth: 2, borderColor: theme.text, paddingVertical: 8, marginBottom: 8, alignItems: 'flex-end' }}>
+                            <Text style={{ flex: 0.4, color: '#0f172a', fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>NO.</Text>
+                            <Text style={{ flex: 0.6, color: '#0f172a', fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>FREC</Text>
+                            <Text style={{ flex: 1, color: '#0f172a', fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>HORA</Text>
+                            <Text style={{ flex: 1, color: '#0f172a', fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>ECO</Text>
+                            {!isIndios && <Text style={{ flex: 0.8, color: '#0f172a', fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>RUTA</Text>}
+                            {(isIndios || isLagos) && <Text style={{ flex: 0.5, color: '#0f172a', fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>PAX</Text>}
+                            <Text style={{ flex: (isIndios || !isLagos) ? 2.2 : 1.6, color: '#0f172a', fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>OBS</Text>
                           </View>
                           {rows.slice(Math.ceil(rows.length / 2)).map((row) => (
                             <View key={row.id} style={{ flexDirection: 'row', backgroundColor: row.highlightColor ? `${row.highlightColor}60` : 'transparent', borderBottomWidth: 1, borderColor: baseColor, paddingVertical: 10, alignItems: 'center' }}>
-                              {renderTurnoIndicator(row, false)}
+                              {renderTurnoIndicator(row, false, true)}
                               <Text style={{ flex: 0.6, color: baseColor, fontSize: 13, textAlign: 'center', fontWeight: 'bold' }}>{row.frec}</Text>
                               <Text style={{ flex: 1, color: baseColor, fontSize: 13, textAlign: 'center', fontWeight: 'bold' }}>{row.horario}</Text>
-                              <Text style={{ flex: 1, color: '#000000', fontSize: 13, textAlign: 'center', fontWeight: 'bold' }}>{row.eco || '-'}</Text>
-                              {!isIndios && <Text style={{ flex: 0.6, color: row.ruta === 'MEX' ? '#008000' : row.ruta === 'REY' ? '#D22B2B' : '#4B0082', fontSize: 13, textAlign: 'center', fontWeight: 'bold' }}>{row.ruta || '-'}</Text>}
-                              {(isIndios || isLagos) && <Text style={{ flex: 0.5, color: '#000000', fontSize: 13, textAlign: 'center' }}>{row.pax || '-'}</Text>}
-                              <Text style={{ flex: 2.2, color: '#000000', fontSize: 11, textAlign: 'center', paddingHorizontal: 2, flexShrink: 1, flexWrap: 'wrap' }}>{row.observaciones || ''}</Text>
+                              <Text style={{ flex: 1, color: '#0f172a', fontSize: 13, textAlign: 'center', fontWeight: 'bold' }}>{row.eco || '-'}</Text>
+                              {!isIndios && <Text style={{ flex: 0.8, color: row.ruta === 'MEX' ? '#008000' : row.ruta === 'REY' ? '#D22B2B' : '#4B0082', fontSize: 11, textAlign: 'center', fontWeight: 'bold' }}>{row.ruta || '-'}</Text>}
+                              {(isIndios || isLagos) && <Text style={{ flex: 0.5, color: '#0f172a', fontSize: 13, textAlign: 'center' }}>{row.pax || '-'}</Text>}
+                              <Text style={{ flex: (isIndios || !isLagos) ? 2.2 : 1.6, color: '#0f172a', fontSize: 11, textAlign: 'center', paddingHorizontal: 2, flexShrink: 1, flexWrap: 'wrap' }}>{row.observaciones || ''}</Text>
                             </View>
                           ))}
                         </View>
@@ -1083,7 +1162,7 @@ export default function EditorOTPScreen() {
           <FlatList
             data={rows}
             keyExtractor={item => item.id}
-            contentContainerStyle={[styles.content, { backgroundColor: isDarkMode ? '#1A1A1A' : '#F5F5DC' }]}
+            contentContainerStyle={[styles.content, { backgroundColor: isDarkMode ? '#1A1A1A' : theme.background }]}
             onScrollBeginDrag={() => setExpandedRowId(null)}
             initialNumToRender={15}
             maxToRenderPerBatch={10}
@@ -1094,11 +1173,11 @@ export default function EditorOTPScreen() {
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 4, marginLeft: 6 }}>
                   <TouchableOpacity style={{ backgroundColor: '#10b981', justifyContent: 'center', alignItems: 'center', width: 62, height: '90%', borderRadius: 8, marginRight: 6 }} onPress={() => { swipeableRefs.current.get(row.id)?.close(); handleInsertRow(index); }}>
                     <Feather name="plus-circle" size={20} color="#fff" />
-                    <Text style={{ color: '#fff', fontSize: 10, fontWeight: 'bold', marginTop: 2 }}>Insertar</Text>
+                    <Text style={{ color: theme.headerText, fontSize: 10, fontWeight: 'bold', marginTop: 2 }}>Insertar</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={{ backgroundColor: '#ef4444', justifyContent: 'center', alignItems: 'center', width: 62, height: '90%', borderRadius: 8 }} onPress={() => handleRemoveRow(row.id)}>
                     <Feather name="trash-2" size={20} color="#fff" />
-                    <Text style={{ color: '#fff', fontSize: 10, fontWeight: 'bold', marginTop: 2 }}>Borrar</Text>
+                    <Text style={{ color: theme.headerText, fontSize: 10, fontWeight: 'bold', marginTop: 2 }}>Borrar</Text>
                   </TouchableOpacity>
                 </View>
               );
@@ -1127,21 +1206,21 @@ export default function EditorOTPScreen() {
               >
                 {renderTurnoIndicator(row, isDarkMode)}
                 
-                <View style={{ flex: 0.7, paddingHorizontal: 1 }}>
+                <View style={{ flex: 0.6, paddingHorizontal: 1 }}>
                   <TouchableOpacity 
                     style={[styles.inputCell, isDarkMode && { backgroundColor: '#333', borderColor: '#444' }, { justifyContent: 'center', paddingVertical: 8 }, isReadOnly && { opacity: 0.8, borderColor: 'transparent' }]}
                     onPress={() => handleOpenFrecSelector(row.id, row.frec)}
                     disabled={isReadOnly}
                   >
-                    <Text style={[{ color: '#000080', fontWeight: 'bold', textAlign: 'center', fontSize: 13 }, isDarkMode && { color: '#F5F5DC' }]}>
+                    <Text style={[{ color: '#000080', fontWeight: 'bold', textAlign: 'center', fontSize: 13 }, isDarkMode && { color: theme.text }]}>
                       {row.frec || '---'}
                     </Text>
                   </TouchableOpacity>
                 </View>
 
-                <View style={{ flex: 1.4, paddingHorizontal: 1, justifyContent: 'center' }}>
+                <View style={{ flex: 0.8, paddingHorizontal: 1, justifyContent: 'center' }}>
                   <TextInput 
-                    style={[styles.inputCell, { flex: 1, color: '#000080', fontWeight: 'bold', paddingVertical: 8, fontSize: 13, textAlign: 'center' }, isDarkMode && { backgroundColor: '#333', borderColor: '#444', color: '#F5F5DC' }, isReadOnly && { opacity: 0.8, borderColor: 'transparent' }]}
+                    style={[styles.inputCell, { flex: 1, color: '#000080', fontWeight: 'bold', paddingVertical: 8, fontSize: 13, textAlign: 'center' }, isDarkMode && { backgroundColor: '#333', borderColor: '#444', color: theme.text }, isReadOnly && { opacity: 0.8, borderColor: 'transparent' }]}
                     value={row.horario}
                     onChangeText={(t) => handleUpdateField(row.id, 'horario', t)}
                     onFocus={() => toggleExpand(null)}
@@ -1153,7 +1232,7 @@ export default function EditorOTPScreen() {
                 
                 <View style={{ flex: 1, paddingHorizontal: 1 }}>
                   <TextInput 
-                    style={[styles.inputCell, { color: '#000000', fontWeight: 'bold', paddingVertical: 8, fontSize: 13 }, isDarkMode && { backgroundColor: '#333', borderColor: '#444', color: '#F5F5DC' }, isReadOnly && { opacity: 0.8, borderColor: 'transparent' }]}
+                    style={[styles.inputCell, { color: '#0f172a', fontWeight: 'bold', paddingVertical: 8, fontSize: 13 }, isDarkMode && { backgroundColor: '#333', borderColor: '#444', color: theme.text }, isReadOnly && { opacity: 0.8, borderColor: 'transparent' }]}
                     value={String(row.eco || '')}
                     onChangeText={(t) => handleUpdateField(row.id, 'eco', t)}
                     onFocus={() => toggleExpand(null)}
@@ -1165,7 +1244,7 @@ export default function EditorOTPScreen() {
                 </View>
 
                 {!isIndios && (
-                  <View style={{ flex: 0.7, paddingHorizontal: 1 }}>
+                  <View style={{ flex: 0.8, paddingHorizontal: 1 }}>
                     <TouchableOpacity 
                       style={[
                         styles.inputCell, 
@@ -1188,7 +1267,7 @@ export default function EditorOTPScreen() {
                 )}
 
                 {(isIndios || isLagos) && (
-                  <View style={{ flex: 0.6, paddingHorizontal: 1 }}>
+                  <View style={{ flex: 0.5, paddingHorizontal: 1 }}>
                     {(() => {
                       const ecoClean = String(row.eco || '').replace(/[^0-9]/g, '');
                       const unitCap = ecoClean ? (unidadesMap[ecoClean] || 0) : 0;
@@ -1199,8 +1278,8 @@ export default function EditorOTPScreen() {
                           style={[
                             styles.inputCell, 
                             { paddingVertical: 8, fontSize: 13 },
-                            hasWrittenPax ? { color: '#000000', fontWeight: 'bold' } : { color: '#94a3b8', fontStyle: 'italic', opacity: unitCap > 0 ? 0.9 : 1 },
-                            isDarkMode && { backgroundColor: '#333', borderColor: '#444', color: hasWrittenPax ? '#F5F5DC' : '#888' },
+                            hasWrittenPax ? { color: '#0f172a', fontWeight: 'bold' } : { color: '#94a3b8', fontStyle: 'italic', opacity: unitCap > 0 ? 0.9 : 1 },
+                            isDarkMode && { backgroundColor: '#333', borderColor: '#444', color: hasWrittenPax ? theme.text : '#888' },
                             isReadOnly && { opacity: 0.8, borderColor: 'transparent' }
                           ]}
                           value={hasWrittenPax ? String(row.pax) : ''}
@@ -1216,7 +1295,7 @@ export default function EditorOTPScreen() {
                   </View>
                 )}
 
-                <View style={{ flex: 0.5, paddingHorizontal: 1, alignItems: 'center', justifyContent: 'center' }}>
+                <View style={{ flex: 0.6, paddingHorizontal: 1, alignItems: 'center', justifyContent: 'center' }}>
                   <TouchableOpacity 
                     style={{ padding: 6, backgroundColor: row.observaciones ? '#eab30820' : 'transparent', borderRadius: 8 }}
                     onPress={() => handleOpenObsModal(row.id, row.observaciones)}
@@ -1292,14 +1371,14 @@ export default function EditorOTPScreen() {
           <View style={styles.modalOverlay}>
             <View style={[styles.modalContent, { height: 'auto', paddingBottom: 30 }, isDarkMode && { backgroundColor: '#222' }]}>
               <View style={[styles.modalHeader, isDarkMode && { borderBottomColor: '#333' }]}>
-                <Text style={[styles.modalTitle, isDarkMode && { color: '#F5F5DC' }]}>Observaciones</Text>
+                <Text style={[styles.modalTitle, isDarkMode && { color: theme.text }]}>Observaciones</Text>
                 <TouchableOpacity onPress={() => setObsModalVisible(false)}>
                   <Feather name="x" size={24} color="#94a3b8" />
                 </TouchableOpacity>
               </View>
               
               <TextInput 
-                style={[{ backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#D9D2C2', borderRadius: 12, color: '#000000', padding: 18, fontSize: 16, marginBottom: 25, textAlignVertical: 'top' }, isDarkMode && { backgroundColor: '#333', borderColor: '#444', color: '#F5F5DC' }]}
+                style={[{ backgroundColor: theme.headerText, borderWidth: 1, borderColor: theme.border, borderRadius: 12, color: themeName === 'neon' ? '#FFFFFF' : '#0f172a', padding: 18, fontSize: 16, marginBottom: 25, textAlignVertical: 'top' }, isDarkMode && { backgroundColor: '#333', borderColor: '#444', color: theme.text }]}
                 value={obsInputValue}
                 onChangeText={setObsInputValue}
                 placeholder="Ej. Salió a ruta 3 min tarde..."
@@ -1308,8 +1387,8 @@ export default function EditorOTPScreen() {
                 numberOfLines={4}
               />
 
-              <TouchableOpacity style={{ backgroundColor: '#006847', padding: 18, borderRadius: 12 }} onPress={handleSaveObs}>
-                <Text style={{ color: '#fff', textAlign: 'center', fontWeight: 'bold', fontSize: 16 }}>Guardar Observación</Text>
+              <TouchableOpacity style={{ backgroundColor: theme.primary, padding: 18, borderRadius: 12 }} onPress={handleSaveObs}>
+                <Text style={{ color: theme.headerText, textAlign: 'center', fontWeight: 'bold', fontSize: 16 }}>Guardar Observación</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -1318,27 +1397,27 @@ export default function EditorOTPScreen() {
       </SafeAreaView>
       {toastMsg ? (
         <View style={{ position: 'absolute', bottom: 50, alignSelf: 'center', backgroundColor: '#0f172a', paddingHorizontal: 20, paddingVertical: 12, borderRadius: 25, shadowColor: '#000', shadowOffset: {width:0, height: 4}, shadowOpacity: 0.3, shadowRadius: 5, elevation: 10 }}>
-          <Text style={{ color: '#fff', fontSize: 14, fontWeight: 'bold' }}>{toastMsg}</Text>
+          <Text style={{ color: theme.headerText, fontSize: 14, fontWeight: 'bold' }}>{toastMsg}</Text>
         </View>
       ) : null}
     </KeyboardAvoidingView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F5F5DC' },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: '#D9D2C2' },
+function getStyles(theme: any) { return StyleSheet.create({
+  container: { flex: 1, backgroundColor: theme.background },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: theme.border },
   backBtn: { padding: 4 },
-  title: { fontSize: 16, fontWeight: '600', color: '#000000' },
-  th: { color: '#4A4A4A', fontSize: 12, fontWeight: '600', textAlign: 'center' },
+  title: { fontSize: 16, fontWeight: '600', color: theme.text },
+  th: { color: theme.textMuted, fontSize: 12, fontWeight: '600', textAlign: 'center' },
   content: { padding: 10, paddingBottom: 40 },
-  tableRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#D9D2C2', borderRadius: 8, marginBottom: 8, backgroundColor: '#F5F5DC' },
-  td: { color: '#000000', fontSize: 12, textAlign: 'center' },
+  tableRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: theme.border, borderRadius: 8, marginBottom: 8, backgroundColor: theme.background },
+  td: { color: theme.text, fontSize: 12, textAlign: 'center' },
   inputCell: {
     backgroundColor: '#EAE5CE', // Burbujas color hueso
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#D9D2C2',
+    borderColor: theme.border,
     paddingVertical: 8,
     paddingHorizontal: 4,
     fontSize: 14,
@@ -1351,24 +1430,25 @@ const styles = StyleSheet.create({
     elevation: 1
   },
   fab: { paddingVertical: 12, fontSize: 16, fontWeight: 'bold' },
-  btnAddRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 15, marginTop: 10, borderWidth: 1, borderColor: '#D9D2C2', borderStyle: 'dashed', borderRadius: 8 },
-  footer: { flexDirection: 'row', padding: 15, borderTopWidth: 1, borderTopColor: '#D9D2C2', backgroundColor: '#F5F5DC', gap: 15 },
-  btnShare: { flex: 1.3, backgroundColor: '#006847', flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingVertical: 10, borderRadius: 8, gap: 8 },
-  btnGuardar: { flex: 1, backgroundColor: '#006847', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 10, borderRadius: 8 },
-  btnGuardarText: { color: '#ffffff', fontSize: 16, fontWeight: 'bold' },
-  marcatextosContainer: { position: 'absolute', bottom: 100, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 12, backgroundColor: 'rgba(255, 255, 255, 0.95)', gap: 15, borderRadius: 30, zIndex: 100, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 5, elevation: 8, borderWidth: 1, borderColor: '#D9D2C2' },
-  colorCircle: { width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
+  btnAddRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 15, marginTop: 10, borderWidth: 1, borderColor: theme.border, borderStyle: 'dashed', borderRadius: 8 },
+  footer: { flexDirection: 'row', padding: 15, borderTopWidth: 1, borderTopColor: theme.border, backgroundColor: theme.background, gap: 15 },
+  btnShare: { flex: 1.3, backgroundColor: theme.primary, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingVertical: 10, borderRadius: 8, gap: 8 },
+  btnGuardar: { flex: 1, backgroundColor: theme.primary, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 10, borderRadius: 8 },
+  btnGuardarText: { color: theme.headerText, fontSize: 16, fontWeight: 'bold' },
+  marcatextosContainer: { position: 'absolute', bottom: 100, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 12, backgroundColor: 'rgba(255, 255, 255, 0.95)', gap: 15, borderRadius: 30, zIndex: 100, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 5, elevation: 8, borderWidth: 1, borderColor: theme.border },
+  colorCircle: { width: 24, height: 24, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
   colorCircleActive: {
     borderWidth: 3,
-    borderColor: '#000000',
+    borderColor: '#0f172a',
     transform: [{ scale: 1.2 }]
   },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modalContent: { backgroundColor: '#F5F5DC', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, height: '60%' },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, borderBottomWidth: 1, borderBottomColor: '#D9D2C2', paddingBottom: 15 },
-  modalTitle: { color: '#000000', fontSize: 18, fontWeight: 'bold' },
-  ecoItem: { padding: 15, borderBottomWidth: 1, borderBottomColor: '#D9D2C2', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  ecoItemText: { color: '#006847', fontSize: 18, fontWeight: 'bold' },
-  ecoItemSubtext: { color: '#4A4A4A', fontSize: 14 },
+  modalContent: { backgroundColor: theme.background, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, height: '60%' },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, borderBottomWidth: 1, borderBottomColor: theme.border, paddingBottom: 15 },
+  modalTitle: { color: theme.text, fontSize: 18, fontWeight: 'bold' },
+  ecoItem: { padding: 15, borderBottomWidth: 1, borderBottomColor: theme.border, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  ecoItemText: { color: theme.primary, fontSize: 18, fontWeight: 'bold' },
+  ecoItemSubtext: { color: theme.textMuted, fontSize: 14 },
   ecoItemClear: { padding: 15, marginTop: 10, backgroundColor: '#FFD1D1', borderRadius: 8, borderWidth: 1, borderColor: '#D2042D' }
 });
+}

@@ -5,6 +5,7 @@ import { View, Text } from 'react-native';
 import { supabase } from '../src/services/supabaseClient';
 import { Session } from '@supabase/supabase-js';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { ThemeProvider } from '../src/theme/ThemeContext';
 
 export default function RootLayout() {
   const [session, setSession] = useState<Session | null>(null);
@@ -47,6 +48,7 @@ export default function RootLayout() {
   }
 
   return (
+    <ThemeProvider>
     <GestureHandlerRootView style={{ flex: 1 }}>
       <Stack screenOptions={{ headerShown: false }}>
         {session ? (
@@ -56,5 +58,6 @@ export default function RootLayout() {
         )}
       </Stack>
     </GestureHandlerRootView>
+    </ThemeProvider>
   );
 }
