@@ -1080,8 +1080,6 @@ export default function EditorOTPScreen() {
                             if (!name || name.toLowerCase() === 'tablerista') return 'Emiliano';
                             // If the name is literally "Nombre Completo Nombre_ID" (duplicated words), we can deduplicate it if needed.
                             // But since the user complained about "Emiliano R" becoming "R", we will just print the full name.
-                            // To fix double names like "Juan Perez JuanPerez", we could do a smart deduplication, but 
-                            // it's safer to just print what is stored. The user can fix their profile name.
                             return name;
                           })()}
                         </Text>

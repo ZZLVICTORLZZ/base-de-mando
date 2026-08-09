@@ -1,9 +1,9 @@
 import { useTheme } from '../../src/theme/ThemeContext';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
 import { useState, useEffect, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../../src/services/supabaseClient';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, router } from 'expo-router';
 
 export default function DashboardScreen() {
   const { theme } = useTheme();
@@ -14,8 +14,31 @@ export default function DashboardScreen() {
   const [pasajerosTotales, setPasajerosTotales] = useState(0);
   const [promedioCorridas, setPromedioCorridas] = useState('0');
   const [loading, setLoading] = useState(true);
+  const handleLogout = async () => {
+    Alert.alert(
+      'Cerrar Sesión',
+      '¿Estás seguro de que deseas salir?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { 
+          text: 'Salir', 
+          style: 'destructive',
+          onPress: async () => {
+            await supabase.auth.signOut();
+            await AsyncStorage.multiRemove([
+              'apolo11_user_name',
+              'apolo11_user_level',
+              'apolo11_user_uuid'
+            ]);
+            router.replace('/login');
+          }
+        }
+      ]
+    );
+  };
 
   useFocusEffect(
+
     useCallback(() => {
       fetchDashboardData();
     }, [])
@@ -85,9 +108,14 @@ export default function DashboardScreen() {
 
   return (
     <ScrollView style={styles.container}>
-      <View style={styles.headerCard}>
-        <Text style={styles.welcomeText}>Bienvenido,</Text>
-        <Text style={styles.nameText}>{tableristaNombre}</Text>
+            <View style={[styles.headerCard, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
+        <View>
+          <Text style={styles.welcomeText}>Bienvenido,</Text>
+          <Text style={styles.nameText}>{tableristaNombre}</Text>
+        </View>
+        <TouchableOpacity style={{ backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20 }} onPress={handleLogout}>
+          <Text style={{ color: theme?.headerText || '#fff', fontWeight: 'bold' }}>Salir</Text>
+        </TouchableOpacity>
       </View>
 
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
