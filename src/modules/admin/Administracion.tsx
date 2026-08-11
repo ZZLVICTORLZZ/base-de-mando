@@ -27,6 +27,7 @@ const TabAccesos = ({ perfiles, roles, onRefresh, onBack, canEdit }: { perfiles:
     setEditForm({ 
       ...perfil, 
       username: perfil.username || '',
+      email: perfil.email || '',
       access_level: perfil.access_level || 1, 
       can_edit: perfil.can_edit || false,
       modules_access: perfil.modules_access || { administracion: false, j2: false }
@@ -42,7 +43,9 @@ const TabAccesos = ({ perfiles, roles, onRefresh, onBack, canEdit }: { perfiles:
           username: editForm.username,
           access_level: editForm.access_level,
           can_edit: editForm.can_edit,
-          modules_access: editForm.modules_access
+          modules_access: editForm.modules_access,
+          status: editForm.status,
+          role_id: editForm.role_id || null
         })
         .eq('id', editingId);
         
@@ -89,6 +92,7 @@ const TabAccesos = ({ perfiles, roles, onRefresh, onBack, canEdit }: { perfiles:
         const { error: profileError } = await supabase.from('profiles').update({
           nombre: newUserForm.nombre,
           username: newUserForm.username,
+          email: newUserForm.email,
           role_id: newUserForm.role_id || null,
           status: 'activo',
           access_level: newUserForm.access_level,
@@ -317,6 +321,11 @@ const TabAccesos = ({ perfiles, roles, onRefresh, onBack, canEdit }: { perfiles:
             </div>
 
             <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '14px', marginBottom: '8px' }}>Correo Electrónico (Solo Lectura)</label>
+              <input type="email" value={editForm.email || 'No registrado'} readOnly style={{ width: '100%', padding: '12px', background: 'rgba(0,0,0,0.2)', border: '1px solid var(--glass-border)', color: 'var(--text-muted)', borderRadius: '8px', fontSize: '16px', cursor: 'not-allowed' }} />
+            </div>
+
+            <div style={{ marginBottom: '20px' }}>
               <label style={{ display: 'block', color: 'var(--text-muted)', fontSize: '14px', marginBottom: '8px' }}>Nivel de Acceso</label>
               {renderLevelSelector(editForm.access_level, (lvl) => setEditForm({...editForm, access_level: lvl}))}
             </div>
@@ -387,7 +396,10 @@ const TabAccesos = ({ perfiles, roles, onRefresh, onBack, canEdit }: { perfiles:
             {perfiles.map((user) => (
               <tr key={user.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                 <td style={{ padding: '16px', color: 'var(--primary)', fontWeight: 600 }}>@{user.username || 'sin_usuario'}</td>
-                <td style={{ padding: '16px', fontWeight: 500, color: 'var(--text-main)' }}>{user.nombre}</td>
+                <td style={{ padding: '16px', fontWeight: 500, color: 'var(--text-main)' }}>
+                  {user.nombre}
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>{user.email || 'Sin correo registrado'}</div>
+                </td>
                 <td style={{ padding: '16px' }}>
                   <span style={{ 
                     background: user.access_level >= 9 ? 'rgba(0, 104, 71, 0.2)' : user.access_level === 3 ? 'rgba(234, 179, 8, 0.2)' : user.access_level === 2 ? 'rgba(59, 130, 246, 0.2)' : 'rgba(107, 114, 128, 0.2)',
