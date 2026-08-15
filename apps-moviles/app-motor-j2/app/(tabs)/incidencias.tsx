@@ -163,17 +163,7 @@ export default function IncidenciasScreen() {
         </TouchableOpacity>
       </View>
 
-      <View style={styles.filtersContainer}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 15 }}>
-          <Feather name="search" size={16} color="#64748b" style={styles.filterIcon} />
-          <TextInput 
-            style={styles.searchInput}
-            value={search}
-            onChangeText={setSearch}
-            placeholder="Buscar hoja por base..."
-            placeholderTextColor="#475569"
-          />
-        </View>
+      <View style={[styles.filtersContainer, { flexDirection: 'column', alignItems: 'stretch', paddingVertical: 12 }]}>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           <Feather name="calendar" size={16} color="#64748b" style={styles.filterIcon} />
           <View style={{ flex: 1 }}>
@@ -198,7 +188,16 @@ export default function IncidenciasScreen() {
             />
           </View>
         </View>
-
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 15, backgroundColor: 'rgba(0,0,0,0.05)', borderRadius: 6, paddingHorizontal: 10 }}>
+          <Feather name="search" size={14} color="#64748b" style={{ marginRight: 8 }} />
+          <TextInput 
+            style={{ flex: 1, color: theme.text, fontSize: 12, paddingVertical: 8 }}
+            value={search}
+            onChangeText={setSearch}
+            placeholder="Buscar hoja por base..."
+            placeholderTextColor="#94a3b8"
+          />
+        </View>
       </View>
 
       {loading ? (

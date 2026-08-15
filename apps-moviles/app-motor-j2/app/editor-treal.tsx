@@ -96,7 +96,7 @@ const ControlledCellInput = ({ value, onChangeText, onFocus, ...props }: any) =>
   );
 };
 
-export default function EditorOTPScreen() {
+export default function EditorTREALScreen() {
   const { theme, themeName } = useTheme();
   const styles = getStyles(theme);
   const { source_rol_id, rol_id, mode, base_chequeo } = useLocalSearchParams();
@@ -145,8 +145,8 @@ export default function EditorOTPScreen() {
     const targetId = activeRolId || rol_id;
     let channel;
     if (targetId) {
-      channel = supabase.channel(`public:roles_del_dia:${targetId}`)
-        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'roles_del_dia', filter: `id=eq.${targetId}` }, (payload) => {
+      channel = supabase.channel(`public:tablas_treal:${targetId}`)
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'tablas_treal', filter: `id=eq.${targetId}` }, (payload) => {
           // Si otra persona actualizó los rows, los refrescamos si no estamos editando algo crítico localmente
           if (payload.new && payload.new.rows) {
              setRows(payload.new.rows);
@@ -162,7 +162,7 @@ export default function EditorOTPScreen() {
   }, [activeRolId, rol_id]);
 
   useEffect(() => {
-    AsyncStorage.getItem('OTP_DARK_MODE').then(val => {
+    AsyncStorage.getItem('TREAL_DARK_MODE').then(val => {
       if (val === 'true') setIsDarkMode(true);
     });
   }, []);
@@ -170,7 +170,7 @@ export default function EditorOTPScreen() {
   const toggleDarkMode = () => {
     const next = !isDarkMode;
     setIsDarkMode(next);
-    AsyncStorage.setItem('OTP_DARK_MODE', String(next));
+    AsyncStorage.setItem('TREAL_DARK_MODE', String(next));
   };
 
   const showToast = (msg: string) => {
@@ -213,11 +213,20 @@ export default function EditorOTPScreen() {
   };
   const baseColor = getBaseColor(plantillaName);
 
+  const getExportTheme = (name: string) => {
+    const lower = (name || '').toLowerCase();
+    if (lower.includes('indios')) return { bg: '#fca5a5', border: '#ef4444', text: '#ef4444', emoji: '🔴' };
+    if (lower.includes('nuevos') || lower.includes('paseos')) return { bg: '#fed7aa', border: '#f97316', text: '#ea580c', emoji: '🟠' };
+    if (lower.includes('lago')) return { bg: '#fef08a', border: '#eab308', text: '#ca8a04', emoji: '🟡' };
+    return { bg: '#fca5a5', border: '#ef4444', text: '#ef4444', emoji: '🔴' };
+  };
+  const exportTheme = getExportTheme(plantillaName);
+
   useEffect(() => {
     const init = async () => {
       const loadedUnidades = await fetchUnidades();
       if (rol_id) {
-        // Viendo o editando un OTP existente
+        // Viendo o editando un TREAL existente
         await fetchRol();
       } else if (source_rol_id) {
         // Creando uno nuevo basado en un Rol Oficial
@@ -245,23 +254,23 @@ export default function EditorOTPScreen() {
       }
       const targetId = activeRolId || (rol_id as string);
       if (targetId) {
-        const success = await SyncManager.queueOTPUpdate(targetId, rows);
+        const success = await SyncManager.queueTREALUpdate(targetId, rows);
         setLastSavedTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
       } else if (source_rol_id) {
-        // Primera vez que se autoguarda un nuevo OTP
-        const { data: sourceData } = await supabase.from('roles_del_dia').select('plantilla_base_id').eq('id', source_rol_id).single();
+        // Primera vez que se autoguarda un nuevo TREAL
+        const { data: sourceData } = await supabase.from('tablas_treal').select('plantilla_base_id').eq('id', source_rol_id).single();
         let finalPlantillaId = sourceData?.plantilla_base_id || null;
         if (base_chequeo) {
           const { data: bData } = await supabase.from('plantillas_predeterminadas').select('id').ilike('name', `%${base_chequeo}%`).limit(1).single();
           if (bData) finalPlantillaId = bData.id;
         }
-        const newOTP = {
+        const newTREAL = {
           fecha: new Date().toISOString().split('T')[0],
           plantilla_base_id: finalPlantillaId,
-          creado_por: `[OTP] ${currentUser} | ${plantillaName} | ${tipoRolName}`,
+          creado_por: `[TREAL] ${currentUser} | ${plantillaName} | ${tipoRolName}`,
           rows: rows
         };
-        const { data: inserted, error } = await supabase.from('roles_del_dia').insert([newOTP]).select('id').single();
+        const { data: inserted, error } = await supabase.from('tablas_treal').insert([newTREAL]).select('id').single();
         if (inserted && !error) {
           setActiveRolId(inserted.id);
           setLastSavedTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
@@ -294,11 +303,11 @@ export default function EditorOTPScreen() {
       const dateLimitStr = twoMonthsAgo.toISOString().split('T')[0];
 
       const { data } = await supabase
-        .from('roles_del_dia')
+        .from('tablas_treal')
         .select('fecha, rows, creado_por, plantillas_predeterminadas(name)')
         .gte('fecha', dateLimitStr)
         .lt('fecha', targetDateStr)
-        .ilike('creado_por', '[OTP]%');
+        .ilike('creado_por', '[TREAL]%');
 
       if (!data || data.length === 0) {
         setPaxPromedioDia(0);
@@ -360,7 +369,7 @@ export default function EditorOTPScreen() {
   };
 
   const fetchRol = async () => {
-    const { data, error } = await supabase.from('roles_del_dia').select('*, plantillas_predeterminadas(name)').eq('id', rol_id).single();
+    const { data, error } = await supabase.from('tablas_treal').select('*, plantillas_predeterminadas(name)').eq('id', rol_id).single();
     if (error || !data) {
       alert('Esta proyección ya no existe o fue eliminada.');
       router.back();
@@ -375,11 +384,11 @@ export default function EditorOTPScreen() {
     setPlantillaName(baseToUse);
     setTipoRolName(savedTipoRol);
     
-    let rawCreador = parts[0]?.replace('[OTP]', '').trim() || '';
+    let rawCreador = parts[0]?.replace('[TREAL]', '').trim() || '';
     if (!rawCreador || rawCreador.toLowerCase() === 'tablerista') {
       rawCreador = 'Emiliano';
     }
-    setCreadorName(`[OTP] ${rawCreador}`);
+    setCreadorName(`[TREAL] ${rawCreador}`);
     setRows(data.rows || []);
     await fetchPaxPromedioDia(baseToUse, data.fecha, savedTipoRol);
     
@@ -401,6 +410,21 @@ export default function EditorOTPScreen() {
   };
 
   const fetchSourceRol = async (loadedUnidades: any[]) => {
+    if (source_rol_id === 'empty') {
+      const effectiveBase = base_chequeo ? (base_chequeo as string) : 'Base Desconocida';
+      setTipoRolName('Vacío');
+      setPlantillaName(effectiveBase);
+      let currentUser = await AsyncStorage.getItem('apolo11_user_name');
+      if (!currentUser || currentUser.toLowerCase() === 'tablerista') {
+        currentUser = 'Emiliano';
+      }
+      setCreadorName(`[TREAL] ${currentUser}`);
+      setRows([]);
+      setLoading(false);
+      return;
+    }
+
+    // Change to query from roles_del_dia instead of tablas_treal
     const { data, error } = await supabase.from('roles_del_dia').select('*, plantillas_predeterminadas(name)').eq('id', source_rol_id).single();
     if (error || !data) {
       alert('El rol oficial origen ya no existe.');
@@ -417,9 +441,9 @@ export default function EditorOTPScreen() {
     if (!currentUser || currentUser.toLowerCase() === 'tablerista') {
       currentUser = 'Emiliano';
     }
-    setCreadorName(`[OTP] ${currentUser}`);
+    setCreadorName(`[TREAL] ${currentUser}`);
     
-    let processedRows = data.rows || [];
+    let processedRows = (data.rows || []).map((r: any) => ({ ...r, isGhost: true, highlightColor: '#cbd5e1', pax: '' }));
     
     if (effectiveBase.toLowerCase().includes('indios')) {
       // Indios Verdes: Filtrar autobuses, usar todas las demás, iniciando 05:30, frec 20 min
@@ -670,12 +694,72 @@ export default function EditorOTPScreen() {
   const handleInsertRow = (index: number) => {
     if (isReadOnly || !isAllowedToEdit) return;
     const prevFrec = rows[index] ? rows[index].frec : '15';
-    const newRow = { id: Date.now().toString(), no: 0, frec: prevFrec, horario: '--:--', eco: '', ruta: 'MEX', observaciones: '', pax: '' };
+    const newRow = { id: Date.now().toString(), no: 0, frec: prevFrec, horario: '--:--', eco: '', ruta: 'MEX', observaciones: '', pax: '', es_manual: true };
     const newRows = [...rows];
     newRows.splice(index + 1, 0, newRow);
     setRows(calculateTimes(newRows, index, 'frec'));
     showToast('Turno Agregado');
   };
+
+  
+  const handleSimulateNFC = () => {
+    Alert.prompt('Nueva Firma', 'Ingresa el ECO detectado por el tag NFC (ej. 101):', [
+      { text: 'Cancelar', style: 'cancel' },
+      { text: 'Firmar', onPress: (eco: any) => {
+          if (!eco) return;
+          const now = new Date();
+          const horas = String(now.getHours()).padStart(2, '0');
+          const minutos = String(now.getMinutes()).padStart(2, '0');
+          const horarioStr = `${horas}:${minutos}`;
+          
+          let hc = null;
+          let ecoNum = parseInt(eco);
+          if (!isNaN(ecoNum) && ecoNum >= 1000) {
+            const count = rows.filter((r: any) => r.eco === eco).length;
+            if (count === 0) hc = '#a855f7'; 
+            else hc = '#14b8a6'; 
+          }
+          
+          const ghostIndex = rows.findIndex((r: any) => r.isGhost);
+          let newData = [...rows];
+          
+          if (ghostIndex !== -1) {
+            newData[ghostIndex] = {
+              ...newData[ghostIndex],
+              eco: eco,
+              isGhost: false,
+              es_manual: false,
+              highlightColor: hc !== null ? hc : (newData[ghostIndex].highlightColor === '#cbd5e1' ? null : newData[ghostIndex].highlightColor)
+            };
+            setRows(newData);
+          } else {
+            const lastRow = rows[rows.length - 1];
+            const prevFrec = lastRow?.frec || '';
+            const newRow = { 
+              id: Date.now().toString(), 
+              no: (lastRow?.no || 0) + 1, 
+              frec: prevFrec, 
+              horario: horarioStr, 
+              eco: eco, 
+              ruta: 'MEX', 
+              observaciones: '', 
+              pax: '',
+              es_manual: false,
+              highlightColor: hc,
+              isGhost: false
+            };
+            newData.push(newRow);
+            setRows(newData);
+          }
+          
+          const targetId = activeRolId || (rol_id as string);
+          if (targetId) {
+            SyncManager.queueTREALUpdate(targetId, newData);
+          }
+      }}
+    ], 'plain-text');
+  };
+
 
   const handleDuplicateRound = () => {
     if (isReadOnly || !isAllowedToEdit) return;
@@ -746,23 +830,40 @@ export default function EditorOTPScreen() {
 
   const handleAddRow = () => {
     if (isReadOnly || !isAllowedToEdit) return;
-    const lastRow = rows[rows.length - 1];
-    const prevFrec = lastRow ? lastRow.frec : '15';
-    const newRow = { id: Date.now().toString(), no: (lastRow?.no || 0) + 1, frec: prevFrec, horario: '--:--', eco: '', ruta: 'MEX', observaciones: '', pax: '' };
-    setRows(calculateTimes([...rows, newRow], rows.length - 1, 'frec'));
+    const ghostIndex = rows.findIndex((r: any) => r.isGhost);
+    if (ghostIndex !== -1) {
+      const newData = [...rows];
+      newData[ghostIndex] = {
+        ...newData[ghostIndex],
+        eco: '',
+        isGhost: false,
+        es_manual: true,
+        highlightColor: newData[ghostIndex].highlightColor === '#cbd5e1' ? null : newData[ghostIndex].highlightColor
+      };
+      setRows(newData);
+      const targetId = activeRolId || (rol_id as string);
+      if (targetId) {
+        SyncManager.queueTREALUpdate(targetId, newData);
+      }
+    } else {
+      const lastRow = rows[rows.length - 1];
+      const prevFrec = lastRow ? lastRow.frec : '15';
+      const newRow = { id: Date.now().toString(), no: (lastRow?.no || 0) + 1, frec: prevFrec, horario: '--:--', eco: '', ruta: 'MEX', observaciones: '', pax: '', es_manual: true, isGhost: false };
+      setRows(calculateTimes([...rows, newRow], rows.length - 1, 'frec'));
+    }
   };
 
-  const handleSaveOTP = async () => {
+  const handleSaveTREAL = async () => {
     setSaving(true);
     let errorObj = null;
     const targetId = activeRolId || (rol_id as string);
 
     if (targetId) {
-      const { error } = await supabase.from('roles_del_dia').update({ rows: rows }).eq('id', targetId);
+      const { error } = await supabase.from('tablas_treal').update({ rows: rows }).eq('id', targetId);
       errorObj = error;
     } else {
-      // Creando nuevo OTP
-      const { data: sourceData } = await supabase.from('roles_del_dia').select('plantilla_base_id').eq('id', source_rol_id).single();
+      // Creando nuevo TREAL
+      const { data: sourceData } = await supabase.from('tablas_treal').select('plantilla_base_id').eq('id', source_rol_id).single();
       let currentUser = await AsyncStorage.getItem('apolo11_user_name');
       if (!currentUser || currentUser.toLowerCase() === 'tablerista') {
         currentUser = 'Emiliano';
@@ -777,14 +878,14 @@ export default function EditorOTPScreen() {
         }
       }
 
-      const newOTP = {
+      const newTREAL = {
         fecha: new Date().toISOString().split('T')[0],
         plantilla_base_id: finalPlantillaId,
-        creado_por: `[OTP] ${currentUser} | ${plantillaName} | ${tipoRolName}`, // Guardar nombre y tipo de rol para que isIndios funcione
+        creado_por: `[TREAL] ${currentUser} | ${plantillaName} | ${tipoRolName}`, // Guardar nombre y tipo de rol para que isIndios funcione
         rows: rows
       };
 
-      const { error } = await supabase.from('roles_del_dia').insert([newOTP]);
+      const { error } = await supabase.from('tablas_treal').insert([newTREAL]);
       errorObj = error;
     }
 
@@ -792,7 +893,7 @@ export default function EditorOTPScreen() {
     if (errorObj) {
       alert('Error al guardar: ' + errorObj.message);
     } else {
-      router.replace('/(tabs)/otp');
+      router.replace('/(tabs)/ctr');
     }
   };
 
@@ -807,7 +908,7 @@ export default function EditorOTPScreen() {
         const uri = await viewShotRef.current.capture();
         setIsExporting(false);
         if (await Sharing.isAvailableAsync()) {
-          await Sharing.shareAsync(uri, { mimeType: 'image/png', dialogTitle: 'Compartir Proyección OTP', UTI: 'public.png' });
+          await Sharing.shareAsync(uri, { mimeType: 'image/png', dialogTitle: 'Compartir Proyección TREAL', UTI: 'public.png' });
         }
       } catch (error) {
         setIsExporting(false);
@@ -978,12 +1079,12 @@ export default function EditorOTPScreen() {
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <SafeAreaView style={[styles.container, isDarkMode && { backgroundColor: "#1A1A1A" }]}>
-        <View style={[styles.header, isDarkMode && { backgroundColor: '#1A1A1A', borderBottomColor: '#333' }]}>
+        <View style={[styles.header, { borderBottomWidth: 4, borderBottomColor: '#ef4444', backgroundColor: isDarkMode ? '#2a1111' : '#fff0f0' }]}>
           <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-            <Feather name="arrow-left" size={24} color="#006847" />
+            <Feather name="arrow-left" size={24} color="#ef4444" />
           </TouchableOpacity>
           <View style={{ alignItems: 'center' }}>
-            <Text style={[styles.title, isDarkMode && { color: "#F5F5DC" }]}>OTP - {plantillaName}</Text>
+            <Text style={[styles.title, { color: '#ef4444' }]}>🔴 TREAL - {plantillaName}</Text>
             {tipoRolName ? <Text style={{ fontSize: 11, color: isDarkMode ? '#aaa' : '#64748b', fontWeight: 'bold' }}>Rol: {tipoRolName}</Text> : null}
             
             {lastSavedTime ? <Text style={{ fontSize: 10, color: '#10b981', fontWeight: 'bold' }}>⚡ Guardado {lastSavedTime}</Text> : null}
@@ -1093,10 +1194,10 @@ export default function EditorOTPScreen() {
                 <TouchableOpacity activeOpacity={1} style={{ flex: 1 }} onPress={() => toggleExpand(null)}>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                     <View style={{ width: 900, backgroundColor: '#FDF8ED', padding: 30 }}>
-                    {/* Header de Exportación OTP */}
+                    {/* Header de Exportación TREAL */}
                     <View style={{ flexDirection: 'column', borderBottomWidth: 2, borderColor: baseColor, paddingBottom: 15, marginBottom: 20 }}>
-                      <Text style={{ color: baseColor, fontSize: 24, fontWeight: 'bold', textAlign: 'center', marginBottom: tipoRolName ? 4 : 10 }}>
-                        PROYECCIÓN OTP - {plantillaName?.toUpperCase()}
+                      <Text style={{ color: exportTheme.text, fontSize: 24, fontWeight: 'bold', textAlign: 'center', marginBottom: tipoRolName ? 4 : 10 }}>
+                        {exportTheme.emoji} PROYECCIÓN TREAL - {plantillaName?.toUpperCase()}
                       </Text>
                       {tipoRolName ? (
                         <Text style={{ color: '#475569', fontSize: 16, fontWeight: 'bold', textAlign: 'center', marginBottom: 12 }}>
@@ -1106,7 +1207,7 @@ export default function EditorOTPScreen() {
                       <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                         <Text style={{ color: '#0f172a', fontSize: 16, fontWeight: 'bold' }}>
                           Sistema Saturno V | Tablerista: {(() => {
-                            let name = creadorName.replace('[OTP] ', '').trim();
+                            let name = creadorName.replace('[TREAL] ', '').trim();
                             if (!name || name.toLowerCase() === 'tablerista') return 'Emiliano';
                             // If the name is literally "Nombre Completo Nombre_ID" (duplicated words), we can deduplicate it if needed.
                             // But since the user complained about "Emiliano R" becoming "R", we will just print the full name.
@@ -1122,7 +1223,7 @@ export default function EditorOTPScreen() {
                       
                       {/* Columna Izquierda */}
                       <View style={{ flex: 1 }}>
-                        <View style={{ flexDirection: 'row', backgroundColor: '#88D8C0', borderBottomWidth: 2, borderColor: theme.text, paddingVertical: 8, marginBottom: 8, alignItems: 'flex-end' }}>
+                        <View style={{ flexDirection: 'row', backgroundColor: exportTheme.bg, borderBottomWidth: 2, borderColor: exportTheme.border, paddingVertical: 8, marginBottom: 8, alignItems: 'flex-end' }}>
                           <Text style={{ flex: 0.4, color: '#0f172a', fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>NO.</Text>
                           <Text style={{ flex: 0.5, color: '#0f172a', fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>FREC</Text>
                           <Text style={{ flex: 0.8, color: '#0f172a', fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>HORA</Text>
@@ -1136,9 +1237,9 @@ export default function EditorOTPScreen() {
                             {renderTurnoIndicator(row, false, true)}
                             <Text style={{ flex: 0.5, color: baseColor, fontSize: 13, textAlign: 'center', fontWeight: 'bold' }}>{row.frec}</Text>
                             <Text style={{ flex: 0.8, color: baseColor, fontSize: 13, textAlign: 'center', fontWeight: 'bold' }}>{row.horario}</Text>
-                            <Text style={{ flex: 0.8, color: '#0f172a', fontSize: 13, textAlign: 'center', fontWeight: 'bold' }}>{row.eco || '-'}</Text>
+                            <Text style={{ flex: 0.8, color: '#0f172a', fontSize: 13, textAlign: 'center', fontWeight: 'bold' }}>{row.isGhost ? '-' : (row.eco || '-')}</Text>
                             {!isIndios && <Text style={{ flex: 0.8, color: row.ruta === 'MEX' ? '#008000' : row.ruta === 'REY' ? '#D22B2B' : '#4B0082', fontSize: 11, textAlign: 'center', fontWeight: 'bold' }}>{row.ruta || '-'}</Text>}
-                            {(isIndios || isLagos) && <Text style={{ flex: 0.5, color: '#0f172a', fontSize: 13, textAlign: 'center' }}>{row.pax || '-'}</Text>}
+                            {(isIndios || isLagos) && <Text style={{ flex: 0.5, color: '#0f172a', fontSize: 13, textAlign: 'center' }}>{row.isGhost ? '-' : (row.pax || '-')}</Text>}
                             <Text style={{ flex: (isIndios || !isLagos) ? 2.2 : 1.6, color: '#0f172a', fontSize: 11, textAlign: 'center', paddingHorizontal: 2, flexShrink: 1, flexWrap: 'wrap' }}>{row.observaciones || ''}</Text>
                           </View>
                         ))}
@@ -1147,7 +1248,7 @@ export default function EditorOTPScreen() {
                       {/* Columna Derecha */}
                       {rows.length > 1 && (
                         <View style={{ flex: 1 }}>
-                          <View style={{ flexDirection: 'row', backgroundColor: '#88D8C0', borderBottomWidth: 2, borderColor: theme.text, paddingVertical: 8, marginBottom: 8, alignItems: 'flex-end' }}>
+                          <View style={{ flexDirection: 'row', backgroundColor: exportTheme.bg, borderBottomWidth: 2, borderColor: exportTheme.border, paddingVertical: 8, marginBottom: 8, alignItems: 'flex-end' }}>
                             <Text style={{ flex: 0.4, color: '#0f172a', fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>NO.</Text>
                             <Text style={{ flex: 0.6, color: '#0f172a', fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>FREC</Text>
                             <Text style={{ flex: 1, color: '#0f172a', fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>HORA</Text>
@@ -1161,9 +1262,9 @@ export default function EditorOTPScreen() {
                               {renderTurnoIndicator(row, false, true)}
                               <Text style={{ flex: 0.6, color: baseColor, fontSize: 13, textAlign: 'center', fontWeight: 'bold' }}>{row.frec}</Text>
                               <Text style={{ flex: 1, color: baseColor, fontSize: 13, textAlign: 'center', fontWeight: 'bold' }}>{row.horario}</Text>
-                              <Text style={{ flex: 1, color: '#0f172a', fontSize: 13, textAlign: 'center', fontWeight: 'bold' }}>{row.eco || '-'}</Text>
+                              <Text style={{ flex: 1, color: '#0f172a', fontSize: 13, textAlign: 'center', fontWeight: 'bold' }}>{row.isGhost ? '-' : (row.eco || '-')}</Text>
                               {!isIndios && <Text style={{ flex: 0.8, color: row.ruta === 'MEX' ? '#008000' : row.ruta === 'REY' ? '#D22B2B' : '#4B0082', fontSize: 11, textAlign: 'center', fontWeight: 'bold' }}>{row.ruta || '-'}</Text>}
-                              {(isIndios || isLagos) && <Text style={{ flex: 0.5, color: '#0f172a', fontSize: 13, textAlign: 'center' }}>{row.pax || '-'}</Text>}
+                              {(isIndios || isLagos) && <Text style={{ flex: 0.5, color: '#0f172a', fontSize: 13, textAlign: 'center' }}>{row.isGhost ? '-' : (row.pax || '-')}</Text>}
                               <Text style={{ flex: (isIndios || !isLagos) ? 2.2 : 1.6, color: '#0f172a', fontSize: 11, textAlign: 'center', paddingHorizontal: 2, flexShrink: 1, flexWrap: 'wrap' }}>{row.observaciones || ''}</Text>
                             </View>
                           ))}
@@ -1187,6 +1288,7 @@ export default function EditorOTPScreen() {
             </ScrollView>
           </ScrollView>
         ) : (
+          <>
           <FlatList
             data={rows}
             keyExtractor={item => item.id}
@@ -1211,6 +1313,7 @@ export default function EditorOTPScreen() {
               );
 
               return (
+              <View pointerEvents={row.isGhost ? 'none' : 'auto'}>
               <Swipeable 
                 ref={(ref) => {
                   if (ref) {
@@ -1229,6 +1332,8 @@ export default function EditorOTPScreen() {
                   styles.tableRow, 
                   isDarkMode && { backgroundColor: '#222', borderBottomColor: '#333' },
                   row.highlightColor && { backgroundColor: `${row.highlightColor}40` },
+                  row.es_manual && { borderWidth: 2, borderColor: '#ef4444', borderStyle: 'dashed' },
+                  row.isGhost && { opacity: 0.35, backgroundColor: isDarkMode ? '#333' : '#f8fafc' },
                   searchEco.trim() !== '' && String(row.eco) !== searchEco.trim() && { opacity: 0.15 }
                 ]}
               >
@@ -1339,26 +1444,40 @@ export default function EditorOTPScreen() {
                 
               </TouchableOpacity>
               </Swipeable>
+              </View>
               );
             }}
-            ListFooterComponent={
-              !isReadOnly ? (
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 15, paddingVertical: 15 }}>
-                  <TouchableOpacity style={[styles.btnAddRow, { flex: 1, marginRight: 10, marginTop: 0 }, isDarkMode && { borderColor: '#444' }]} onPress={handleAddRow}>
-                    <Feather name="plus" size={20} color="#8b5cf6" />
-                    <Text style={{ color: '#8b5cf6', marginLeft: 8, fontWeight: 'bold' }}>Agregar Turno</Text>
-                  </TouchableOpacity>
-                  
-                  <TouchableOpacity style={[styles.btnAddRow, { flex: 1, marginLeft: 10, marginTop: 0, borderColor: '#eab308' }, isDarkMode && { borderColor: '#a16207' }]} onPress={handleDuplicateRound}>
-                    <Feather name="copy" size={20} color="#eab308" />
-                    <Text style={{ color: '#eab308', marginLeft: 8, fontWeight: 'bold' }}>Duplicar Vuelta</Text>
-                  </TouchableOpacity>
-                </View>
-              ) : null
-            }
+            ListFooterComponent={null}
           />
-        )}
+          <View style={{ position: 'absolute', bottom: 160, alignSelf: 'center', alignItems: 'center', zIndex: 100 }}>
+            <TouchableOpacity 
+              style={{ backgroundColor: '#3b82f6', borderColor: '#2563eb', borderWidth: 1, paddingVertical: 12, paddingHorizontal: 30, borderRadius: 25, flexDirection: 'row', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 5, elevation: 8, marginBottom: 15 }} 
+              onPress={handleSimulateNFC}
+            >
+              <Feather name="edit-3" size={24} color="#ffffff" />
+              <Text style={{ color: '#ffffff', marginLeft: 8, fontWeight: 'bold', fontSize: 18 }}>Nueva Firma</Text>
+            </TouchableOpacity>
 
+            <View style={{ flexDirection: 'row', gap: 15 }}>
+              <TouchableOpacity 
+                style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255, 255, 255, 0.95)', paddingVertical: 10, paddingHorizontal: 15, borderRadius: 20, borderWidth: 1, borderColor: '#f97316', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 3, elevation: 4 }} 
+                onPress={handleAddRow}
+              >
+                <Feather name="plus" size={16} color="#f97316" />
+                <Text style={{ color: '#f97316', marginLeft: 5, fontSize: 14, fontWeight: 'bold' }}>Registro Manual</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255, 255, 255, 0.95)', paddingVertical: 10, paddingHorizontal: 15, borderRadius: 20, borderWidth: 1, borderColor: '#eab308', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 3, elevation: 4 }} 
+                onPress={handleDuplicateRound}
+              >
+                <Feather name="copy" size={16} color="#eab308" />
+                <Text style={{ color: '#eab308', marginLeft: 5, fontSize: 14, fontWeight: 'bold' }}>Duplicar</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+          </>
+        )}
 
         {!isReadOnly && !isExporting && (
           <View style={[styles.marcatextosContainer, isDarkMode && { backgroundColor: 'rgba(30, 30, 30, 0.95)', borderColor: '#444' }]}>
@@ -1384,9 +1503,9 @@ export default function EditorOTPScreen() {
             <Text style={styles.btnGuardarText}>Compartir</Text>
           </TouchableOpacity>
           {!isReadOnly && (
-            <TouchableOpacity style={[styles.btnGuardar, saving && { opacity: 0.7 }]} onPress={handleSaveOTP} disabled={saving}>
+            <TouchableOpacity style={[styles.btnGuardar, saving && { opacity: 0.7 }]} onPress={handleSaveTREAL} disabled={saving}>
               {saving ? <ActivityIndicator color="#fff" size="small" /> : <Feather name="save" size={20} color="#fff" />}
-              <Text style={styles.btnGuardarText}>{saving ? 'Guardando...' : 'Guardar OTP'}</Text>
+              <Text style={styles.btnGuardarText}>{saving ? 'Guardando...' : 'Guardar TREAL'}</Text>
             </TouchableOpacity>
           )}
         </View>

@@ -11,8 +11,7 @@ const TIPOS_INCIDENCIA = [
   'Alta de Unidad',
   'Baja de Unidad',
   'Falla Mecánica',
-  'Accidente',
-  'Retraso Tráfico',
+  'Retraso',
   'Falta de Operador',
   'Desenrolado',
   'Otro'
@@ -101,6 +100,9 @@ export default function NuevaIncidenciaScreen() {
           <TouchableOpacity style={styles.selectBtn} onPress={() => setEcoModalVisible(true)}>
             <Text style={[styles.selectBtnText, !eco && { color: '#64748b' }]}>{eco || 'Seleccionar ECO'}</Text>
             <Feather name="chevron-down" size={20} color="#94a3b8" />
+          </TouchableOpacity>
+          <TouchableOpacity style={{ marginTop: 8, padding: 10, backgroundColor: 'rgba(59, 130, 246, 0.1)', borderRadius: 8, alignItems: 'center', borderWidth: 1, borderColor: 'rgba(59, 130, 246, 0.3)' }} onPress={() => setEco('NOTA')}>
+             <Text style={{ color: '#3b82f6', fontWeight: 'bold' }}>+ Agregar Nota General</Text>
           </TouchableOpacity>
 
           <Text style={styles.label}>Tipo de Incidencia</Text>
