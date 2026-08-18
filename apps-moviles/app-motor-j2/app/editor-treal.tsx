@@ -28,8 +28,8 @@ const FrecModal = ({ visible, onClose, initialFrec, onSave, isDarkMode }: any) =
   }, [visible, initialFrec]);
 
   return (
-    <Modal visible={visible} animationType="slide" transparent={true} onRequestClose={onClose}>
-      <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <Modal visible={visible} animationType="none" transparent={true} onRequestClose={onClose}>
+      <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}>
         <View style={[styles.modalContent, { height: 'auto', paddingBottom: 30 }, isDarkMode && { backgroundColor: '#222' }]}>
           <View style={[styles.modalHeader, isDarkMode && { borderBottomColor: '#333' }]}>
             <Text style={[styles.modalTitle, isDarkMode && { color: theme.text }]}>Configurar Frecuencia</Text>
@@ -46,6 +46,7 @@ const FrecModal = ({ visible, onClose, initialFrec, onSave, isDarkMode }: any) =
             placeholder="Ej. 15"
             placeholderTextColor={isDarkMode ? '#888' : '#94a3b8'}
             editable={!isSF}
+            autoFocus={true}
           />
 
           <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 20 }} onPress={() => { setIsCascada(!isCascada); setIsSF(false); }}>
@@ -1502,7 +1503,7 @@ export default function EditorTREALScreen() {
             <Feather name="share-2" size={20} color="#fff" />
             <Text style={styles.btnGuardarText}>Compartir</Text>
           </TouchableOpacity>
-          {!isReadOnly && (
+          {(!isReadOnly && isAllowedToEdit) && (
             <TouchableOpacity style={[styles.btnGuardar, saving && { opacity: 0.7 }]} onPress={handleSaveTREAL} disabled={saving}>
               {saving ? <ActivityIndicator color="#fff" size="small" /> : <Feather name="save" size={20} color="#fff" />}
               <Text style={styles.btnGuardarText}>{saving ? 'Guardando...' : 'Guardar TREAL'}</Text>
@@ -1518,8 +1519,8 @@ export default function EditorTREALScreen() {
         />
 
         {/* Modal Observaciones */}
-        <Modal visible={obsModalVisible} animationType="fade" transparent={true} onRequestClose={() => setObsModalVisible(false)}>
-          <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <Modal visible={obsModalVisible} animationType="none" transparent={true} onRequestClose={() => setObsModalVisible(false)}>
+          <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}>
             <View style={[styles.modalContent, { height: 'auto', paddingBottom: 30 }, isDarkMode && { backgroundColor: '#222' }]}>
               <View style={[styles.modalHeader, isDarkMode && { borderBottomColor: '#333' }]}>
                 <Text style={[styles.modalTitle, isDarkMode && { color: theme.text }]}>Observaciones</Text>
@@ -1529,6 +1530,7 @@ export default function EditorTREALScreen() {
               </View>
               
               <TextInput 
+                autoFocus={true}
                 style={[{ backgroundColor: theme.headerText, borderWidth: 1, borderColor: theme.border, borderRadius: 12, color: themeName === 'neon' ? '#FFFFFF' : '#0f172a', padding: 18, fontSize: 16, marginBottom: 25, textAlignVertical: 'top' }, isDarkMode && { backgroundColor: '#333', borderColor: '#444', color: theme.text }]}
                 value={obsInputValue}
                 onChangeText={setObsInputValue}
@@ -1546,8 +1548,8 @@ export default function EditorTREALScreen() {
         </Modal>
 
         {/* Modal ECO */}
-        <Modal visible={ecoModalVisible} animationType="fade" transparent={true} onRequestClose={() => setEcoModalVisible(false)}>
-          <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <Modal visible={ecoModalVisible} animationType="none" transparent={true} onRequestClose={() => setEcoModalVisible(false)}>
+          <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}>
             <View style={[styles.modalContent, { height: 'auto', paddingBottom: 30 }, isDarkMode && { backgroundColor: '#222' }]}>
               <View style={[styles.modalHeader, isDarkMode && { borderBottomColor: '#333' }]}>
                 <Text style={[styles.modalTitle, isDarkMode && { color: theme.text }]}>Unidad (ECO)</Text>

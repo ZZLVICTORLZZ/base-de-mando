@@ -35,6 +35,12 @@
         "projectId": "2cd014c4-8d70-4283-803f-56893682fef6"
       }
     },
-    "owner": "zzvictorzz"
+    "owner": "zzvictorzz",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/2cd014c4-8d70-4283-803f-56893682fef6"
+    }
   }
 }

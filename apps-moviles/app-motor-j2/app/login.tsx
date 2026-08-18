@@ -3,6 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'reac
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../src/services/supabaseClient';
 import { router } from 'expo-router';
+import * as Updates from 'expo-updates';
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -11,14 +12,9 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const [showPassword, setShowPassword] = useState(false);
+
   const handleLogin = async () => {
-    // BYPASS: Restaurado temporalmente para pruebas
-    if (email === '' && password === '') {
-      await AsyncStorage.setItem('apolo11_user_name', 'Bypass Admin');
-      await AsyncStorage.setItem('apolo11_user_level', '10');
-      router.replace('/(tabs)');
-      return;
-    }
 
     if (!email || !password) {
       Alert.alert('Error', 'Por favor ingresa tu correo y contraseña.');
@@ -35,7 +31,8 @@ export default function LoginScreen() {
     }
 
     if (data?.user) {
-      const { data: profile } = await supabase.from('profiles').select('nombre, username, access_level').eq('id', data.user.id).single();
+      const { data: profile, error: profErr } = await supabase.from('profiles').select('nombre, access_level').eq('id', data.user.id).single();
+      if (profErr) console.warn('Error fetching profile:', profErr);
       
       if (profile && profile.access_level < 2) {
         await supabase.auth.signOut();
@@ -46,9 +43,7 @@ export default function LoginScreen() {
 
       // Guardamos Solo el Username (Nombre ID) según solicitud del usuario
       let userName = 'Checador';
-      if (profile?.username) {
-        userName = profile.username;
-      } else if (profile?.nombre) {
+      if (profile?.nombre) {
         userName = profile.nombre;
       } else {
         userName = email.split('@')[0];
@@ -61,6 +56,22 @@ export default function LoginScreen() {
     
     setLoading(false);
     router.replace('/(tabs)');
+  };
+
+  const handleCheckUpdates = async () => {
+    try {
+      Alert.alert('Buscando...', 'Comprobando si hay actualizaciones en el servidor.');
+      const update = await Updates.checkForUpdateAsync();
+      if (update.isAvailable) {
+        Alert.alert('¡Actualización Encontrada!', 'Descargando e instalando... la app se reiniciará sola en unos segundos.');
+        await Updates.fetchUpdateAsync();
+        await Updates.reloadAsync();
+      } else {
+        Alert.alert('Al Día', 'Ya tienes la versión más reciente instalada.');
+      }
+    } catch (error: any) {
+      Alert.alert('Error', 'No se pudo buscar actualizaciones: ' + error.message);
+    }
   };
 
   return (
@@ -77,17 +88,26 @@ export default function LoginScreen() {
           value={email}
           onChangeText={setEmail} 
         />
-        <TextInput 
-          style={styles.input} 
-          placeholder="Contraseña" 
-          placeholderTextColor="#9ca3af"
-          secureTextEntry 
-          value={password}
-          onChangeText={setPassword} 
-        />
+        <View style={styles.passwordContainer}>
+          <TextInput 
+            style={styles.passwordInput} 
+            placeholder="Contraseña" 
+            placeholderTextColor="#9ca3af"
+            secureTextEntry={!showPassword} 
+            value={password}
+            onChangeText={setPassword} 
+          />
+          <TouchableOpacity style={styles.eyeBtn} onPress={() => setShowPassword(!showPassword)}>
+            <Text style={{ fontSize: 20 }}>{showPassword ? '👁️' : '🙈'}</Text>
+          </TouchableOpacity>
+        </View>
         
         <TouchableOpacity style={styles.btn} onPress={handleLogin} disabled={loading}>
           <Text style={styles.btnText}>{loading ? 'Cargando...' : 'Iniciar Sesión'}</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={{ marginTop: 30 }} onPress={handleCheckUpdates}>
+          <Text style={{ color: '#006847', textDecorationLine: 'underline', fontWeight: 'bold' }}>¿Problemas? Buscar Actualizaciones Manualmente</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -106,8 +126,25 @@ const styles = StyleSheet.create({
     color: '#000000',
     borderRadius: 12, 
     marginBottom: 15, 
-    borderWidth: 1, 
     borderColor: '#D9D2C2' 
+  },
+  passwordContainer: {
+    flexDirection: 'row',
+    width: '100%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    marginBottom: 15,
+    borderWidth: 1,
+    borderColor: '#D9D2C2',
+    alignItems: 'center'
+  },
+  passwordInput: {
+    flex: 1,
+    padding: 15,
+    color: '#000000',
+  },
+  eyeBtn: {
+    padding: 15,
   },
   btn: { 
     width: '100%', 

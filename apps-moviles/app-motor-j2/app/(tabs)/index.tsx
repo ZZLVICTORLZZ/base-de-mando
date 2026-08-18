@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../../src/services/supabaseClient';
 import { useFocusEffect, router } from 'expo-router';
+import * as Updates from 'expo-updates';
 
 export default function DashboardScreen() {
   const { theme } = useTheme();
@@ -106,6 +107,22 @@ export default function DashboardScreen() {
     }
   };
 
+  const handleCheckUpdates = async () => {
+    try {
+      Alert.alert('Buscando...', 'Comprobando si hay actualizaciones en el servidor.');
+      const update = await Updates.checkForUpdateAsync();
+      if (update.isAvailable) {
+        Alert.alert('¡Actualización Encontrada!', 'Descargando e instalando... la app se reiniciará sola en unos segundos.');
+        await Updates.fetchUpdateAsync();
+        await Updates.reloadAsync();
+      } else {
+        Alert.alert('Al Día', 'Ya tienes la versión más reciente instalada.');
+      }
+    } catch (error: any) {
+      Alert.alert('Error', 'No se pudo buscar actualizaciones: ' + error.message);
+    }
+  };
+
   return (
     <ScrollView style={styles.container}>
             <View style={[styles.headerCard, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
@@ -148,6 +165,13 @@ export default function DashboardScreen() {
             <Text style={[styles.metricLabel, { color: '#737365' }]}>Unidades Activas (F1 - Pendiente)</Text>
           </View>
         </View>
+
+        <TouchableOpacity 
+          style={{ marginTop: 30, backgroundColor: theme.primary, padding: 15, borderRadius: 12, alignItems: 'center' }} 
+          onPress={handleCheckUpdates}
+        >
+          <Text style={{ color: theme.headerText, fontWeight: 'bold', fontSize: 16 }}>Descargar Actualizaciones OTA</Text>
+        </TouchableOpacity>
         
         <View style={{ height: 40 }} />
       </View>

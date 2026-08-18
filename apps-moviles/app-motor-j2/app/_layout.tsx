@@ -30,13 +30,15 @@ export default function RootLayout() {
   useEffect(() => {
     if (loading) return;
 
-    // BYPASS TEMPORAL: Guardia de seguridad comentada para pruebas
-    // const inAuthGroup = segments[0] === '(tabs)';
-    // if (!session && inAuthGroup) {
-    //   router.replace('/login');
-    // } else if (session && !inAuthGroup) {
-    //   router.replace('/(tabs)');
-    // }
+    // BYPASS ELIMINADO - Guardia de seguridad activada
+    const inTabsGroup = segments[0] === '(tabs)';
+    const isLoginScreen = segments[0] === 'login';
+    
+    if (!session && !isLoginScreen) {
+      router.replace('/login');
+    } else if (session && isLoginScreen) {
+      router.replace('/(tabs)');
+    }
   }, [session, loading, segments]);
 
   if (loading) {

@@ -40,7 +40,8 @@ const FrecModal = ({ visible, onClose, initialFrec, onSave, isDarkMode }: any) =
 export default function EditorRolScreen() {
   const { theme } = useTheme();
   const styles = getStyles(theme);
-  const { pId, rol_id, fecha, mode } = useLocalSearchParams();
+  const { plantilla_id, pId, rol_id, fecha, mode } = useLocalSearchParams();
+  const actualPId = plantilla_id || pId;
   const rId = Array.isArray(rol_id) ? rol_id[0] : rol_id;
   const fechaStr = Array.isArray(fecha) ? fecha[0] : fecha;
 
@@ -76,10 +77,10 @@ export default function EditorRolScreen() {
     fetchUnidades();
     if (rId) {
       fetchRol();
-    } else if (pId) {
+    } else if (actualPId) {
       fetchPlantilla();
     }
-  }, [pId, rId]);
+  }, [actualPId, rId]);
 
   useEffect(() => {
     if (isReadOnly || loading || rows.length === 0) return;
@@ -100,14 +101,14 @@ export default function EditorRolScreen() {
       if (targetId) {
         await supabase.from('roles_del_dia').update({ rows: rows }).eq('id', targetId);
         setLastSavedTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
-      } else if (pId) {
+      } else if (actualPId) {
         let fechaBd = fechaStr || new Date().toISOString().split('T')[0];
         if (fechaStr && typeof fechaStr === 'string' && fechaStr.includes('/')) {
           const parts = fechaStr.split('/');
           if (parts.length === 3) fechaBd = `${parts[2]}-${parts[1]}-${parts[0]}`;
         }
         const newRol = {
-          plantilla_base_id: pId,
+          plantilla_base_id: actualPId,
           rows: rows,
           creado_por: `[ROL] ${currentUser}`,
           fecha: fechaBd
@@ -142,7 +143,7 @@ export default function EditorRolScreen() {
   };
 
   const fetchPlantilla = async () => {
-    const { data, error } = await supabase.from('plantillas_predeterminadas').select('*').eq('id', pId).single();
+    const { data, error } = await supabase.from('plantillas_predeterminadas').select('*').eq('id', actualPId).single();
     if (error || !data) {
       alert('La plantilla seleccionada ya no existe o fue eliminada por un administrador.');
       router.back();
@@ -323,7 +324,7 @@ export default function EditorRolScreen() {
       }
 
       const newRol = {
-        plantilla_base_id: pId,
+        plantilla_base_id: actualPId,
         rows: rows,
         creado_por: 'Tablerista (Motor J2)',
         fecha: fechaBd
@@ -614,10 +615,10 @@ export default function EditorRolScreen() {
           <Feather name="share-2" size={20} color="#fff" />
           <Text style={styles.btnGuardarText}>Compartir</Text>
         </TouchableOpacity>
-        {!isReadOnly && (
+        {(!isReadOnly && isAllowedToEdit) && (
           <TouchableOpacity style={[styles.btnGuardar, saving && { opacity: 0.7 }]} onPress={handleSaveRol} disabled={saving}>
             {saving ? <ActivityIndicator color="#fff" size="small" /> : <Feather name="save" size={20} color="#fff" />}
-            <Text style={styles.btnGuardarText}>{saving ? 'Guardando...' : 'Guardar Oficial'}</Text>
+            <Text style={styles.btnGuardarText}>{saving ? 'Guardando...' : 'Guardar Rol'}</Text>
           </TouchableOpacity>
         )}
       </View>
