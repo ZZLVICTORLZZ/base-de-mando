@@ -31,7 +31,7 @@ export default function LoginScreen() {
     }
 
     if (data?.user) {
-      const { data: profile, error: profErr } = await supabase.from('profiles').select('nombre, access_level').eq('id', data.user.id).single();
+      const { data: profile, error: profErr } = await supabase.from('profiles').select('nombre, username, access_level').eq('id', data.user.id).single();
       if (profErr) console.warn('Error fetching profile:', profErr);
       
       if (profile && profile.access_level < 2) {
@@ -43,7 +43,9 @@ export default function LoginScreen() {
 
       // Guardamos Solo el Username (Nombre ID) según solicitud del usuario
       let userName = 'Checador';
-      if (profile?.nombre) {
+      if (profile?.username) {
+        userName = profile.username;
+      } else if (profile?.nombre) {
         userName = profile.nombre;
       } else {
         userName = email.split('@')[0];
