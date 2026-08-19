@@ -7,6 +7,7 @@ import { Login } from './modules/core/Login';
 import { Unidades } from './modules/flota/Unidades';
 import { Servicio } from './modules/operacion/Servicio';
 import { Administracion } from './modules/admin/Administracion';
+import { GestorNFC } from './modules/nfc/GestorNFC';
 import type { Session } from '@supabase/supabase-js';
 
 import { ShadowModeProvider } from './modules/core/ShadowModeContext';
@@ -71,6 +72,7 @@ function App() {
             <Route path="taquilla" element={<Taquilla />} />
             <Route path="recursos-humanos" element={<RecursosHumanos />} />
             <Route path="operadores" element={<RecursosHumanos />} />
+            <Route path="gestor-nfc" element={<GestorNFC />} />
           </Route>
         </Routes>
       </BrowserRouter>

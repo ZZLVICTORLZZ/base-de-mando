@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { 
   Rocket, Wrench, Users, Archive, Banknote, UsersRound, 
-  LayoutDashboard, Truck, LogOut, Home, Palette, AlertCircle, Briefcase
+  LayoutDashboard, Truck, LogOut, Home, Palette, AlertCircle, Briefcase, CreditCard
 } from 'lucide-react';
 import { supabase } from './supabaseClient';
 
@@ -18,6 +18,7 @@ const navItems = [
   { path: '/aforo', label: 'Aforo (Checador)', icon: UsersRound, moduleId: 'j2' },
   { path: '/recaudacion', label: 'Recaudación', icon: Banknote, moduleId: 'finanzas' },
   { path: '/archivo', label: 'Archivo', icon: Archive, moduleId: 'archivo' },
+  { path: '/gestor-nfc', label: 'Gestor NFC', icon: CreditCard, moduleId: 'administracion' },
 ];
 
 export const Layout = () => {

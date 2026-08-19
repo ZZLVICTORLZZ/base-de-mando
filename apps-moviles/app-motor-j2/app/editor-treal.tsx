@@ -1194,7 +1194,7 @@ export default function EditorTREALScreen() {
               <ViewShot ref={viewShotRef} options={{ format: 'png', quality: 1 }}>
                 <TouchableOpacity activeOpacity={1} style={{ flex: 1 }} onPress={() => toggleExpand(null)}>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                    <View style={{ width: 900, backgroundColor: '#FDF8ED', padding: 30 }}>
+                    <View style={{ width: 900, backgroundColor: '#FFFFFF', padding: 30 }}>
                     {/* Header de Exportación TREAL */}
                     <View style={{ flexDirection: 'column', borderBottomWidth: 2, borderColor: baseColor, paddingBottom: 15, marginBottom: 20 }}>
                       <Text style={{ color: exportTheme.text, fontSize: 24, fontWeight: 'bold', textAlign: 'center', marginBottom: tipoRolName ? 4 : 10 }}>
@@ -1501,12 +1501,10 @@ export default function EditorTREALScreen() {
         <View style={[styles.footer, isDarkMode && { backgroundColor: '#1A1A1A', borderTopColor: '#333' }]}>
           <TouchableOpacity style={styles.btnShare} onPress={exportToWhatsApp}>
             <Feather name="share-2" size={20} color="#fff" />
-            <Text style={styles.btnGuardarText}>Compartir</Text>
           </TouchableOpacity>
           {(!isReadOnly && isAllowedToEdit) && (
             <TouchableOpacity style={[styles.btnGuardar, saving && { opacity: 0.7 }]} onPress={handleSaveTREAL} disabled={saving}>
-              {saving ? <ActivityIndicator color="#fff" size="small" /> : <Feather name="save" size={20} color="#fff" />}
-              <Text style={styles.btnGuardarText}>{saving ? 'Guardando...' : 'Guardar TREAL'}</Text>
+              {saving ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.btnGuardarText}>{saving ? 'Guardando...' : 'Guardar'}</Text>}
             </TouchableOpacity>
           )}
         </View>
@@ -1619,9 +1617,9 @@ function getStyles(theme: any) { return StyleSheet.create({
   fab: { paddingVertical: 12, fontSize: 16, fontWeight: 'bold' },
   btnAddRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 15, marginTop: 10, borderWidth: 1, borderColor: theme.border, borderStyle: 'dashed', borderRadius: 8 },
   footer: { flexDirection: 'row', padding: 15, borderTopWidth: 1, borderTopColor: theme.border, backgroundColor: theme.background, gap: 15 },
-  btnShare: { flex: 1.3, backgroundColor: theme.primary, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingVertical: 10, borderRadius: 8, gap: 8 },
-  btnGuardar: { flex: 1, backgroundColor: theme.primary, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 10, borderRadius: 8 },
-  btnGuardarText: { color: theme.headerText, fontSize: 16, fontWeight: 'bold' },
+  btnShare: { flex: 1, backgroundColor: theme.primary, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingVertical: 6, borderRadius: 6, gap: 4 },
+  btnGuardar: { flex: 1, backgroundColor: theme.primary, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 6, borderRadius: 6, gap: 4 },
+  btnGuardarText: { color: theme.headerText, fontSize: 13, fontWeight: 'bold' },
   marcatextosContainer: { position: 'absolute', bottom: 100, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 12, backgroundColor: 'rgba(255, 255, 255, 0.95)', gap: 15, borderRadius: 30, zIndex: 100, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 5, elevation: 8, borderWidth: 1, borderColor: theme.border },
   colorCircle: { width: 24, height: 24, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
   colorCircleActive: {
@@ -1630,12 +1628,12 @@ function getStyles(theme: any) { return StyleSheet.create({
     transform: [{ scale: 1.2 }]
   },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modalContent: { backgroundColor: theme.background, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, height: '60%' },
+  modalContent: { backgroundColor: theme.background, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, height: '85%' },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, borderBottomWidth: 1, borderBottomColor: theme.border, paddingBottom: 15 },
-  modalTitle: { color: theme.text, fontSize: 18, fontWeight: 'bold' },
-  ecoItem: { padding: 15, borderBottomWidth: 1, borderBottomColor: theme.border, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  ecoItemText: { color: theme.primary, fontSize: 18, fontWeight: 'bold' },
-  ecoItemSubtext: { color: theme.textMuted, fontSize: 14 },
-  ecoItemClear: { padding: 15, marginTop: 10, backgroundColor: '#FFD1D1', borderRadius: 8, borderWidth: 1, borderColor: '#D2042D' }
+  modalTitle: { color: theme.text, fontSize: 20, fontWeight: 'bold' },
+  ecoItem: { padding: 20, borderBottomWidth: 1, borderBottomColor: theme.border, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  ecoItemText: { color: theme.primary, fontSize: 24, fontWeight: 'bold' },
+  ecoItemSubtext: { color: theme.textMuted, fontSize: 16 },
+  ecoItemClear: { padding: 20, marginTop: 10, backgroundColor: '#FFD1D1', borderRadius: 8, borderWidth: 1, borderColor: '#D2042D' }
 });
 }

@@ -41,7 +41,8 @@ export default function EditorRolScreen() {
   const { theme } = useTheme();
   const styles = getStyles(theme);
   const { plantilla_id, pId, rol_id, fecha, mode } = useLocalSearchParams();
-  const actualPId = plantilla_id || pId;
+  const rawPId = plantilla_id || pId;
+  const actualPId = Array.isArray(rawPId) ? rawPId[0] : rawPId;
   const rId = Array.isArray(rol_id) ? rol_id[0] : rol_id;
   const fechaStr = Array.isArray(fecha) ? fecha[0] : fecha;
 
@@ -433,7 +434,7 @@ export default function EditorRolScreen() {
               <ViewShot ref={viewShotRef} options={{ format: 'png', quality: 1 }}>
                 <TouchableOpacity activeOpacity={1} style={{ flex: 1 }} onPress={() => toggleExpand(null)}>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                    <View style={{ width: 900, backgroundColor: '#FDF8ED', padding: 30 }}>
+                    <View style={{ width: 900, backgroundColor: '#FFFFFF', padding: 30 }}>
                       {/* Header de Exportación */}
                       <View style={{ flexDirection: 'column', borderBottomWidth: 2, borderColor: '#0033A0', paddingBottom: 15, marginBottom: 20 }}>
                         <Text style={{ color: '#0033A0', fontSize: 26, fontWeight: 'bold', textAlign: 'center', marginBottom: 6 }}>
@@ -613,12 +614,10 @@ export default function EditorRolScreen() {
       <View style={styles.footer}>
         <TouchableOpacity style={styles.btnShare} onPress={exportToWhatsApp}>
           <Feather name="share-2" size={20} color="#fff" />
-          <Text style={styles.btnGuardarText}>Compartir</Text>
         </TouchableOpacity>
-        {(!isReadOnly && isAllowedToEdit) && (
+        {!isReadOnly && (
           <TouchableOpacity style={[styles.btnGuardar, saving && { opacity: 0.7 }]} onPress={handleSaveRol} disabled={saving}>
-            {saving ? <ActivityIndicator color="#fff" size="small" /> : <Feather name="save" size={20} color="#fff" />}
-            <Text style={styles.btnGuardarText}>{saving ? 'Guardando...' : 'Guardar Rol'}</Text>
+            {saving ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.btnGuardarText}>{saving ? 'Guardando...' : 'Guardar'}</Text>}
           </TouchableOpacity>
         )}
       </View>
@@ -781,26 +780,9 @@ function getStyles(theme: any) { return StyleSheet.create({
     backgroundColor: theme.background,
     gap: 15
   },
-  btnShare: {
-    flex: 1,
-    backgroundColor: theme.primary,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 14,
-    borderRadius: 8,
-    gap: 8,
-  },
-  btnGuardar: {
-    flex: 2,
-    backgroundColor: theme.primary,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 16,
-    borderRadius: 12
-  },
-  btnGuardarText: { color: theme.headerText, fontSize: 16, fontWeight: 'bold' },
+  btnShare: { flex: 1, backgroundColor: theme.primary, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingVertical: 6, borderRadius: 6, gap: 4 },
+  btnGuardar: { flex: 1, backgroundColor: theme.primary, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 6, borderRadius: 6, gap: 4 },
+  btnGuardarText: { color: theme.headerText, fontSize: 13, fontWeight: 'bold' },
   
   marcatextosContainer: {
     position: 'absolute',
@@ -833,12 +815,12 @@ function getStyles(theme: any) { return StyleSheet.create({
 
   // Modal Selector
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modalContent: { backgroundColor: theme.background, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, height: '60%' },
+  modalContent: { backgroundColor: theme.background, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, height: '85%' },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, borderBottomWidth: 1, borderBottomColor: theme.border, paddingBottom: 15 },
-  modalTitle: { color: theme.text, fontSize: 18, fontWeight: 'bold' },
-  ecoItem: { padding: 15, borderBottomWidth: 1, borderBottomColor: theme.border, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  ecoItemText: { color: theme.primary, fontSize: 18, fontWeight: 'bold' },
-  ecoItemSubtext: { color: theme.textMuted, fontSize: 14 },
-  ecoItemClear: { padding: 15, marginTop: 10, backgroundColor: '#FFD1D1', borderRadius: 8, borderWidth: 1, borderColor: '#D2042D' }
+  modalTitle: { color: theme.text, fontSize: 20, fontWeight: 'bold' },
+  ecoItem: { padding: 20, borderBottomWidth: 1, borderBottomColor: theme.border, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  ecoItemText: { color: theme.primary, fontSize: 24, fontWeight: 'bold' },
+  ecoItemSubtext: { color: theme.textMuted, fontSize: 16 },
+  ecoItemClear: { padding: 20, marginTop: 10, backgroundColor: '#FFD1D1', borderRadius: 8, borderWidth: 1, borderColor: '#D2042D' }
 });
 }

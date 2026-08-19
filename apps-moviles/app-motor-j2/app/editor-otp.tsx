@@ -43,6 +43,7 @@ const FrecModal = ({ visible, onClose, initialFrec, onSave, isDarkMode }: any) =
             value={val}
             onChangeText={setVal}
             keyboardType="number-pad"
+            maxLength={2}
             placeholder="Ej. 15"
             placeholderTextColor={isDarkMode ? '#888' : '#94a3b8'}
             editable={!isSF}
@@ -84,11 +85,9 @@ const ControlledCellInput = ({ value, onChangeText, onFocus, ...props }: any) =>
     <TextInput 
       {...props}
       value={localVal}
-      onChangeText={setLocalVal}
-      onEndEditing={(e) => {
-        if (localVal !== value) {
-            onChangeText(e.nativeEvent.text);
-        }
+      onChangeText={(t) => {
+        setLocalVal(t);
+        onChangeText(t);
       }}
       onFocus={(e) => {
         if (onFocus) onFocus(e);
@@ -1019,6 +1018,7 @@ export default function EditorOTPScreen() {
                   value={searchEco}
                   onChangeText={setSearchEco}
                   keyboardType="number-pad"
+                maxLength={4}
                 />
                 {searchEco.length > 0 && (
                   <TouchableOpacity onPress={() => setSearchEco('')}>
@@ -1093,28 +1093,34 @@ export default function EditorOTPScreen() {
               <ViewShot ref={viewShotRef} options={{ format: 'png', quality: 1 }}>
                 <TouchableOpacity activeOpacity={1} style={{ flex: 1 }} onPress={() => toggleExpand(null)}>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                    <View style={{ width: 900, backgroundColor: '#FDF8ED', padding: 30 }}>
+                    <View style={{ width: 900, backgroundColor: '#FFFFFF', padding: 20 }}>
                     {/* Header de Exportación OTP */}
-                    <View style={{ flexDirection: 'column', borderBottomWidth: 2, borderColor: baseColor, paddingBottom: 15, marginBottom: 20 }}>
-                      <Text style={{ color: baseColor, fontSize: 24, fontWeight: 'bold', textAlign: 'center', marginBottom: tipoRolName ? 4 : 10 }}>
-                        PROYECCIÓN OTP - {plantillaName?.toUpperCase()}
-                      </Text>
+                    <View style={{ backgroundColor: '#ffffff', borderRadius: 8, paddingHorizontal: 20, paddingVertical: 15, marginBottom: 15, borderTopWidth: 6, borderColor: baseColor, shadowColor: '#000', shadowOffset: {width: 0, height: 1}, shadowOpacity: 0.1, shadowRadius: 2, elevation: 2 }}>
+                      
+                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: tipoRolName ? 5 : 10 }}>
+                        <Text style={{ color: '#64748b', fontSize: 22, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 1, marginRight: 15 }}>
+                          PROYECCIÓN OTP
+                        </Text>
+                        <View style={{ backgroundColor: baseColor, paddingHorizontal: 20, paddingVertical: 8, borderRadius: 25 }}>
+                          <Text style={{ color: '#ffffff', fontSize: 24, fontWeight: '900', letterSpacing: 0.5 }}>{plantillaName?.toUpperCase()}</Text>
+                        </View>
+                      </View>
+                      
                       {tipoRolName ? (
-                        <Text style={{ color: '#475569', fontSize: 16, fontWeight: 'bold', textAlign: 'center', marginBottom: 12 }}>
+                        <Text style={{ color: '#475569', fontSize: 16, fontWeight: 'bold', textAlign: 'center', marginBottom: 10 }}>
                           Rol: {tipoRolName}
                         </Text>
                       ) : null}
-                      <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                        <Text style={{ color: '#0f172a', fontSize: 16, fontWeight: 'bold' }}>
+
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 5, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#f1f5f9' }}>
+                        <Text style={{ color: '#94a3b8', fontSize: 14, fontWeight: 'bold' }}>
                           Sistema Saturno V | Tablerista: {(() => {
                             let name = creadorName.replace('[OTP] ', '').trim();
                             if (!name || name.toLowerCase() === 'tablerista') return 'Emiliano';
-                            // If the name is literally "Nombre Completo Nombre_ID" (duplicated words), we can deduplicate it if needed.
-                            // But since the user complained about "Emiliano R" becoming "R", we will just print the full name.
                             return name;
                           })()}
                         </Text>
-                        <Text style={{ color: baseColor, fontSize: 16, fontWeight: 'bold' }}>Fecha: {new Date().toLocaleDateString()}</Text>
+                        <Text style={{ color: baseColor, fontSize: 14, fontWeight: 'bold' }}>Fecha: {new Date().toLocaleDateString()}</Text>
                       </View>
                     </View>
 
@@ -1123,24 +1129,24 @@ export default function EditorOTPScreen() {
                       
                       {/* Columna Izquierda */}
                       <View style={{ flex: 1 }}>
-                        <View style={{ flexDirection: 'row', backgroundColor: '#88D8C0', borderBottomWidth: 2, borderColor: theme.text, paddingVertical: 8, marginBottom: 8, alignItems: 'flex-end' }}>
-                          <Text style={{ flex: 0.4, color: '#0f172a', fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>NO.</Text>
-                          <Text style={{ flex: 0.5, color: '#0f172a', fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>FREC</Text>
-                          <Text style={{ flex: 0.8, color: '#0f172a', fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>HORA</Text>
-                          <Text style={{ flex: 0.8, color: '#0f172a', fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>ECO</Text>
-                          {!isIndios && <Text style={{ flex: 0.8, color: '#0f172a', fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>RUTA</Text>}
-                          {(isIndios || isLagos) && <Text style={{ flex: 0.5, color: '#0f172a', fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>PAX</Text>}
-                          <Text style={{ flex: (isIndios || !isLagos) ? 2.2 : 1.6, color: '#0f172a', fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>OBS</Text>
+                        <View style={{ flexDirection: 'row', backgroundColor: baseColor, borderBottomWidth: 2, borderColor: theme.text, paddingVertical: 8, marginBottom: 8, alignItems: 'flex-end' }}>
+                          <Text style={{ flex: 0.4, color: '#ffffff', fontWeight: '900', fontSize: 11, textAlign: 'center' }}>NO.</Text>
+                          <Text style={{ flex: 0.5, color: '#ffffff', fontWeight: '900', fontSize: 11, textAlign: 'center' }}>FREC</Text>
+                          <Text style={{ flex: 0.8, color: '#ffffff', fontWeight: '900', fontSize: 11, textAlign: 'center' }}>HORA</Text>
+                          <Text style={{ flex: 0.8, color: '#ffffff', fontWeight: '900', fontSize: 11, textAlign: 'center' }}>ECO</Text>
+                          {!isIndios && <Text style={{ flex: 0.8, color: '#ffffff', fontWeight: '900', fontSize: 11, textAlign: 'center' }}>RUTA</Text>}
+                          {(isIndios || isLagos) && <Text style={{ flex: 0.5, color: '#ffffff', fontWeight: '900', fontSize: 11, textAlign: 'center' }}>PAX</Text>}
+                          <Text style={{ flex: (isIndios || !isLagos) ? 2.2 : 1.6, color: '#ffffff', fontWeight: '900', fontSize: 11, textAlign: 'center' }}>OBS</Text>
                         </View>
                         {rows.slice(0, Math.ceil(rows.length / 2)).map((row) => (
-                          <View key={row.id} style={[{ flexDirection: 'row', backgroundColor: row.highlightColor ? `${row.highlightColor}60` : 'transparent', borderBottomWidth: 1, borderColor: baseColor, paddingVertical: 10, alignItems: 'center' }, row.es_manual && { borderWidth: 2, borderColor: '#ef4444', borderStyle: 'dashed', borderRadius: 4, marginVertical: 2 }, row.isGhost && { opacity: 0.35 }]}>
+                          <View key={row.id} style={[{ flexDirection: 'row', backgroundColor: row.highlightColor ? `${row.highlightColor}60` : 'transparent', borderBottomWidth: 1, borderColor: baseColor, paddingVertical: 6, alignItems: 'center' }, row.es_manual && { borderWidth: 2, borderColor: '#ef4444', borderStyle: 'dashed', borderRadius: 4, marginVertical: 2 }, row.isGhost && { opacity: 0.35 }]}>
                             {renderTurnoIndicator(row, false, true)}
-                            <Text style={{ flex: 0.5, color: baseColor, fontSize: 13, textAlign: 'center', fontWeight: 'bold' }}>{row.frec}</Text>
-                            <Text style={{ flex: 0.8, color: baseColor, fontSize: 13, textAlign: 'center', fontWeight: 'bold' }}>{row.horario}</Text>
-                            <Text style={{ flex: 0.8, color: '#0f172a', fontSize: 13, textAlign: 'center', fontWeight: 'bold' }}>{row.eco || '-'}</Text>
-                            {!isIndios && <Text style={{ flex: 0.8, color: row.ruta === 'MEX' ? '#008000' : row.ruta === 'REY' ? '#D22B2B' : '#4B0082', fontSize: 11, textAlign: 'center', fontWeight: 'bold' }}>{row.ruta || '-'}</Text>}
-                            {(isIndios || isLagos) && <Text style={{ flex: 0.5, color: '#0f172a', fontSize: 13, textAlign: 'center' }}>{row.pax || '-'}</Text>}
-                            <Text style={{ flex: (isIndios || !isLagos) ? 2.2 : 1.6, color: '#0f172a', fontSize: 11, textAlign: 'center', paddingHorizontal: 2, flexShrink: 1, flexWrap: 'wrap' }}>{row.observaciones || ''}</Text>
+                            <Text style={{ flex: 0.5, color: baseColor, fontSize: 13, textAlign: 'center', fontWeight: '900' }}>{row.frec}</Text>
+                            <Text style={{ flex: 0.8, color: baseColor, fontSize: 13, textAlign: 'center', fontWeight: '900' }}>{row.horario}</Text>
+                            <Text style={{ flex: 0.8, color: '#0f172a', fontSize: 13, textAlign: 'center', fontWeight: '900' }}>{row.eco || '-'}</Text>
+                            {!isIndios && <Text style={{ flex: 0.8, color: row.ruta === 'MEX' ? '#008000' : row.ruta === 'REY' ? '#D22B2B' : '#4B0082', fontSize: 11, textAlign: 'center', fontWeight: '900' }}>{row.ruta || '-'}</Text>}
+                            {(isIndios || isLagos) && <Text style={{ flex: 0.5, color: '#0f172a', fontSize: 13, textAlign: 'center', fontWeight: '900' }}>{row.pax || '-'}</Text>}
+                            <Text style={{ flex: (isIndios || !isLagos) ? 2.2 : 1.6, color: '#0f172a', fontSize: 11, textAlign: 'center', paddingHorizontal: 2, flexShrink: 1, flexWrap: 'wrap', fontWeight: '900' }}>{row.observaciones || ''}</Text>
                           </View>
                         ))}
                       </View>
@@ -1148,24 +1154,24 @@ export default function EditorOTPScreen() {
                       {/* Columna Derecha */}
                       {rows.length > 1 && (
                         <View style={{ flex: 1 }}>
-                          <View style={{ flexDirection: 'row', backgroundColor: '#88D8C0', borderBottomWidth: 2, borderColor: theme.text, paddingVertical: 8, marginBottom: 8, alignItems: 'flex-end' }}>
-                            <Text style={{ flex: 0.4, color: '#0f172a', fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>NO.</Text>
-                            <Text style={{ flex: 0.6, color: '#0f172a', fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>FREC</Text>
-                            <Text style={{ flex: 1, color: '#0f172a', fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>HORA</Text>
-                            <Text style={{ flex: 1, color: '#0f172a', fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>ECO</Text>
-                            {!isIndios && <Text style={{ flex: 0.8, color: '#0f172a', fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>RUTA</Text>}
-                            {(isIndios || isLagos) && <Text style={{ flex: 0.5, color: '#0f172a', fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>PAX</Text>}
-                            <Text style={{ flex: (isIndios || !isLagos) ? 2.2 : 1.6, color: '#0f172a', fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>OBS</Text>
+                          <View style={{ flexDirection: 'row', backgroundColor: baseColor, borderBottomWidth: 2, borderColor: theme.text, paddingVertical: 8, marginBottom: 8, alignItems: 'flex-end' }}>
+                            <Text style={{ flex: 0.4, color: '#ffffff', fontWeight: '900', fontSize: 11, textAlign: 'center' }}>NO.</Text>
+                            <Text style={{ flex: 0.6, color: '#ffffff', fontWeight: '900', fontSize: 11, textAlign: 'center' }}>FREC</Text>
+                            <Text style={{ flex: 1, color: '#ffffff', fontWeight: '900', fontSize: 11, textAlign: 'center' }}>HORA</Text>
+                            <Text style={{ flex: 1, color: '#ffffff', fontWeight: '900', fontSize: 11, textAlign: 'center' }}>ECO</Text>
+                            {!isIndios && <Text style={{ flex: 0.8, color: '#ffffff', fontWeight: '900', fontSize: 11, textAlign: 'center' }}>RUTA</Text>}
+                            {(isIndios || isLagos) && <Text style={{ flex: 0.5, color: '#ffffff', fontWeight: '900', fontSize: 11, textAlign: 'center' }}>PAX</Text>}
+                            <Text style={{ flex: (isIndios || !isLagos) ? 2.2 : 1.6, color: '#ffffff', fontWeight: '900', fontSize: 11, textAlign: 'center' }}>OBS</Text>
                           </View>
                           {rows.slice(Math.ceil(rows.length / 2)).map((row) => (
-                            <View key={row.id} style={[{ flexDirection: 'row', backgroundColor: row.highlightColor ? `${row.highlightColor}60` : 'transparent', borderBottomWidth: 1, borderColor: baseColor, paddingVertical: 10, alignItems: 'center' }, row.es_manual && { borderWidth: 2, borderColor: '#ef4444', borderStyle: 'dashed', borderRadius: 4, marginVertical: 2 }, row.isGhost && { opacity: 0.35 }]}>
+                            <View key={row.id} style={[{ flexDirection: 'row', backgroundColor: row.highlightColor ? `${row.highlightColor}60` : 'transparent', borderBottomWidth: 1, borderColor: baseColor, paddingVertical: 6, alignItems: 'center' }, row.es_manual && { borderWidth: 2, borderColor: '#ef4444', borderStyle: 'dashed', borderRadius: 4, marginVertical: 2 }, row.isGhost && { opacity: 0.35 }]}>
                               {renderTurnoIndicator(row, false, true)}
-                              <Text style={{ flex: 0.6, color: baseColor, fontSize: 13, textAlign: 'center', fontWeight: 'bold' }}>{row.frec}</Text>
-                              <Text style={{ flex: 1, color: baseColor, fontSize: 13, textAlign: 'center', fontWeight: 'bold' }}>{row.horario}</Text>
-                              <Text style={{ flex: 1, color: '#0f172a', fontSize: 13, textAlign: 'center', fontWeight: 'bold' }}>{row.eco || '-'}</Text>
-                              {!isIndios && <Text style={{ flex: 0.8, color: row.ruta === 'MEX' ? '#008000' : row.ruta === 'REY' ? '#D22B2B' : '#4B0082', fontSize: 11, textAlign: 'center', fontWeight: 'bold' }}>{row.ruta || '-'}</Text>}
-                              {(isIndios || isLagos) && <Text style={{ flex: 0.5, color: '#0f172a', fontSize: 13, textAlign: 'center' }}>{row.pax || '-'}</Text>}
-                              <Text style={{ flex: (isIndios || !isLagos) ? 2.2 : 1.6, color: '#0f172a', fontSize: 11, textAlign: 'center', paddingHorizontal: 2, flexShrink: 1, flexWrap: 'wrap' }}>{row.observaciones || ''}</Text>
+                              <Text style={{ flex: 0.6, color: baseColor, fontSize: 13, textAlign: 'center', fontWeight: '900' }}>{row.frec}</Text>
+                              <Text style={{ flex: 1, color: baseColor, fontSize: 13, textAlign: 'center', fontWeight: '900' }}>{row.horario}</Text>
+                              <Text style={{ flex: 1, color: '#0f172a', fontSize: 13, textAlign: 'center', fontWeight: '900' }}>{row.eco || '-'}</Text>
+                              {!isIndios && <Text style={{ flex: 0.8, color: row.ruta === 'MEX' ? '#008000' : row.ruta === 'REY' ? '#D22B2B' : '#4B0082', fontSize: 11, textAlign: 'center', fontWeight: '900' }}>{row.ruta || '-'}</Text>}
+                              {(isIndios || isLagos) && <Text style={{ flex: 0.5, color: '#0f172a', fontSize: 13, textAlign: 'center', fontWeight: '900' }}>{row.pax || '-'}</Text>}
+                              <Text style={{ flex: (isIndios || !isLagos) ? 2.2 : 1.6, color: '#0f172a', fontSize: 11, textAlign: 'center', paddingHorizontal: 2, flexShrink: 1, flexWrap: 'wrap', fontWeight: '900' }}>{row.observaciones || ''}</Text>
                             </View>
                           ))}
                         </View>
@@ -1174,10 +1180,10 @@ export default function EditorOTPScreen() {
 
                     {/* Frecuencia Promedio y Total de Pasajeros en Exportación */}
                     <View style={{ marginTop: 20, flexDirection: 'row', justifyContent: 'space-between', borderTopWidth: 2, borderColor: baseColor, paddingTop: 10 }}>
-                      <Text style={{ color: baseColor, fontSize: 18, fontWeight: 'bold' }}>
+                      <Text style={{ color: baseColor, fontSize: 18, fontWeight: '900' }}>
                         FREC. PROMEDIO: {frecPromedioMin} MIN
                       </Text>
-                      <Text style={{ color: baseColor, fontSize: 18, fontWeight: 'bold' }}>
+                      <Text style={{ color: baseColor, fontSize: 18, fontWeight: '900' }}>
                         TOTAL PASAJEROS: {pasajerosTotales}
                       </Text>
                     </View>
@@ -1319,7 +1325,7 @@ export default function EditorOTPScreen() {
                           onFocus={() => { LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); toggleExpand(null); }}
                           editable={!isReadOnly}
                           keyboardType="number-pad"
-                          maxLength={2}
+                          maxLength={4}
                           placeholder={unitCap > 0 ? `${unitCap}` : '--'}
                           placeholderTextColor={unitCap > 0 ? (isDarkMode ? "#888" : "#94a3b8") : (isDarkMode ? "#666" : "#475569")}
                         />
@@ -1387,7 +1393,7 @@ export default function EditorOTPScreen() {
           {(!isReadOnly && isAllowedToEdit) && (
             <TouchableOpacity style={[styles.btnGuardar, saving && { opacity: 0.7 }]} onPress={handleSaveOTP} disabled={saving}>
               {saving ? <ActivityIndicator color="#fff" size="small" /> : <Feather name="save" size={20} color="#fff" />}
-              <Text style={styles.btnGuardarText}>{saving ? 'Guardando...' : 'Guardar Proyección'}</Text>
+              <Text style={styles.btnGuardarText}>{saving ? 'Guardando...' : 'Guardar'}</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -1446,6 +1452,7 @@ export default function EditorOTPScreen() {
                 placeholder="Ej. 1320"
                 placeholderTextColor={isDarkMode ? '#888' : '#94a3b8'}
                 keyboardType="number-pad"
+                maxLength={4}
                 autoFocus={true}
               />
 
@@ -1476,8 +1483,8 @@ function getStyles(theme: any) { return StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.background },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: theme.border },
   backBtn: { padding: 4 },
-  title: { fontSize: 16, fontWeight: '600', color: theme.text },
-  th: { color: theme.textMuted, fontSize: 12, fontWeight: '600', textAlign: 'center' },
+  title: { fontSize: 16, fontWeight: 'bold', color: theme.text },
+  th: { color: theme.textMuted, fontSize: 12, fontWeight: 'bold', textAlign: 'center' },
   content: { padding: 10, paddingBottom: 40 },
   tableRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: theme.border, borderRadius: 8, marginBottom: 8, backgroundColor: theme.background },
   td: { color: theme.text, fontSize: 12, textAlign: 'center' },
@@ -1500,9 +1507,9 @@ function getStyles(theme: any) { return StyleSheet.create({
   fab: { paddingVertical: 12, fontSize: 16, fontWeight: 'bold' },
   btnAddRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 15, marginTop: 10, borderWidth: 1, borderColor: theme.border, borderStyle: 'dashed', borderRadius: 8 },
   footer: { flexDirection: 'row', padding: 15, borderTopWidth: 1, borderTopColor: theme.border, backgroundColor: theme.background, gap: 15 },
-  btnShare: { flex: 1.3, backgroundColor: theme.primary, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingVertical: 10, borderRadius: 8, gap: 8 },
-  btnGuardar: { flex: 1, backgroundColor: theme.primary, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 10, borderRadius: 8 },
-  btnGuardarText: { color: theme.headerText, fontSize: 16, fontWeight: 'bold' },
+  btnShare: { flex: 1, backgroundColor: theme.primary, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingVertical: 6, borderRadius: 6, gap: 4 },
+  btnGuardar: { flex: 1, backgroundColor: theme.primary, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 6, borderRadius: 6, gap: 4 },
+  btnGuardarText: { color: theme.headerText, fontSize: 13, fontWeight: 'bold' },
   marcatextosContainer: { position: 'absolute', bottom: 100, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 12, backgroundColor: 'rgba(255, 255, 255, 0.95)', gap: 15, borderRadius: 30, zIndex: 100, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 5, elevation: 8, borderWidth: 1, borderColor: theme.border },
   colorCircle: { width: 24, height: 24, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
   colorCircleActive: {
@@ -1511,12 +1518,12 @@ function getStyles(theme: any) { return StyleSheet.create({
     transform: [{ scale: 1.2 }]
   },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modalContent: { backgroundColor: theme.background, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, height: '60%' },
+  modalContent: { backgroundColor: theme.background, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, height: '85%' },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, borderBottomWidth: 1, borderBottomColor: theme.border, paddingBottom: 15 },
-  modalTitle: { color: theme.text, fontSize: 18, fontWeight: 'bold' },
-  ecoItem: { padding: 15, borderBottomWidth: 1, borderBottomColor: theme.border, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  ecoItemText: { color: theme.primary, fontSize: 18, fontWeight: 'bold' },
-  ecoItemSubtext: { color: theme.textMuted, fontSize: 14 },
-  ecoItemClear: { padding: 15, marginTop: 10, backgroundColor: '#FFD1D1', borderRadius: 8, borderWidth: 1, borderColor: '#D2042D' }
+  modalTitle: { color: theme.text, fontSize: 20, fontWeight: 'bold' },
+  ecoItem: { padding: 20, borderBottomWidth: 1, borderBottomColor: theme.border, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  ecoItemText: { color: theme.primary, fontSize: 24, fontWeight: 'bold' },
+  ecoItemSubtext: { color: theme.textMuted, fontSize: 16 },
+  ecoItemClear: { padding: 20, marginTop: 10, backgroundColor: '#FFD1D1', borderRadius: 8, borderWidth: 1, borderColor: '#D2042D' }
 });
 }

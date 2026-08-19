@@ -28,13 +28,13 @@ export const PlantillasPredeterminadas = () => {
   const [userIsAdmin, setUserIsAdmin] = useState(false);
 
   const colors = [
-    '#fde047', // Amarillo
-    '#86efac', // Verde
-    '#fca5a5', // Rojo
-    '#93c5fd', // Azul
-    '#ff00ff', // Magenta Fosforescente
-    '#ff7f00', // Naranja Fosforescente
-    '#39ff14'  // Verde Fosforescente
+    '#FF1493', // Rosa
+    '#00FFFF', // Cyan
+    '#39FF14', // Verde Neon
+    '#FFFF00', // Amarillo
+    '#FF8C00', // Naranja
+    '#8A2BE2', // Morado
+    '#FF4500'  // Naranja Oscuro
   ];
 
   const activeTemplate = templates.find(t => t.id === activeTemplateId);
