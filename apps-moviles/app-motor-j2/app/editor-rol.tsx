@@ -61,6 +61,49 @@ export default function EditorRolScreen() {
   const [lastSavedTime, setLastSavedTime] = useState<string>('');
   const [activeRolId, setActiveRolId] = useState<string | null>((rId as string) || null);
 
+  // Novedades RD: Clonación
+  const [cloneModalVisible, setCloneModalVisible] = useState(false);
+  const [pastRoles, setPastRoles] = useState<any[]>([]);
+  const [loadingRoles, setLoadingRoles] = useState(false);
+
+  const fetchPastRoles = async () => {
+    setLoadingRoles(true);
+    const { data, error } = await supabase
+      .from('j2_tablas_operativas')
+      .select('id, fecha, base_operativa, tipo_tabla')
+      .eq('tipo_tabla', 'RD')
+      .order('fecha', { ascending: false })
+      .limit(10);
+    if (!error && data) setPastRoles(data);
+    setLoadingRoles(false);
+  };
+
+  const handleCloneRole = async (tablaId: number) => {
+    setCloneModalVisible(false);
+    setLoading(true);
+    const { data: filas, error } = await supabase
+      .from('j2_filas_operativas')
+      .select('*')
+      .eq('tabla_id', tablaId)
+      .order('orden_no', { ascending: true });
+    
+    if (!error && filas && filas.length > 0) {
+      const clonedRows = filas.map((f, idx) => ({
+        id: Math.random().toString(),
+        no: idx + 1,
+        frec: f.frecuencia || '',
+        horario: f.hora_paso ? f.hora_paso.substring(0,5) : '',
+        eco: '', // Limpiar ECOs para el nuevo día
+        highlightColor: f.row_color_hex || null
+      }));
+      setRows(clonedRows);
+      Alert.alert('Plantilla Clonada', `Se copiaron ${clonedRows.length} turnos. Todos los ECOs están listos para ser asignados.`);
+    } else {
+      Alert.alert('Error', 'No se pudieron clonar los turnos de ese día.');
+    }
+    setLoading(false);
+  };
+
   const toggleExpand = (id: string | null) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setExpandedRowId(expandedRowId === id ? null : id);
@@ -411,8 +454,16 @@ export default function EditorRolScreen() {
           <View style={{ alignItems: 'center' }}>
             <Text style={[styles.title, isDarkMode && { color: "#F5F5DC" }]}>ROL - {plantillaName}</Text>
             {lastSavedTime ? <Text style={{ fontSize: 10, color: '#10b981', fontWeight: 'bold' }}>⚡ Guardado {lastSavedTime}</Text> : null}
+            <View style={{ backgroundColor: '#006847', paddingHorizontal: 12, paddingVertical: 2, borderRadius: 12, marginTop: 4 }}>
+              <Text style={{ color: '#FFF', fontSize: 10, fontWeight: 'bold' }}>Salidas Proyectadas: {rows.length}</Text>
+            </View>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 15 }}>
+            {!isReadOnly && (
+              <TouchableOpacity onPress={() => { fetchPastRoles(); setCloneModalVisible(true); }}>
+                <Feather name="copy" size={24} color={isDarkMode ? '#F5F5DC' : theme.primary} />
+              </TouchableOpacity>
+            )}
             <TouchableOpacity onPress={() => setIsDarkMode(!isDarkMode)}>
               <Feather name={isDarkMode ? 'sun' : 'moon'} size={24} color={isDarkMode ? theme.background : theme.primary} />
             </TouchableOpacity>
@@ -520,6 +571,24 @@ export default function EditorRolScreen() {
                 </View>
               );
 
+              // Novedades RD: Anti-Choques y Anti-Huecos
+              let isChoque = false;
+              let isHueco = false;
+              if (index > 0 && row.horario && row.horario.includes(':') && rows[index-1].horario && rows[index-1].horario.includes(':')) {
+                const prevRow = rows[index-1];
+                if (prevRow.horario === row.horario && row.horario !== '00:00') {
+                   isChoque = true;
+                } else if (row.frec) {
+                   const [hPrev, mPrev] = prevRow.horario.split(':').map(Number);
+                   const [hNew, mNew] = row.horario.split(':').map(Number);
+                   let diff = (hNew * 60 + mNew) - (hPrev * 60 + mPrev);
+                   if (diff < 0) diff += 24 * 60;
+                   if (!isNaN(diff) && diff !== parseInt(row.frec)) {
+                     isHueco = true;
+                   }
+                }
+              }
+
               return (
                 <Swipeable 
                   ref={(ref) => {
@@ -557,7 +626,7 @@ export default function EditorRolScreen() {
 
                     <View style={{ flex: 1.5, paddingHorizontal: 1, justifyContent: 'center' }}>
                       <TextInput 
-                        style={[styles.inputCell, { flex: 1, paddingHorizontal: 2, textAlign: 'center' }, isDarkMode && { backgroundColor: '#333', borderColor: '#444', color: theme.text }, isReadOnly && { opacity: 0.8, borderColor: 'transparent' }]}
+                        style={[styles.inputCell, { flex: 1, paddingHorizontal: 2, textAlign: 'center' }, isDarkMode && { backgroundColor: '#333', borderColor: '#444', color: theme.text }, isReadOnly && { opacity: 0.8, borderColor: 'transparent' }, isChoque && { borderColor: '#ef4444', borderWidth: 2, color: '#ef4444', fontWeight: 'bold' }, isHueco && { borderColor: '#f59e0b', borderWidth: 2, color: '#f59e0b', fontWeight: 'bold' }]}
                         value={row.horario}
                         onChangeText={(t) => handleUpdateField(row.id, 'horario', t)}
                         onFocus={() => toggleExpand(null)}
@@ -697,8 +766,41 @@ export default function EditorRolScreen() {
         </View>
       </Modal>
 
-    </SafeAreaView>
-  </KeyboardAvoidingView>
+        {/* Novedades RD: Modal Clonar */}
+        <Modal visible={cloneModalVisible} transparent animationType="slide">
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalContent, isDarkMode && { backgroundColor: '#222' }]}>
+              <View style={styles.modalHeader}>
+                <Text style={[styles.modalTitle, isDarkMode && { color: theme.text }]}>Clonar Plantilla Diaria</Text>
+                <TouchableOpacity onPress={() => setCloneModalVisible(false)}><Feather name="x" size={24} color="#94a3b8" /></TouchableOpacity>
+              </View>
+              <Text style={{ color: theme.textMuted, marginBottom: 15, fontSize: 14 }}>
+                Selecciona un rol anterior. Se copiarán los horarios y frecuencias, pero los ECOs quedarán vacíos.
+              </Text>
+              {loadingRoles ? (
+                <ActivityIndicator size="large" color="#006847" />
+              ) : (
+                <FlatList
+                  data={pastRoles}
+                  keyExtractor={item => item.id.toString()}
+                  renderItem={({ item }) => (
+                    <TouchableOpacity 
+                      style={{ padding: 15, borderBottomWidth: 1, borderBottomColor: isDarkMode ? '#444' : '#e2e8f0', flexDirection: 'row', justifyContent: 'space-between' }}
+                      onPress={() => handleCloneRole(item.id)}
+                    >
+                      <Text style={{ fontWeight: 'bold', color: isDarkMode ? '#FFF' : '#0f172a' }}>{item.fecha}</Text>
+                      <Text style={{ color: theme.primary }}>{item.base_operativa}</Text>
+                    </TouchableOpacity>
+                  )}
+                  ListEmptyComponent={<Text style={{ color: '#94a3b8', textAlign: 'center', padding: 20 }}>No hay roles anteriores</Text>}
+                />
+              )}
+            </View>
+          </View>
+        </Modal>
+
+      </SafeAreaView>
+    </KeyboardAvoidingView>
   );
 }
 

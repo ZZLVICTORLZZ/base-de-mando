@@ -41,12 +41,10 @@ export default function LoginScreen() {
         return;
       }
 
-      // Guardamos Solo el Username (Nombre ID) según solicitud del usuario
+      // Guardamos Solo el Username (Nombre ID) según solicitud estricta del usuario
       let userName = 'Checador';
       if (profile?.username) {
         userName = profile.username;
-      } else if (profile?.nombre) {
-        userName = profile.nombre;
       } else {
         userName = email.split('@')[0];
       }
@@ -62,6 +60,10 @@ export default function LoginScreen() {
 
   const handleCheckUpdates = async () => {
     try {
+      if (__DEV__) {
+        Alert.alert('Deshabilitado en Expo Go', 'La búsqueda de actualizaciones OTA solo funciona en la aplicación instalada (APK). En Expo Go los cambios se reflejan solos.');
+        return;
+      }
       Alert.alert('Buscando...', 'Comprobando si hay actualizaciones en el servidor.');
       const update = await Updates.checkForUpdateAsync();
       if (update.isAvailable) {

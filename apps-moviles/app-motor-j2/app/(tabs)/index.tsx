@@ -138,6 +138,10 @@ export default function DashboardScreen() {
 
   const handleCheckUpdates = async () => {
     try {
+      if (__DEV__) {
+        Alert.alert('Deshabilitado en Expo Go', 'La búsqueda de actualizaciones OTA solo funciona en la aplicación instalada (APK). En Expo Go los cambios se reflejan solos.');
+        return;
+      }
       Alert.alert('Buscando...', 'Comprobando si hay actualizaciones en el servidor.');
       const update = await Updates.checkForUpdateAsync();
       if (update.isAvailable) {
