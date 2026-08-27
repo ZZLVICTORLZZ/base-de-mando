@@ -11,6 +11,7 @@ const navItems = [
   { path: '/estadisticas', label: 'Estadísticas (Análisis)', icon: LayoutDashboard, moduleId: 'estadisticas' },
   { path: '/unidades', label: 'Unidades', icon: Truck, moduleId: 'unidades' },
   { path: '/servicio', label: 'Servicio', icon: Rocket, moduleId: 'servicio' },
+  { path: '/monitoreo', label: 'Monitoreo', icon: AlertCircle, moduleId: 'servicio' },
   { path: '/recursos-humanos', label: 'R.H.', icon: Briefcase, moduleId: 'recursos_humanos' },
   { path: '/mantenimiento', label: 'Mantenimiento', icon: Wrench, moduleId: 'mantenimiento' },
   { path: '/administracion', label: 'Administración', icon: Users, moduleId: 'administracion' },

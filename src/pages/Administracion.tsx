@@ -188,7 +188,7 @@ const TabPermisos = () => {
 
   const renderIcon = (userId: number, moduleId: string, type: 'r' | 'w', IconProps: any) => {
     const user = permissions.find(p => p.id === userId);
-    const modPerms: any = user?.perms[moduleId as keyof typeof user?.perms] || { r: false, w: false };
+    const modPerms: any = user?.perms[moduleId as keyof typeof user.perms] || { r: false, w: false };
     const isActive = modPerms[type];
     
     // Si es Nivel 3 y estamos renderizando iconos, Nivel 3 puede ver BDM y customizar pestañas.

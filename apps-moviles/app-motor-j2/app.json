@@ -13,6 +13,9 @@
     "android": {
       "package": "com.basedemando.j2",
       "versionCode": 1,
+      "permissions": [
+        "android.permission.NFC"
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",

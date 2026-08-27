@@ -10,6 +10,7 @@ import ViewShot from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
 import { supabase } from '../src/services/supabaseClient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import NfcManager, { NfcTech } from 'react-native-nfc-manager';
 import { SyncManager } from '../src/services/SyncManager';
 
 const FrecModal = ({ visible, onClose, initialFrec, onSave, isDarkMode }: any) => {
@@ -126,6 +127,10 @@ export default function EditorTREALScreen() {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [searchEco, setSearchEco] = useState('');
   const [toastMsg, setToastMsg] = useState('');
+  const [nfcPaxModalVisible, setNfcPaxModalVisible] = useState(false);
+  const [nfcPaxRowId, setNfcPaxRowId] = useState<string | null>(null);
+  const [nfcPaxValue, setNfcPaxValue] = useState('');
+  const [isNfcScanning, setIsNfcScanning] = useState(false);
   const [activeRolId, setActiveRolId] = useState<string | null>((rol_id as string) || null);
   const [lastSavedTime, setLastSavedTime] = useState<string>('');
   const [unidadesList, setUnidadesList] = useState<any[]>([]);
@@ -163,6 +168,7 @@ export default function EditorTREALScreen() {
   }, [activeRolId, rol_id]);
 
   useEffect(() => {
+    NfcManager.start().catch(err => console.log('NFC Manager Start Error:', err));
     AsyncStorage.getItem('TREAL_DARK_MODE').then(val => {
       if (val === 'true') setIsDarkMode(true);
     });
@@ -179,6 +185,80 @@ export default function EditorTREALScreen() {
     setTimeout(() => setToastMsg(''), 2000);
   };
 
+
+  
+  const startNfcScan = async () => {
+    if (isReadOnly || !isAllowedToEdit) return;
+    try {
+      setIsNfcScanning(true);
+      await NfcManager.requestTechnology(NfcTech.Ndef);
+      const tag = await NfcManager.getTag();
+      
+      if (tag && tag.id) {
+        // Tag ID from react-native-nfc-manager usually is HEX without colons, or similar. We should clean it just in case, or match case insensitively.
+        const scannedUid = tag.id.toUpperCase();
+        
+        // Android NFC reads little-endian while PC readers read big-endian (e.g. 0493FDF73F0289 <-> 89023FF7FD9304)
+        const reverseHex = (hex: string) => {
+          if (!hex || hex.length % 2 !== 0) return hex;
+          let reversed = '';
+          for (let i = hex.length - 2; i >= 0; i -= 2) reversed += hex.substring(i, i + 2);
+          return reversed;
+        };
+        const reversedUid = reverseHex(scannedUid);
+
+        // Look up unit matching either normal or reversed UID
+        const unit = unidadesList.find(u => {
+          if (!u.nfc_uid) return false;
+          const dbUid = u.nfc_uid.toUpperCase().replace(/:/g, '');
+          const cleanScanned = scannedUid.replace(/:/g, '');
+          const cleanReversed = reversedUid.replace(/:/g, '');
+          return dbUid === cleanScanned || dbUid === cleanReversed;
+        });
+        
+        if (unit) {
+          const nextRowIndex = rows.findIndex(r => !r.eco || String(r.eco).trim() === '');
+          if (nextRowIndex !== -1) {
+            const newRows = [...rows];
+            const now = new Date();
+            const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+            
+            newRows[nextRowIndex] = {
+              ...newRows[nextRowIndex],
+              eco: String(unit.numero),
+              horario: timeStr,
+              es_manual: false,
+              tipo_registro: 'NFC'
+            };
+            
+            setRows(newRows);
+            
+            // Open pax modal
+            setNfcPaxRowId(newRows[nextRowIndex].id);
+            setNfcPaxValue('');
+            setNfcPaxModalVisible(true);
+            
+          } else {
+            Alert.alert('Tabla llena', 'No hay espacios vacíos para firmar.');
+          }
+        } else {
+          Alert.alert('Error', `Esta tarjeta no está vinculada a ninguna unidad.\nUID Detectado: ${scannedUid}`);
+        }
+      }
+    } catch (ex) {
+      console.log('NFC Scan error:', ex);
+    } finally {
+      NfcManager.cancelTechnologyRequest();
+      setIsNfcScanning(false);
+    }
+  };
+
+  const handleSaveNfcPax = () => {
+    if (nfcPaxRowId) {
+      handleUpdateField(nfcPaxRowId, 'pax', nfcPaxValue);
+    }
+    setNfcPaxModalVisible(false);
+  };
 
   const toggleExpand = (id: string | null) => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -1453,10 +1533,11 @@ export default function EditorTREALScreen() {
           <View style={{ position: 'absolute', bottom: 160, alignSelf: 'center', alignItems: 'center', zIndex: 100 }}>
             <TouchableOpacity 
               style={{ backgroundColor: '#3b82f6', borderColor: '#2563eb', borderWidth: 1, paddingVertical: 12, paddingHorizontal: 30, borderRadius: 25, flexDirection: 'row', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 5, elevation: 8, marginBottom: 15 }} 
-              onPress={handleSimulateNFC}
+              onPress={startNfcScan}
+              disabled={isNfcScanning}
             >
-              <Feather name="edit-3" size={24} color="#ffffff" />
-              <Text style={{ color: '#ffffff', marginLeft: 8, fontWeight: 'bold', fontSize: 18 }}>Nueva Firma</Text>
+              {isNfcScanning ? <ActivityIndicator color="#fff" size="small" /> : <Feather name="wifi" size={24} color="#ffffff" />}
+              <Text style={{ color: '#ffffff', marginLeft: 8, fontWeight: 'bold', fontSize: 18 }}>{isNfcScanning ? 'Escaneando...' : 'Firmar Tarjeta NFC'}</Text>
             </TouchableOpacity>
 
             <View style={{ flexDirection: 'row', gap: 15 }}>
@@ -1579,7 +1660,38 @@ export default function EditorTREALScreen() {
           </KeyboardAvoidingView>
         </Modal>
 
-      </SafeAreaView>
+  
+  
+
+      {/* Modal Pax NFC */}
+      <Modal visible={nfcPaxModalVisible} transparent={true} animationType="fade">
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center' }}>
+          <View style={{ backgroundColor: isDarkMode ? '#222' : '#fff', padding: 25, borderRadius: 20, width: '80%', alignItems: 'center' }}>
+            <View style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: '#10b98120', justifyContent: 'center', alignItems: 'center', marginBottom: 15 }}>
+              <Feather name="users" size={30} color="#10b981" />
+            </View>
+            <Text style={{ fontSize: 22, fontWeight: 'bold', color: isDarkMode ? '#fff' : '#000', marginBottom: 10 }}>Pasajeros a Bordo</Text>
+            <Text style={{ fontSize: 14, color: isDarkMode ? '#aaa' : '#666', marginBottom: 20, textAlign: 'center' }}>Ingresa la cantidad de pasajeros de esta unidad</Text>
+            
+            <TextInput
+              style={{ width: '100%', height: 60, backgroundColor: isDarkMode ? '#333' : '#f0f0f0', borderRadius: 12, textAlign: 'center', fontSize: 28, fontWeight: 'bold', color: isDarkMode ? '#fff' : '#000', marginBottom: 20 }}
+              keyboardType="number-pad"
+              value={nfcPaxValue}
+              onChangeText={setNfcPaxValue}
+              autoFocus={true}
+            />
+            
+            <TouchableOpacity 
+              style={{ width: '100%', padding: 15, backgroundColor: '#10b981', borderRadius: 12, alignItems: 'center' }}
+              onPress={handleSaveNfcPax}
+            >
+              <Text style={{ color: '#fff', fontSize: 18, fontWeight: 'bold' }}>Confirmar Salida</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+    </SafeAreaView>
       {toastMsg ? (
         <View style={{ position: 'absolute', bottom: 50, alignSelf: 'center', backgroundColor: '#0f172a', paddingHorizontal: 20, paddingVertical: 12, borderRadius: 25, shadowColor: '#000', shadowOffset: {width:0, height: 4}, shadowOpacity: 0.3, shadowRadius: 5, elevation: 10 }}>
           <Text style={{ color: theme.headerText, fontSize: 14, fontWeight: 'bold' }}>{toastMsg}</Text>
