@@ -5,6 +5,7 @@ import {
   LayoutDashboard, Truck, LogOut, Home, Palette, AlertCircle, Briefcase, CreditCard
 } from 'lucide-react';
 import { supabase } from './supabaseClient';
+import { MiniListFirmas } from '../operacion/MiniListFirmas';
 
 const navItems = [
   { path: '/', label: 'Inicio', icon: Home, moduleId: 'inicio' },
@@ -19,7 +20,6 @@ const navItems = [
   { path: '/aforo', label: 'Aforo (Checador)', icon: UsersRound, moduleId: 'j2' },
   { path: '/recaudacion', label: 'Recaudación', icon: Banknote, moduleId: 'finanzas' },
   { path: '/archivo', label: 'Archivo', icon: Archive, moduleId: 'archivo' },
-  { path: '/gestor-nfc', label: 'Gestor NFC', icon: CreditCard, moduleId: 'administracion' },
 ];
 
 export const Layout = () => {
@@ -69,6 +69,30 @@ export const Layout = () => {
     }
     await supabase.auth.signOut();
   };
+
+  const isMobile = window.innerWidth <= 768;
+
+  const [postIts, setPostIts] = useState<Array<{ id: string, eco: string | null, position: {x: number, y: number} }>>([]);
+
+  useEffect(() => {
+    const handleOpenPostIt = (e: any) => {
+      const { eco } = e.detail;
+      setPostIts(prev => [
+        ...prev, 
+        { 
+          id: Math.random().toString(36).substr(2, 9), 
+          eco, 
+          position: { 
+            x: Math.max(20, (window.innerWidth / 2) - 160 + (prev.length * 30)), 
+            y: 100 + (prev.length * 30) 
+          } 
+        }
+      ]);
+    };
+
+    window.addEventListener('open-postit', handleOpenPostIt);
+    return () => window.removeEventListener('open-postit', handleOpenPostIt);
+  }, []);
 
   // Filtrar items según permisos (Admin=9 y Dev=10 ven todo, el resto ve según módulos)
   const visibleNavItems = navItems.filter(item => {
@@ -150,10 +174,19 @@ export const Layout = () => {
               </div>
             );
           }
-          // De lo contrario, renderizamos
           return <Outlet context={{ canEdit, accessLevel }} />;
         })()}
       </main>
+      
+      {/* Gestor Global de Post-its */}
+      {postIts.map((pi) => (
+        <MiniListFirmas 
+          key={pi.id} 
+          eco={pi.eco} 
+          initialPosition={pi.position} 
+          onClose={() => setPostIts(prev => prev.filter(p => p.id !== pi.id))} 
+        />
+      ))}
     </div>
   );
 };

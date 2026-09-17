@@ -39,7 +39,8 @@ export const Unidades = () => {
     modelo: '',
     año: '',
     serie: '',
-    capacidad: ''
+    capacidad: '',
+    modalidad: 'A Cuenta'
   });
 
   const handleStatusChange = async (id: string, newStatus: boolean) => {
@@ -57,7 +58,8 @@ export const Unidades = () => {
       modelo: u.modelo || '',
       año: u.anio || u.año || '',
       serie: u.serie || '',
-      capacidad: u.capacidad || ''
+      capacidad: u.capacidad || '',
+      modalidad: u.modalidad || 'A Cuenta'
     });
     setEditingId(u.id);
     setIsReadOnly(false);
@@ -72,7 +74,8 @@ export const Unidades = () => {
       modelo: u.modelo || '',
       año: u.anio || u.año || '',
       serie: u.serie || '',
-      capacidad: u.capacidad || ''
+      capacidad: u.capacidad || '',
+      modalidad: u.modalidad || 'A Cuenta'
     });
     setEditingId(u.id);
     setIsReadOnly(true);
@@ -80,7 +83,7 @@ export const Unidades = () => {
   };
 
   const openNewForm = () => {
-    setFormData({ ecoNum: '', tipo: 'Sprinter', marca: '', modelo: '', año: '', serie: '', capacidad: '' });
+    setFormData({ ecoNum: '', tipo: 'Sprinter', marca: '', modelo: '', año: '', serie: '', capacidad: '', modalidad: 'A Cuenta' });
     setEditingId(null);
     setIsReadOnly(false);
     setView('directorio_form');
@@ -113,24 +116,24 @@ export const Unidades = () => {
     setIsSaving(true);
     setUiMessage(null);
     try {
+      const payload = {
+        numero: ecoVal,
+        tipo: formData.tipo,
+        marca: formData.marca || null,
+        modelo: formData.modelo || null,
+        anio: formData.año ? Number(formData.año) : null,
+        serie: formData.serie || null,
+        capacidad: formData.capacidad ? Number(formData.capacidad) : null,
+        modalidad: formData.modalidad,
+        activo: true
+      };
+
       if (editingId) {
-        const payload = {
-          numero: ecoVal,
-          tipo: formData.tipo,
-          marca: formData.marca || null,
-          modelo: formData.modelo || null,
-          anio: formData.año ? Number(formData.año) : null,
-          serie: formData.serie || null,
-          capacidad: formData.capacidad ? Number(formData.capacidad) : null
-        };
-        console.log('Actualizando unidad:', editingId, payload);
         const { data, error } = await supabase.from('unidades').update(payload).eq('id', editingId).select();
-        console.log('Resultado update:', { data, error });
-        
         setIsSaving(false);
         if (!error) {
           if (!data || data.length === 0) {
-             setUiMessage({ type: 'error', text: 'Error de Permisos: Supabase bloqueó la actualización (RLS). Ve a Supabase > Table editor > unidades > RLS y permite el UPDATE.' });
+             setUiMessage({ type: 'error', text: 'Error de Permisos: Supabase bloqueó la actualización (RLS).' });
           } else {
              setUiMessage({ type: 'success', text: 'Unidad actualizada correctamente.' });
              setTimeout(() => { setView('directorio_list'); setUiMessage(null); }, 1500);
@@ -144,18 +147,7 @@ export const Unidades = () => {
           }
         }
       } else {
-        const payload = {
-          numero: ecoVal,
-          tipo: formData.tipo,
-          marca: formData.marca || null,
-          modelo: formData.modelo || null,
-          anio: formData.año ? Number(formData.año) : null,
-          serie: formData.serie || null,
-          capacidad: formData.capacidad ? Number(formData.capacidad) : null,
-          activo: true
-        };
         const { error } = await supabase.from('unidades').insert([payload]);
-        
         setIsSaving(false);
         if (!error) {
           await fetchUnidades();
@@ -283,6 +275,7 @@ export const Unidades = () => {
                 <tr style={{ borderBottom: '1px solid var(--glass-border)', color: 'var(--text-muted)' }}>
                   <th style={{ padding: '12px' }}>Económico</th>
                   <th style={{ padding: '12px' }}>Tipo</th>
+                  <th style={{ padding: '12px' }}>Modalidad</th>
                   <th style={{ padding: '12px' }}>No. de Serie</th>
                   <th style={{ padding: '12px', textAlign: 'center' }}>Año</th>
                   <th style={{ padding: '12px', textAlign: 'center' }}>Pasajeros</th>
@@ -293,8 +286,9 @@ export const Unidades = () => {
                 {filteredUnidades.map(u => (
                   <tr key={u.id} style={{ borderBottom: '1px solid var(--glass-border)' }} className="table-row-hover">
                     <td style={{ padding: '12px', fontWeight: 600, color: 'var(--primary)' }}>{u.numero}</td>
-                    <td style={{ padding: '12px', color: 'var(--text-main)' }}>{u.tipo}</td>
-                    <td style={{ padding: '12px', color: 'var(--text-main)' }}>{u.serie || 'N/A'}</td>
+                    <td style={{ padding: '12px', color: 'var(--text-muted)' }}>{u.tipo}</td>
+                    <td style={{ padding: '12px', color: u.modalidad === 'A Aforo' ? '#3b82f6' : '#10b981', fontWeight: 500 }}>{u.modalidad || 'A Cuenta'}</td>
+                    <td style={{ padding: '12px', fontFamily: 'monospace', color: 'var(--text-muted)' }}>{u.serie || '---'}</td>
                     <td style={{ padding: '12px', textAlign: 'center', color: 'var(--text-main)' }}>{u.anio || u.año}</td>
                     <td style={{ padding: '12px', textAlign: 'center', color: 'var(--text-main)' }}>{u.capacidad}</td>
                     <td style={{ padding: '12px', textAlign: 'right' }}>
@@ -386,7 +380,18 @@ export const Unidades = () => {
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1.5rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '1.5rem' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.5rem', color: 'var(--text-muted)' }}>Modalidad</label>
+                <select 
+                  value={formData.modalidad}
+                  disabled={isReadOnly}
+                  onChange={e => setFormData({...formData, modalidad: e.target.value})}
+                  style={{ width: '100%', padding: '10px', background: 'var(--surface-color)', border: '1px solid var(--glass-border)', color: 'var(--text-main)', borderRadius: 'var(--radius-sm)', outline: 'none' }}>
+                  <option value="A Cuenta">A Cuenta (Fijo)</option>
+                  <option value="A Aforo">A Aforo (Por Pasaje)</option>
+                </select>
+              </div>
               <div>
                 <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.5rem', color: 'var(--text-muted)' }}>Marca</label>
                 <input 

@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { CreditCard, CheckCircle, Clock, Bus, FileText, AlertCircle, RefreshCw, Trash2, Eye, Search, Plus, ArrowLeft, Save } from 'lucide-react';
 import { supabase } from '../core/supabaseClient';
-import { useNfcReader } from '../../lib/hooks/useNfcReader';
 
 interface Checada {
   treal_id: string;
@@ -29,25 +28,25 @@ interface RecaudacionRecord {
   eco: string;
   fecha_recaudo: string;
   vueltas_cobradas: number;
-  detalle_checadas: any[];
+  detalle_checadas: any;
 }
 
 export const Recaudacion = () => {
   const [view, setView] = useState<'list' | 'scan'>('list');
-  
-  // --- Estado Menú 1 (Historial) ---
-  const [recaudaciones, setRecaudaciones] = useState<RecaudacionRecord[]>([]);
-  const [listLoading, setListLoading] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  
-  // --- Estado Menú 2 (Escaneo y Cobro) ---
   const [activeEco, setActiveEco] = useState<string | null>(null);
   const [loadingEco, setLoadingEco] = useState(false);
+  const [manualEco, setManualEco] = useState('');
+  
   const [loadingData, setLoadingData] = useState(false);
   const [vueltas, setVueltas] = useState<Vuelta[]>([]);
   const [selectedMedias, setSelectedMedias] = useState<Record<string, boolean>>({});
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  // --- Estado Menú 1 (Historial) ---
+  const [recaudaciones, setRecaudaciones] = useState<RecaudacionRecord[]>([]);
+  const [listLoading, setListLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
 
   // Cargar historial
   const fetchRecaudaciones = async () => {
@@ -74,47 +73,17 @@ export const Recaudacion = () => {
     }
   }, [view]);
 
-  // Hook NFC - Se activa en cualquier momento y cambia la vista a 'scan'
-  useNfcReader({
-    onRead: async (uid: string) => {
-    if (!uid) return;
+  const handleSearchEco = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!manualEco.trim()) return;
+    
     setErrorMsg(null);
     setSuccessMsg(null);
     setView('scan');
-    setLoadingEco(true);
-    
-    const cleanUid = uid.replace(/:/g, '');
-    
-    // Función para invertir bytes (Little Endian vs Big Endian)
-    const reverseHex = (hex: string) => {
-      if (hex.length % 2 !== 0) return hex;
-      const bytes = [];
-      for (let i = 0; i < hex.length; i += 2) {
-        bytes.push(hex.substring(i, i + 2));
-      }
-      return bytes.reverse().join('');
-    };
-    
-    const reversedUid = reverseHex(cleanUid);
-
-    const { data: unidadData, error } = await supabase
-      .from('unidades')
-      .select('numero')
-      .or(`nfc_uid.ilike.${cleanUid},nfc_uid.ilike.${reversedUid}`)
-      .limit(1)
-      .maybeSingle();
-
-    if (error || !unidadData) {
-      setErrorMsg(`Tarjeta no reconocida (UID: ${cleanUid} o ${reversedUid})`);
-      setLoadingEco(false);
-      return;
-    }
-
-      setActiveEco(String(unidadData.numero));
-      setSelectedMedias({});
-      setLoadingEco(false);
-    fetchDataForEco(unidadData.numero);
-  }});
+    setActiveEco(manualEco.trim());
+    setSelectedMedias({});
+    fetchDataForEco(manualEco.trim());
+  };
 
   const fetchDataForEco = async (rawEco: string) => {
     const eco = String(rawEco).trim();
@@ -383,27 +352,47 @@ export const Recaudacion = () => {
               <h1 className="page-title">Historial de Recaudación</h1>
               <p className="page-subtitle">Visualiza y gestiona los cobros realizados a las unidades.</p>
             </div>
-            <button 
-              onClick={() => { setView('scan'); setActiveEco(null); setErrorMsg(null); }}
-              className="glass-button"
-              style={{ 
-                background: 'linear-gradient(135deg, var(--primary) 0%, #2563eb 100%)', 
-                color: '#fff', 
-                border: 'none', 
-                padding: '10px 24px', 
-                fontWeight: '600', 
-                borderRadius: 'var(--radius-sm)',
-                boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)',
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: '8px',
-                transition: 'all 0.2s ease'
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
-              onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
-            >
-              <CreditCard size={18} /> Nuevo Escaneo
-            </button>
+            
+            <form onSubmit={handleSearchEco} style={{ display: 'flex', gap: '10px' }}>
+              <input 
+                type="text" 
+                placeholder="Número ECO..." 
+                value={manualEco}
+                onChange={e => setManualEco(e.target.value)}
+                style={{ 
+                  padding: '10px 15px', 
+                  borderRadius: 'var(--radius-sm)', 
+                  border: '1px solid var(--glass-border)', 
+                  background: 'var(--surface-color)', 
+                  color: 'var(--text-main)',
+                  width: '150px'
+                }}
+              />
+              <button 
+                type="submit"
+                disabled={!manualEco.trim()}
+                className="glass-button"
+                style={{ 
+                  background: 'linear-gradient(135deg, var(--primary) 0%, #2563eb 100%)', 
+                  color: '#fff', 
+                  border: 'none', 
+                  padding: '10px 24px', 
+                  fontWeight: '600', 
+                  borderRadius: 'var(--radius-sm)',
+                  boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)',
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '8px',
+                  transition: 'all 0.2s ease',
+                  opacity: manualEco.trim() ? 1 : 0.5,
+                  cursor: manualEco.trim() ? 'pointer' : 'not-allowed'
+                }}
+                onMouseEnter={(e) => { if (!e.currentTarget.disabled) e.currentTarget.style.transform = 'translateY(-2px)' }}
+                onMouseLeave={(e) => { if (!e.currentTarget.disabled) e.currentTarget.style.transform = 'translateY(0)' }}
+              >
+                <Search size={18} /> Iniciar Cobro
+              </button>
+            </form>
           </div>
 
           <div className="glass-panel" style={{ padding: '1.5rem' }}>
@@ -517,16 +506,16 @@ export const Recaudacion = () => {
 
           {!activeEco && !loadingEco && (
             <div className="glass-panel" style={{ textAlign: 'center', padding: '4rem 2rem' }}>
-              <CreditCard size={64} color="var(--primary)" className="animate-pulse" style={{ marginBottom: '1rem', opacity: 0.8 }} />
-              <h2 style={{ color: 'var(--text-main)' }}>Esperando Tarjeta NFC...</h2>
-              <p style={{ color: 'var(--text-muted)' }}>Asegúrate de que Wakdev o el emulador esté ejecutándose.</p>
+              <Search size={64} color="var(--primary)" className="animate-pulse" style={{ marginBottom: '1rem', opacity: 0.8 }} />
+              <h2 style={{ color: 'var(--text-main)' }}>Busca una unidad (ECO)</h2>
+              <p style={{ color: 'var(--text-muted)' }}>Regresa a la pantalla anterior para ingresar el número económico.</p>
             </div>
           )}
 
           {loadingEco && (
             <div className="glass-panel" style={{ textAlign: 'center', padding: '4rem 2rem' }}>
               <RefreshCw size={48} color="var(--primary)" className="animate-spin" style={{ margin: '0 auto 1rem' }} />
-              <h2 style={{ color: 'var(--text-main)' }}>Procesando Tarjeta...</h2>
+              <h2 style={{ color: 'var(--text-main)' }}>Buscando Unidad...</h2>
             </div>
           )}
 

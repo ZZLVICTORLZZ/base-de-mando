@@ -10,7 +10,7 @@ import ViewShot from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
 import { supabase } from '../src/services/supabaseClient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import NfcManager, { NfcTech } from 'react-native-nfc-manager';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 import { SyncManager } from '../src/services/SyncManager';
 
 const FrecModal = ({ visible, onClose, initialFrec, onSave, isDarkMode }: any) => {
@@ -138,6 +138,12 @@ export default function EditorTREALScreen() {
   const [syncStatus, setSyncStatus] = useState<'online'|'offline'|'syncing'>('online');
   const [userAccessLevel, setUserAccessLevel] = useState(0);
   const [isAllowedToEdit, setIsAllowedToEdit] = useState(true);
+  const [matchedOtpId, setMatchedOtpId] = useState<string | null>(null);
+  
+  // Camara
+  const [permission, requestPermission] = useCameraPermissions();
+  const [isCameraVisible, setIsCameraVisible] = useState(false);
+  const [qrCooldown, setQrCooldown] = useState(false);
   
   
   useEffect(() => {
@@ -168,7 +174,7 @@ export default function EditorTREALScreen() {
   }, [activeRolId, rol_id]);
 
   useEffect(() => {
-    NfcManager.start().catch(err => console.log('NFC Manager Start Error:', err));
+    // NfcManager.start() removed
     AsyncStorage.getItem('TREAL_DARK_MODE').then(val => {
       if (val === 'true') setIsDarkMode(true);
     });
@@ -185,77 +191,160 @@ export default function EditorTREALScreen() {
     setTimeout(() => setToastMsg(''), 2000);
   };
 
-
-  
-  const startNfcScan = async () => {
-    if (isReadOnly || !isAllowedToEdit) return;
+  const syncToOTP = async (currentRows: any[], targetOtpId: string | null = matchedOtpId) => {
+    if (!targetOtpId) return;
     try {
-      setIsNfcScanning(true);
-      await NfcManager.requestTechnology(NfcTech.Ndef);
-      const tag = await NfcManager.getTag();
-      
-      if (tag && tag.id) {
-        // Tag ID from react-native-nfc-manager usually is HEX without colons, or similar. We should clean it just in case, or match case insensitively.
-        const scannedUid = tag.id.toUpperCase();
-        
-        // Android NFC reads little-endian while PC readers read big-endian (e.g. 0493FDF73F0289 <-> 89023FF7FD9304)
-        const reverseHex = (hex: string) => {
-          if (!hex || hex.length % 2 !== 0) return hex;
-          let reversed = '';
-          for (let i = hex.length - 2; i >= 0; i -= 2) reversed += hex.substring(i, i + 2);
-          return reversed;
-        };
-        const reversedUid = reverseHex(scannedUid);
+      const otpRows = currentRows.map(r => {
+        const rowCopy = { ...r };
+        delete rowCopy.isGhost;
+        delete rowCopy.es_manual;
+        return rowCopy;
+      });
+      await SyncManager.queueOTPUpdate(targetOtpId, otpRows);
+    } catch(e) {
+      console.log(e);
+    }
+  };
 
-        // Look up unit matching either normal or reversed UID
-        const unit = unidadesList.find(u => {
-          if (!u.nfc_uid) return false;
-          const dbUid = u.nfc_uid.toUpperCase().replace(/:/g, '');
-          const cleanScanned = scannedUid.replace(/:/g, '');
-          const cleanReversed = reversedUid.replace(/:/g, '');
-          return dbUid === cleanScanned || dbUid === cleanReversed;
-        });
-        
-        if (unit) {
-          const nextRowIndex = rows.findIndex(r => !r.eco || String(r.eco).trim() === '');
-          if (nextRowIndex !== -1) {
-            const newRows = [...rows];
-            const now = new Date();
-            const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-            
-            newRows[nextRowIndex] = {
-              ...newRows[nextRowIndex],
-              eco: String(unit.numero),
-              horario: timeStr,
-              es_manual: false,
-              tipo_registro: 'NFC'
-            };
-            
-            setRows(newRows);
-            
-            // Open pax modal
-            setNfcPaxRowId(newRows[nextRowIndex].id);
-            setNfcPaxValue('');
-            setNfcPaxModalVisible(true);
-            
-          } else {
-            Alert.alert('Tabla llena', 'No hay espacios vacíos para firmar.');
-          }
-        } else {
-          Alert.alert('Error', `Esta tarjeta no está vinculada a ninguna unidad.\nUID Detectado: ${scannedUid}`);
-        }
+  const openCamera = async () => {
+    if (isReadOnly || !isAllowedToEdit) return;
+    if (!permission?.granted) {
+      const { granted } = await requestPermission();
+      if (!granted) {
+        Alert.alert("Permiso Denegado", "Se requiere acceso a la cámara para escanear los códigos QR de Saturno V.");
+        return;
       }
-    } catch (ex) {
-      console.log('NFC Scan error:', ex);
-    } finally {
-      NfcManager.cancelTechnologyRequest();
-      setIsNfcScanning(false);
+    }
+    setIsCameraVisible(true);
+  };
+
+  const handleBarcodeScanned = ({ data }: { data: string }) => {
+    if (qrCooldown) return;
+    
+    // Ignorar códigos que no sean de Saturno V
+    if (!data.includes('saturnov://checkin/unit?token=')) return;
+    
+    setQrCooldown(true);
+    setTimeout(() => setQrCooldown(false), 2000);
+    
+    const token = data.split('token=')[1];
+    if (!token) return;
+
+    const unidad = unidadesList.find(u => u.qr_token === token);
+    
+    if (!unidad) {
+      Alert.alert("Unidad No Encontrada", "El código QR pertenece a una unidad que no está registrada en el sistema o su código fue revocado.");
+      setIsCameraVisible(false);
+      return;
+    }
+
+    const eco = String(unidad.numero);
+    
+    const now = new Date();
+    const horas = String(now.getHours()).padStart(2, '0');
+    const minutos = String(now.getMinutes()).padStart(2, '0');
+    const horarioStr = `${horas}:${minutos}`;
+    
+    // Eliminada la regla automática de remarcado para unidades >= 1000 
+    // a petición del usuario para evitar confusiones con el marcatextos manual.
+    let hc = null;
+    
+    const ghostIndex = rows.findIndex((r: any) => r.isGhost);
+    let newData = [...rows];
+    
+    if (ghostIndex !== -1) {
+      newData[ghostIndex] = {
+        ...newData[ghostIndex],
+        eco: eco,
+        horario: horarioStr,
+        isGhost: false,
+        es_manual: false,
+        highlightColor: hc !== null ? hc : (newData[ghostIndex].highlightColor === '#cbd5e1' ? null : newData[ghostIndex].highlightColor)
+      };
+      
+      const recalculatedRows = calculateTimes(newData, ghostIndex, 'horario');
+      setRows(recalculatedRows);
+      
+      const targetId = activeRolId || (rol_id as string);
+      if (targetId) {
+        SyncManager.queueTREALUpdate(targetId, recalculatedRows);
+        syncToOTP(recalculatedRows);
+      }
+    } else {
+      const lastRow = rows[rows.length - 1];
+      const prevFrec = lastRow?.frec || '';
+      const newRow = { 
+        id: Date.now().toString(), 
+        no: (lastRow?.no || 0) + 1, 
+        frec: prevFrec, 
+        horario: horarioStr, 
+        eco: eco, 
+        ruta: 'MEX', 
+        observaciones: '', 
+        pax: '',
+        es_manual: false,
+        highlightColor: hc,
+        isGhost: false
+      };
+      newData.push(newRow);
+      
+      const recalculatedRows = calculateTimes(newData, newData.length - 1, 'frec');
+      setRows(recalculatedRows);
+      
+      const targetId = activeRolId || (rol_id as string);
+      if (targetId) {
+        SyncManager.queueTREALUpdate(targetId, recalculatedRows);
+        syncToOTP(recalculatedRows);
+      }
+    }
+    
+    showToast(`Unidad ${eco} Registrada ✅`);
+    setIsCameraVisible(false);
+
+    // Solicitar PAX si es Indios Verdes o Lagos 2
+    const currentIsIndios = plantillaName.toLowerCase().includes('indios');
+    const currentIsLagos = plantillaName.toLowerCase().includes('lagos');
+    const targetRowId = ghostIndex !== -1 ? newData[ghostIndex].id : newData[newData.length - 1].id;
+
+    if (currentIsIndios || currentIsLagos) {
+      setNfcPaxRowId(targetRowId);
+      setNfcPaxValue('');
+      // Pequeño timeout para evitar conflicto visual al cerrar la cámara
+      setTimeout(() => setNfcPaxModalVisible(true), 300);
+    } else {
+      // Para otras bases, insertar directo en firmas_operativas sin PAX
+      if (activeRolId || rol_id) {
+        supabase.from('firmas_operativas').insert([{
+          treal_id: activeRolId || rol_id,
+          treal_row_id: targetRowId,
+          fecha: new Date().toISOString().split('T')[0],
+          base: plantillaName,
+          checador: creadorName || 'Desconocido',
+          horario: horarioStr,
+          eco: eco,
+          pax: null
+        }]).then();
+      }
     }
   };
 
   const handleSaveNfcPax = () => {
     if (nfcPaxRowId) {
       handleUpdateField(nfcPaxRowId, 'pax', nfcPaxValue);
+      // Buscar la fila para enviar a firmas_operativas
+      const row = rows.find(r => r.id === nfcPaxRowId);
+      if (row && (activeRolId || rol_id)) {
+        supabase.from('firmas_operativas').insert([{
+          treal_id: activeRolId || rol_id,
+          treal_row_id: row.id,
+          fecha: new Date().toISOString().split('T')[0],
+          base: plantillaName,
+          checador: creadorName || 'Desconocido',
+          horario: row.horario,
+          eco: row.eco,
+          pax: nfcPaxValue
+        }]).then();
+      }
     }
     setNfcPaxModalVisible(false);
   };
@@ -336,15 +425,13 @@ export default function EditorTREALScreen() {
       const targetId = activeRolId || (rol_id as string);
       if (targetId) {
         const success = await SyncManager.queueTREALUpdate(targetId, rows);
+        await syncToOTP(rows);
         setLastSavedTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
       } else if (source_rol_id) {
         // Primera vez que se autoguarda un nuevo TREAL
         const { data: sourceData } = await supabase.from('tablas_treal').select('plantilla_base_id').eq('id', source_rol_id).single();
         let finalPlantillaId = sourceData?.plantilla_base_id || null;
-        if (base_chequeo) {
-          const { data: bData } = await supabase.from('plantillas_predeterminadas').select('id').ilike('name', `%${base_chequeo}%`).limit(1).single();
-          if (bData) finalPlantillaId = bData.id;
-        }
+        
         const newTREAL = {
           fecha: new Date().toISOString().split('T')[0],
           plantilla_base_id: finalPlantillaId,
@@ -487,6 +574,16 @@ export default function EditorTREALScreen() {
        setIsAllowedToEdit(true);
     }
     
+    try {
+      const otpCreador = `[OTP] ${rawCreador} | ${baseToUse} | ${savedTipoRol}`;
+      const { data: otpMatch } = await supabase.from('roles_del_dia').select('id').eq('fecha', data.fecha).eq('creado_por', otpCreador).single();
+      if (otpMatch) {
+        setMatchedOtpId(otpMatch.id);
+      }
+    } catch (e) {
+      console.log('No se encontro OTP vinculado:', e);
+    }
+
     setLoading(false);
   };
 
@@ -523,8 +620,9 @@ export default function EditorTREALScreen() {
       currentUser = 'Emiliano';
     }
     setCreadorName(`[TREAL] ${currentUser}`);
+    setMatchedOtpId(source_rol_id as string);
     
-    let processedRows = (data.rows || []).map((r: any) => ({ ...r, isGhost: true, highlightColor: '#cbd5e1', pax: '' }));
+    let processedRows = (data.rows || []).map((r: any) => ({ ...r, isGhost: true, pax: '' }));
     
     if (effectiveBase.toLowerCase().includes('indios')) {
       // Indios Verdes: Filtrar autobuses, usar todas las demás, iniciando 05:30, frec 20 min
@@ -656,17 +754,31 @@ export default function EditorTREALScreen() {
 
   const handleToggleRuta = (id: string) => {
     if (isReadOnly || !isAllowedToEdit) return;
-    setRows(rows.map(r => {
-      if (r.id === id) {
-        if (r.ruta === 'MEX') return { ...r, ruta: 'REY' };
-        return { ...r, ruta: 'MEX' };
+    
+    setRows(prevRows => {
+      const rowIndex = prevRows.findIndex(r => r.id === id);
+      if (rowIndex === -1) return prevRows;
+      
+      let newRows = [...prevRows];
+      const r = newRows[rowIndex];
+      
+      if (r.ruta === 'MEX') {
+        newRows[rowIndex] = { ...r, ruta: 'REY', frec: 'S.F.' };
+      } else {
+        newRows[rowIndex] = { ...r, ruta: 'MEX', frec: '15' }; // Valor por defecto al regresar a MEX
       }
-      return r;
-    }));
+      
+      return calculateTimes(newRows, rowIndex, 'frec');
+    });
   };
 
   const handleOpenFrecSelector = (rowId: string, currentFrec: string) => {
     if (isReadOnly || !isAllowedToEdit) return;
+    const currentRow = rows.find(r => r.id === rowId);
+    if (currentRow && !currentRow.es_manual && userAccessLevel < 10) {
+      Alert.alert('Registro Protegido', 'No puedes alterar la frecuencia de un registro ingresado por QR.');
+      return;
+    }
     setSelectedRowIdForFrec(rowId);
     setInitialFrecForModal(currentFrec);
     setFrecModalVisible(true);
@@ -712,6 +824,15 @@ export default function EditorTREALScreen() {
 
   const handleUpdateField = (id: string, field: 'frec' | 'horario' | 'eco' | 'ruta' | 'observaciones' | 'pax', text: string) => {
     if (isReadOnly || !isAllowedToEdit) return;
+
+    const currentRow = rows.find(r => r.id === id);
+    if (currentRow && !currentRow.es_manual && userAccessLevel < 10) {
+      if (field === 'horario' || field === 'eco' || field === 'frec') {
+        Alert.alert('Registro Protegido', 'Solo un Administrador (Nivel 10) puede modificar la hora, económico o frecuencia de un registro ingresado automáticamente por QR.');
+        return;
+      }
+    }
+
     let formattedText = text;
     if (field === 'horario' && text.length === 4 && !text.includes(':')) {
       formattedText = `${text.substring(0, 2)}:${text.substring(2, 4)}`;
@@ -942,6 +1063,7 @@ export default function EditorTREALScreen() {
     if (targetId) {
       const { error } = await supabase.from('tablas_treal').update({ rows: rows }).eq('id', targetId);
       errorObj = error;
+      await syncToOTP(rows);
     } else {
       // Creando nuevo TREAL
       const { data: sourceData } = await supabase.from('tablas_treal').select('plantilla_base_id').eq('id', source_rol_id).single();
@@ -951,13 +1073,6 @@ export default function EditorTREALScreen() {
       }
       
       let finalPlantillaId = sourceData?.plantilla_base_id || null;
-      if (base_chequeo) {
-        // Buscar si existe una plantilla base con el nombre de la base de chequeo
-        const { data: bData } = await supabase.from('plantillas_predeterminadas').select('id').ilike('name', `%${base_chequeo}%`).limit(1).single();
-        if (bData) {
-          finalPlantillaId = bData.id;
-        }
-      }
 
       const newTREAL = {
         fecha: new Date().toISOString().split('T')[0],
@@ -1332,19 +1447,19 @@ export default function EditorTREALScreen() {
                           <View style={{ flexDirection: 'row', backgroundColor: exportTheme.bg, borderBottomWidth: 2, borderColor: exportTheme.border, paddingVertical: 8, marginBottom: 8, alignItems: 'flex-end' }}>
                             <Text style={{ flex: 0.4, color: '#0f172a', fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>NO.</Text>
                             <Text style={{ flex: 0.6, color: '#0f172a', fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>FREC</Text>
-                            <Text style={{ flex: 1, color: '#0f172a', fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>HORA</Text>
-                            <Text style={{ flex: 1, color: '#0f172a', fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>ECO</Text>
-                            {!isIndios && <Text style={{ flex: 0.8, color: '#0f172a', fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>RUTA</Text>}
-                            {(isIndios || isLagos) && <Text style={{ flex: 0.5, color: '#0f172a', fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>PAX</Text>}
-                            <Text style={{ flex: (isIndios || !isLagos) ? 2.2 : 1.6, color: '#0f172a', fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>OBS</Text>
+                            <Text style={{ flex: 1, color: '#0f172a', fontWeight: '900', fontSize: 11, textAlign: 'center' }}>HORA</Text>
+                            <Text style={{ flex: 1, color: '#0f172a', fontWeight: '900', fontSize: 11, textAlign: 'center' }}>ECO</Text>
+                            {!isIndios && <Text style={{ flex: 0.8, color: '#0f172a', fontWeight: '900', fontSize: 11, textAlign: 'center' }}>RUTA</Text>}
+                            {(isIndios || isLagos) && <Text style={{ flex: 0.5, color: '#0f172a', fontWeight: '900', fontSize: 11, textAlign: 'center' }}>PAX</Text>}
+                            <Text style={{ flex: (isIndios || !isLagos) ? 2.2 : 1.6, color: '#0f172a', fontWeight: '900', fontSize: 11, textAlign: 'center' }}>OBS</Text>
                           </View>
                           {rows.slice(Math.ceil(rows.length / 2)).map((row) => (
                             <View key={row.id} style={[{ flexDirection: 'row', backgroundColor: row.highlightColor ? `${row.highlightColor}60` : 'transparent', borderBottomWidth: 1, borderColor: baseColor, paddingVertical: 10, alignItems: 'center' }, row.es_manual && { borderWidth: 2, borderColor: '#ef4444', borderStyle: 'dashed', borderRadius: 4, marginVertical: 2 }, row.isGhost && { opacity: 0.35 }]}>
                               {renderTurnoIndicator(row, false, true)}
-                              <Text style={{ flex: 0.6, color: baseColor, fontSize: 13, textAlign: 'center', fontWeight: 'bold' }}>{row.frec}</Text>
-                              <Text style={{ flex: 1, color: baseColor, fontSize: 13, textAlign: 'center', fontWeight: 'bold' }}>{row.horario}</Text>
-                              <Text style={{ flex: 1, color: '#0f172a', fontSize: 13, textAlign: 'center', fontWeight: 'bold' }}>{row.isGhost ? '-' : (row.eco || '-')}</Text>
-                              {!isIndios && <Text style={{ flex: 0.8, color: row.ruta === 'MEX' ? '#008000' : row.ruta === 'REY' ? '#D22B2B' : '#4B0082', fontSize: 11, textAlign: 'center', fontWeight: 'bold' }}>{row.ruta || '-'}</Text>}
+                              <Text style={{ flex: 0.6, color: baseColor, fontSize: 13, textAlign: 'center', fontWeight: '900' }}>{row.frec}</Text>
+                              <Text style={{ flex: 1, color: baseColor, fontSize: 13, textAlign: 'center', fontWeight: '900' }}>{row.horario}</Text>
+                              <Text style={{ flex: 1, color: '#0f172a', fontSize: 13, textAlign: 'center', fontWeight: '900' }}>{row.isGhost ? '-' : (row.eco || '-')}</Text>
+                              {!isIndios && <Text style={{ flex: 0.8, color: row.ruta === 'MEX' ? '#008000' : row.ruta === 'REY' ? '#D22B2B' : '#4B0082', fontSize: 11, textAlign: 'center', fontWeight: '900' }}>{row.ruta || '-'}</Text>}
                               {(isIndios || isLagos) && <Text style={{ flex: 0.5, color: '#0f172a', fontSize: 13, textAlign: 'center' }}>{row.isGhost ? '-' : (row.pax || '-')}</Text>}
                               <Text style={{ flex: (isIndios || !isLagos) ? 2.2 : 1.6, color: '#0f172a', fontSize: 11, textAlign: 'center', paddingHorizontal: 2, flexShrink: 1, flexWrap: 'wrap' }}>{row.observaciones || ''}</Text>
                             </View>
@@ -1355,10 +1470,10 @@ export default function EditorTREALScreen() {
 
                     {/* Frecuencia Promedio y Total de Pasajeros en Exportación */}
                     <View style={{ marginTop: 20, flexDirection: 'row', justifyContent: 'space-between', borderTopWidth: 2, borderColor: baseColor, paddingTop: 10 }}>
-                      <Text style={{ color: baseColor, fontSize: 18, fontWeight: 'bold' }}>
+                      <Text style={{ color: baseColor, fontSize: 18, fontWeight: '900' }}>
                         FREC. PROMEDIO: {frecPromedioMin} MIN
                       </Text>
-                      <Text style={{ color: baseColor, fontSize: 18, fontWeight: 'bold' }}>
+                      <Text style={{ color: baseColor, fontSize: 18, fontWeight: '900' }}>
                         TOTAL PASAJEROS: {pasajerosTotales}
                       </Text>
                     </View>
@@ -1384,11 +1499,11 @@ export default function EditorTREALScreen() {
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 4, marginLeft: 6 }}>
                   <TouchableOpacity style={{ backgroundColor: '#10b981', justifyContent: 'center', alignItems: 'center', width: 62, height: '90%', borderRadius: 8, marginRight: 6 }} onPress={() => { swipeableRefs.current.get(row.id)?.close(); handleInsertRow(index); }}>
                     <Feather name="plus-circle" size={20} color="#fff" />
-                    <Text style={{ color: theme.headerText, fontSize: 10, fontWeight: 'bold', marginTop: 2 }}>Insertar</Text>
+                    <Text style={{ color: theme.headerText, fontSize: 10, fontWeight: '900', marginTop: 2 }}>Insertar</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={{ backgroundColor: '#ef4444', justifyContent: 'center', alignItems: 'center', width: 62, height: '90%', borderRadius: 8 }} onPress={() => handleRemoveRow(row.id)}>
                     <Feather name="trash-2" size={20} color="#fff" />
-                    <Text style={{ color: theme.headerText, fontSize: 10, fontWeight: 'bold', marginTop: 2 }}>Borrar</Text>
+                    <Text style={{ color: theme.headerText, fontSize: 10, fontWeight: '900', marginTop: 2 }}>Borrar</Text>
                   </TouchableOpacity>
                 </View>
               );
@@ -1426,18 +1541,24 @@ export default function EditorTREALScreen() {
                     onPress={() => handleOpenFrecSelector(row.id, row.frec)}
                     disabled={isReadOnly}
                   >
-                    <Text style={[{ color: '#000080', fontWeight: 'bold', textAlign: 'center', fontSize: 13 }, isDarkMode && { color: theme.text }]}>
+                    <Text style={[{ color: '#000080', fontWeight: '900', textAlign: 'center', fontSize: 13 }, isDarkMode && { color: theme.text }]}>
                       {row.frec || '---'}
                     </Text>
                   </TouchableOpacity>
                 </View>
 
                 <View style={{ flex: 0.8, paddingHorizontal: 1, justifyContent: 'center' }}>
-                  <ControlledCellInput style={[styles.inputCell, { flex: 1, color: '#000080', fontWeight: 'bold', paddingVertical: 8, fontSize: 13, textAlign: 'center' }, isDarkMode && { backgroundColor: '#333', borderColor: '#444', color: theme.text }, isReadOnly && { opacity: 0.8, borderColor: 'transparent' }]}
+                  <ControlledCellInput style={[styles.inputCell, { flex: 1, color: '#000080', fontWeight: '900', paddingVertical: 8, fontSize: 13, textAlign: 'center' }, isDarkMode && { backgroundColor: '#333', borderColor: '#444', color: theme.text }, (isReadOnly || (!row.es_manual && userAccessLevel < 10)) && { opacity: 0.8, borderColor: 'transparent' }]}
                     value={row.horario}
                     onChangeText={(t) => handleUpdateField(row.id, 'horario', t)}
-                    onFocus={() => toggleExpand(null)}
-                    editable={!isReadOnly}
+                    onFocus={() => {
+                      if (!row.es_manual && userAccessLevel < 10) {
+                        Alert.alert('Registro Protegido', 'Solo un Administrador puede modificar la hora de un registro QR.');
+                      } else {
+                        toggleExpand(null);
+                      }
+                    }}
+                    editable={!isReadOnly && (row.es_manual || userAccessLevel >= 10)}
                     keyboardType="number-pad"
                     maxLength={5}
                   />
@@ -1448,13 +1569,17 @@ export default function EditorTREALScreen() {
                     style={[styles.inputCell, { justifyContent: 'center', paddingVertical: 8 }, isDarkMode && { backgroundColor: '#333', borderColor: '#444' }, isReadOnly && { opacity: 0.8, borderColor: 'transparent' }]}
                     onPress={() => {
                       if(isReadOnly || !isAllowedToEdit) return;
+                      if (!row.es_manual && userAccessLevel < 10) {
+                        Alert.alert('Registro Protegido', 'Solo un Administrador (Nivel 10) puede modificar el número económico de un registro QR.');
+                        return;
+                      }
                       setSelectedRowIdForEco(row.id);
                       setEcoInputValue(String(row.eco || ''));
                       setEcoModalVisible(true);
                     }}
                     disabled={isReadOnly}
                   >
-                    <Text style={[{ color: '#0f172a', fontWeight: 'bold', textAlign: 'center', fontSize: 13 }, !row.eco && { color: isDarkMode ? "#666" : "#475569" }, isDarkMode && row.eco && { color: theme.text }]}>
+                    <Text style={[{ color: '#0f172a', fontWeight: '900', textAlign: 'center', fontSize: 13 }, !row.eco && { color: isDarkMode ? "#666" : "#475569" }, isDarkMode && row.eco && { color: theme.text }]}>
                       {row.eco ? String(row.eco) : '--'}
                     </Text>
                   </TouchableOpacity>
@@ -1474,7 +1599,7 @@ export default function EditorTREALScreen() {
                       disabled={isReadOnly}
                     >
                       <Text style={[
-                        { fontWeight: 'bold', textAlign: 'center', fontSize: 13 },
+                        { fontWeight: '900', textAlign: 'center', fontSize: 13 },
                         row.ruta === 'MEX' ? { color: '#10b981' } : row.ruta === 'REY' ? { color: '#ef4444' } : { color: isDarkMode ? '#aaa' : '#475569' }
                       ]}>
                         {row.ruta || '---'}
@@ -1495,7 +1620,7 @@ export default function EditorTREALScreen() {
                           style={[
                             styles.inputCell, 
                             { paddingVertical: 8, fontSize: 13 },
-                            hasWrittenPax ? { color: '#0f172a', fontWeight: 'bold' } : { color: '#94a3b8', fontStyle: 'italic', opacity: unitCap > 0 ? 0.9 : 1 },
+                            hasWrittenPax ? { color: '#0f172a', fontWeight: '900' } : { color: '#94a3b8', fontStyle: 'italic', opacity: unitCap > 0 ? 0.9 : 1 },
                             isDarkMode && { backgroundColor: '#333', borderColor: '#444', color: hasWrittenPax ? theme.text : '#888' },
                             isReadOnly && { opacity: 0.8, borderColor: 'transparent' }
                           ]}
@@ -1533,11 +1658,10 @@ export default function EditorTREALScreen() {
           <View style={{ position: 'absolute', bottom: 160, alignSelf: 'center', alignItems: 'center', zIndex: 100 }}>
             <TouchableOpacity 
               style={{ backgroundColor: '#3b82f6', borderColor: '#2563eb', borderWidth: 1, paddingVertical: 12, paddingHorizontal: 30, borderRadius: 25, flexDirection: 'row', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 5, elevation: 8, marginBottom: 15 }} 
-              onPress={startNfcScan}
-              disabled={isNfcScanning}
+              onPress={openCamera}
             >
-              {isNfcScanning ? <ActivityIndicator color="#fff" size="small" /> : <Feather name="wifi" size={24} color="#ffffff" />}
-              <Text style={{ color: '#ffffff', marginLeft: 8, fontWeight: 'bold', fontSize: 18 }}>{isNfcScanning ? 'Escaneando...' : 'Firmar Tarjeta NFC'}</Text>
+              <Feather name="camera" size={24} color="#ffffff" />
+              <Text style={{ color: '#ffffff', marginLeft: 8, fontWeight: '900', fontSize: 18 }}>Escanear QR Unidad</Text>
             </TouchableOpacity>
 
             <View style={{ flexDirection: 'row', gap: 15 }}>
@@ -1546,7 +1670,7 @@ export default function EditorTREALScreen() {
                 onPress={handleAddRow}
               >
                 <Feather name="plus" size={16} color="#f97316" />
-                <Text style={{ color: '#f97316', marginLeft: 5, fontSize: 14, fontWeight: 'bold' }}>Registro Manual</Text>
+                <Text style={{ color: '#f97316', marginLeft: 5, fontSize: 14, fontWeight: '900' }}>Registro Manual</Text>
               </TouchableOpacity>
               
               <TouchableOpacity 
@@ -1554,7 +1678,7 @@ export default function EditorTREALScreen() {
                 onPress={handleDuplicateRound}
               >
                 <Feather name="copy" size={16} color="#eab308" />
-                <Text style={{ color: '#eab308', marginLeft: 5, fontSize: 14, fontWeight: 'bold' }}>Duplicar</Text>
+                <Text style={{ color: '#eab308', marginLeft: 5, fontSize: 14, fontWeight: '900' }}>Duplicar</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -1687,6 +1811,38 @@ export default function EditorTREALScreen() {
             >
               <Text style={{ color: '#fff', fontSize: 18, fontWeight: 'bold' }}>Confirmar Salida</Text>
             </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Camera QR Modal */}
+      <Modal visible={isCameraVisible} animationType="slide" transparent={false} onRequestClose={() => setIsCameraVisible(false)}>
+        <View style={{ flex: 1, backgroundColor: '#000' }}>
+          <View style={{ paddingTop: 50, paddingHorizontal: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10 }}>
+            <TouchableOpacity onPress={() => setIsCameraVisible(false)} style={{ padding: 10, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 20 }}>
+              <Feather name="x" size={24} color="#fff" />
+            </TouchableOpacity>
+            <Text style={{ color: '#fff', fontSize: 18, fontWeight: 'bold', textShadowColor: 'rgba(0,0,0,0.8)', textShadowOffset: { width: 1, height: 1 }, textShadowRadius: 3 }}>
+              Escanear Unidad (QR Saturno V)
+            </Text>
+            <View style={{ width: 44 }} />
+          </View>
+          
+          {isCameraVisible && (
+            <CameraView 
+              style={{ flex: 1 }} 
+              facing="back"
+              barcodeScannerSettings={{
+                barcodeTypes: ['qr'],
+              }}
+              onBarcodeScanned={handleBarcodeScanned}
+            />
+          )}
+
+          <View style={{ position: 'absolute', bottom: 50, left: 0, right: 0, alignItems: 'center' }}>
+            <View style={{ backgroundColor: 'rgba(0,0,0,0.7)', paddingHorizontal: 20, paddingVertical: 10, borderRadius: 20 }}>
+              <Text style={{ color: '#fff', fontSize: 14 }}>Apunta al código QR de la unidad para registrar su checada</Text>
+            </View>
           </View>
         </View>
       </Modal>

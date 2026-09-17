@@ -1,14 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Clock, ListOrdered, LayoutGrid, ArrowLeft, ScanLine } from 'lucide-react';
+import { Calendar, Clock, ListOrdered, LayoutGrid, ArrowLeft, ScanLine, QrCode, FileSignature } from 'lucide-react';
 import { PlantillasPredeterminadas } from './PlantillasPredeterminadas';
 import { RolDespegue } from './RolDespegue';
 import { OtpProyecciones } from './OtpProyecciones';
 import { Incidencias } from '../../pages/Incidencias';
+import { GestorQR } from '../qr/GestorQR';
+import { TarjetasFirmas } from './TarjetasFirmas';
+import { MiniListFirmas } from './MiniListFirmas';
 
 import { supabase } from '../../lib/supabaseClient';
 
 export const Servicio = () => {
-  const [view, setView] = useState<'dashboard' | 'tablas_dia' | 'rol_despegue' | 'roles_predeterminados' | 'otp' | 'incidencias'>('dashboard');
+  const [view, setView] = useState<'dashboard' | 'tablas_dia' | 'rol_despegue' | 'roles_predeterminados' | 'otp' | 'incidencias' | 'gestor_qr' | 'tarjetas_firmas'>('dashboard');
   const [rolActivo, setRolActivo] = useState<any>(null);
   const [reporte, setReporte] = useState<any[]>([]);
 
@@ -119,6 +122,34 @@ export const Servicio = () => {
               <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Reporte y control de incidencias en tiempo real.</p>
             </div>
           </div>
+
+          <div 
+            onClick={() => setView('gestor_qr')}
+            className="glass-card table-row-hover" 
+            style={{ padding: '2rem', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '1rem', alignItems: 'flex-start' }}
+          >
+            <div style={{ background: 'rgba(59, 130, 246, 0.2)', padding: '12px', borderRadius: 'var(--radius-md)', color: '#3b82f6', border: '1px solid rgba(59, 130, 246, 0.3)' }}>
+              <QrCode size={28} />
+            </div>
+            <div>
+              <h3 style={{ fontSize: '1.25rem', color: 'var(--text-main)', marginBottom: '0.25rem' }}>Gestor QR</h3>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Generación y exportación de códigos QR Saturno V.</p>
+            </div>
+          </div>
+
+          <div 
+            onClick={() => setView('tarjetas_firmas')}
+            className="glass-card table-row-hover" 
+            style={{ padding: '2rem', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '1rem', alignItems: 'flex-start' }}
+          >
+            <div style={{ background: 'rgba(236, 72, 153, 0.2)', padding: '12px', borderRadius: 'var(--radius-md)', color: '#ec4899', border: '1px solid rgba(236, 72, 153, 0.3)' }}>
+              <FileSignature size={28} />
+            </div>
+            <div>
+              <h3 style={{ fontSize: '1.25rem', color: 'var(--text-main)', marginBottom: '0.25rem' }}>Tarjetas y Firmas</h3>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Historial de checadas y firmas por unidad.</p>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -155,6 +186,8 @@ export const Servicio = () => {
         {view === 'rol_despegue' && <RolDespegue />}
         {view === 'otp' && <OtpProyecciones />}
         {view === 'incidencias' && <Incidencias />}
+        {view === 'gestor_qr' && <GestorQR />}
+        {view === 'tarjetas_firmas' && <TarjetasFirmas />}
         {view === 'tablas_dia' && (
           <div className="glass-panel" style={{ padding: '2rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1.5rem', alignItems: 'center', borderBottom: '1px solid var(--glass-border)', paddingBottom: '1.5rem' }}>
