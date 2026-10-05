@@ -52,8 +52,14 @@ export const Layout = () => {
             <Rocket color="#fff" size={24} />
           </div>
           <div>
-            <h2 className="title-gradient" style={{ fontSize: '1.25rem' }}>Apolo 11</h2>
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Base de Mando</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <h2 className="title-gradient" style={{ fontSize: '1.25rem', margin: 0 }}>Apolo 11</h2>
+              <span style={{ fontSize: '0.65rem', padding: '1px 5px', borderRadius: '4px', background: 'rgba(234, 179, 8, 0.2)', color: '#eab308', fontWeight: 'bold', border: '1px solid rgba(234, 179, 8, 0.4)' }}>BETA</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '4px' }}>
+              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Base de Mando</span>
+              <span style={{ fontSize: '0.7rem', color: 'var(--primary)', fontWeight: '600' }}>v1.0-beta</span>
+            </div>
           </div>
         </div>
 

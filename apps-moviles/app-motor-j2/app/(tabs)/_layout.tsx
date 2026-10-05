@@ -16,7 +16,7 @@ export default function TabLayout() {
         headerStyle: { backgroundColor: theme.background },
         headerRight: () => (
           <TouchableOpacity onPress={cycleTheme} style={{ marginRight: 15 }}>
-            <Text style={{ fontSize: 20, color: theme.primary, fontWeight: 'bold' }}>@</Text>
+            <Feather name="droplet" size={24} color={theme.primary} />
           </TouchableOpacity>
         ),
         headerTintColor: theme.text,
@@ -69,3 +69,5 @@ export default function TabLayout() {
     </Tabs>
   );
 }
+
+// trigger rebuild 1

@@ -40,7 +40,7 @@ const FrecModal = ({ visible, onClose, initialFrec, onSave, isDarkMode }: any) =
           </View>
           
           <TextInput 
-            style={[{ backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: theme.border, borderRadius: 12, color: '#0f172a', padding: 18, fontSize: 24, fontWeight: 'bold', marginBottom: 25, textAlign: 'center' }, isDarkMode && { backgroundColor: '#333', borderColor: '#444', color: theme.text }]}
+            style={[{ backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: theme.border, borderRadius: 12, color: (isDarkMode || themeName === 'midnight' || themeName === 'neon') ? '#E0E7FF' : '#0f172a', padding: 18, fontSize: 24, fontWeight: 'bold', marginBottom: 25, textAlign: 'center' }, isDarkMode && { backgroundColor: '#333', borderColor: '#444', color: theme.text }]}
             value={val}
             onChangeText={setVal}
             keyboardType="number-pad"
@@ -107,6 +107,7 @@ export default function EditorTREALScreen() {
   const [saving, setSaving] = useState(false);
   const [plantillaName, setPlantillaName] = useState('');
   const [tipoRolName, setTipoRolName] = useState('');
+  const [obsGeneral, setObsGeneral] = useState('');
   const [rows, setRows] = useState<any[]>([]);
   const swipeableRefs = useRef(new Map());
   const [frecModalVisible, setFrecModalVisible] = useState(false);
@@ -384,13 +385,13 @@ export default function EditorTREALScreen() {
   const baseColor = getBaseColor(plantillaName);
 
   const getExportTheme = (name: string) => {
-    const lower = (name || '').toLowerCase();
-    if (lower.includes('indios')) return { bg: '#fca5a5', border: '#ef4444', text: '#ef4444', emoji: '🔴' };
-    if (lower.includes('nuevos') || lower.includes('paseos')) return { bg: '#fed7aa', border: '#f97316', text: '#ea580c', emoji: '🟠' };
-    if (lower.includes('lago')) return { bg: '#fef08a', border: '#eab308', text: '#ca8a04', emoji: '🟡' };
-    return { bg: '#fca5a5', border: '#ef4444', text: '#ef4444', emoji: '🔴' };
-  };
-  const exportTheme = getExportTheme(plantillaName);
+      const lower = (name || '').toLowerCase();
+      if (lower.includes('indios')) return { bg: '#fca5a5', border: '#ef4444', text: '#ef4444', emoji: '🗿' };
+      if (lower.includes('nuevos') || lower.includes('paseos')) return { bg: '#fed7aa', border: '#f97316', text: '#ea580c', emoji: '🏙️' };
+      if (lower.includes('lago')) return { bg: '#fef08a', border: '#eab308', text: '#ca8a04', emoji: '🏞️' };
+      return { bg: '#fca5a5', border: '#ef4444', text: '#ef4444', emoji: '🚌' };
+    };
+    const exportTheme = getExportTheme(plantillaName);
 
   useEffect(() => {
     const init = async () => {
@@ -435,7 +436,7 @@ export default function EditorTREALScreen() {
         const newTREAL = {
           fecha: new Date().toISOString().split('T')[0],
           plantilla_base_id: finalPlantillaId,
-          creado_por: `[TREAL] ${currentUser} | ${plantillaName} | ${tipoRolName}`,
+          creado_por: `[TREAL] ${currentUser} | ${plantillaName} | ${tipoRolName}` + (obsGeneral ? ` | OBS: ${obsGeneral}` : ''),
           rows: rows
         };
         const { data: inserted, error } = await supabase.from('tablas_treal').insert([newTREAL]).select('id').single();
@@ -719,8 +720,38 @@ export default function EditorTREALScreen() {
         const [hNew, mNew] = newTime.split(':').map(Number);
         
         if (!isNaN(hPrev) && !isNaN(hNew)) {
-          let diff = (hNew * 60 + mNew) - (hPrev * 60 + mPrev);
-          if (diff < 0) diff += 24 * 60;
+          let prevMins = hPrev * 60 + mPrev;
+          let newMins = hNew * 60 + mNew;
+          let diff = newMins - prevMins;
+          let corrected = false;
+          
+          if (diff < -60 || diff > 360) {
+            if (hNew + 12 < 24) {
+              let cand1 = (hNew + 12) * 60 + mNew;
+              let diff1 = cand1 - prevMins;
+              if (diff1 >= 0 && diff1 <= 360) {
+                hNew += 12;
+                diff = diff1;
+                corrected = true;
+              }
+            }
+            if (!corrected && hNew - 12 >= 0) {
+              let cand2 = (hNew - 12) * 60 + mNew;
+              let diff2 = cand2 - prevMins;
+              if (diff2 >= 0 && diff2 <= 360) {
+                hNew -= 12;
+                diff = diff2;
+                corrected = true;
+              }
+            }
+          }
+          
+          if (corrected) {
+             newRows[startIndex].horario = `${String(hNew).padStart(2, '0')}:${String(mNew).padStart(2, '0')}`;
+          } else {
+             if (diff < 0) diff += 24 * 60;
+          }
+          
           newRows[startIndex].frec = diff.toString();
         }
       }
@@ -837,13 +868,30 @@ export default function EditorTREALScreen() {
     if (field === 'horario' && text.length === 4 && !text.includes(':')) {
       formattedText = `${text.substring(0, 2)}:${text.substring(2, 4)}`;
     }
-    if (field === 'eco' || field === 'pax') {
+    if (field === 'eco') {
       formattedText = text.replace(/[^0-9]/g, '');
+    } else if (field === 'pax') {
+      let clean = text.replace(/[^0-9]/g, '').slice(0, 2);
+      if (clean !== '') {
+        let num = parseInt(clean, 10);
+        if (num >= 60) {
+          clean = clean.slice(0, 1);
+          if (parseInt(clean, 10) >= 60) clean = '';
+        }
+      }
+      formattedText = clean;
     }
     setRows(prevRows => {
       const rowIndex = prevRows.findIndex(r => r.id === id);
       if (rowIndex === -1) return prevRows;
-      const updatedRows = prevRows.map(r => r.id === id ? { ...r, [field]: formattedText } : r);
+      const updatedRows = prevRows.map(r => {
+        if (r.id === id) {
+          let modified = { ...r, [field]: formattedText };
+          if (field === 'ruta' && formattedText === 'REY') modified.frec = 'S.F.';
+          return modified;
+        }
+        return r;
+      });
       if (field === 'frec' || field === 'horario') {
         return calculateTimes(updatedRows, rowIndex, field);
       }
@@ -1077,7 +1125,7 @@ export default function EditorTREALScreen() {
       const newTREAL = {
         fecha: new Date().toISOString().split('T')[0],
         plantilla_base_id: finalPlantillaId,
-        creado_por: `[TREAL] ${currentUser} | ${plantillaName} | ${tipoRolName}`, // Guardar nombre y tipo de rol para que isIndios funcione
+        creado_por: `[TREAL] ${currentUser} | ${plantillaName} | ${tipoRolName}` + (obsGeneral ? ` | OBS: ${obsGeneral}` : ''), // Guardar nombre y tipo de rol para que isIndios funcione
         rows: rows
       };
 
@@ -1255,7 +1303,7 @@ export default function EditorTREALScreen() {
             styles.td, 
             { fontWeight: 'bold' }, 
             isDark && { color: theme.text },
-            isExport && { color: '#0f172a' }
+            isExport && { color: (isDarkMode || themeName === 'midnight' || themeName === 'neon') ? '#E0E7FF' : '#0f172a' }
           ]}>
             {row.no}
           </Text>
@@ -1301,66 +1349,46 @@ export default function EditorTREALScreen() {
         </View>
 
         {!isExporting && (
-          <View style={{ paddingHorizontal: 15, paddingTop: 6, paddingBottom: 5 }}>
-            <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', marginBottom: 6 }}>
-              <View style={[
-                { flexDirection: 'row', width: 210, height: 32, borderRadius: 16, paddingHorizontal: 10, alignItems: 'center', borderWidth: 1 },
-                isDarkMode ? { backgroundColor: '#262626', borderColor: '#404040' } : { backgroundColor: theme.headerText, borderColor: '#CBD5E1' }
-              ]}>
-                <Feather name="search" size={15} color={isDarkMode ? '#A3A3A3' : '#64748b'} />
-                <TextInput 
-                  style={{ flex: 1, marginLeft: 6, fontSize: 13, paddingVertical: 0, color: (themeName === 'neon' || isDarkMode) ? '#FFFFFF' : '#1E293B' }}
-                  placeholder="Buscar ECO..."
-                  placeholderTextColor={isDarkMode ? '#737373' : '#94a3b8'}
-                  value={searchEco}
-                  onChangeText={setSearchEco}
-                  keyboardType="number-pad"
-                />
-                {searchEco.length > 0 && (
-                  <TouchableOpacity onPress={() => setSearchEco('')}>
-                    <Feather name="x-circle" size={16} color="#ef4444" />
-                  </TouchableOpacity>
-                )}
-              </View>
-            </View>
+          <View style={{ paddingHorizontal: 10, paddingTop: 0, paddingBottom: 2 }}>
+            
 
-            <View style={{ backgroundColor: theme.primary, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, shadowColor: '#000', shadowOffset: {width: 0, height: 3}, shadowOpacity: 0.15, shadowRadius: 4, elevation: 3 }}>
+            <View style={{ backgroundColor: theme.primary, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4, shadowColor: '#000', shadowOffset: {width: 0, height: 3}, shadowOpacity: 0.15, shadowRadius: 4, elevation: 3 }}>
               {/* Hilera 1: Datos en vivo (Minimalista) */}
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 4, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.15)' }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 2, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.15)' }}>
                 <View style={{ alignItems: 'center', flex: 1 }}>
-                  <Text style={{ color: '#88D8C0', fontSize: 8.5, fontWeight: 'bold' }}>FREC. PROM.</Text>
-                  <Text style={{ color: theme.headerText, fontSize: 13, fontWeight: 'bold' }}>
+                  <Text style={{ color: 'rgba(255, 255, 255, 0.85)', fontSize: 6.5, fontWeight: 'bold' }}>FREC. PROM.</Text>
+                  <Text style={{ color: theme.headerText, fontSize: 9.5, fontWeight: 'bold' }}>
                     {rows.length > 0 ? `${frecPromedioMin} min` : '--'}
                   </Text>
                 </View>
-                <View style={{ width: 1, height: 20, backgroundColor: '#88D8C0', opacity: 0.4 }} />
+                <View style={{ width: 1, height: 15, backgroundColor: 'rgba(255, 255, 255, 0.3)', opacity: 0.4 }} />
                 <View style={{ alignItems: 'center', flex: 1 }}>
-                  <Text style={{ color: '#88D8C0', fontSize: 8.5, fontWeight: 'bold' }}>T. AUTOBUSES</Text>
-                  <Text style={{ color: theme.headerText, fontSize: 13, fontWeight: 'bold' }}>
+                  <Text style={{ color: 'rgba(255, 255, 255, 0.85)', fontSize: 6.5, fontWeight: 'bold' }}>T. AUTOBUSES</Text>
+                  <Text style={{ color: theme.headerText, fontSize: 9.5, fontWeight: 'bold' }}>
                     {new Set(rows.filter(r => r.eco && r.highlightColor).map(r => r.eco)).size} / {new Set(rows.filter(r => r.eco).map(r => r.eco)).size}
                   </Text>
                 </View>
-                <View style={{ width: 1, height: 20, backgroundColor: '#88D8C0', opacity: 0.4 }} />
+                <View style={{ width: 1, height: 15, backgroundColor: 'rgba(255, 255, 255, 0.3)', opacity: 0.4 }} />
                 <View style={{ alignItems: 'center', flex: 1 }}>
-                  <Text style={{ color: '#88D8C0', fontSize: 8.5, fontWeight: 'bold' }}>PAX ABORDADOS</Text>
-                  <Text style={{ color: theme.headerText, fontSize: 13, fontWeight: 'bold' }}>
+                  <Text style={{ color: 'rgba(255, 255, 255, 0.85)', fontSize: 6.5, fontWeight: 'bold' }}>PAX ABORDADOS</Text>
+                  <Text style={{ color: theme.headerText, fontSize: 9.5, fontWeight: 'bold' }}>
                     {pasajerosTotales}
                   </Text>
                 </View>
               </View>
 
               {/* Hilera 2: Proyección y Cierre (Promedio del Día vs Capacidad Proyectada) */}
-              <View style={{ flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center', paddingTop: 4 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center', paddingTop: 2 }}>
                 <View style={{ alignItems: 'center', flex: 1 }}>
-                  <Text style={{ color: '#A7F3D0', fontSize: 8.5, fontWeight: 'bold' }}>PROM. DEL DÍA</Text>
-                  <Text style={{ color: theme.headerText, fontSize: 12, fontWeight: 'bold' }}>
+                  <Text style={{ color: 'rgba(255, 255, 255, 0.85)', fontSize: 6.5, fontWeight: 'bold' }}>PROM. DEL DÍA</Text>
+                  <Text style={{ color: theme.headerText, fontSize: 9.5, fontWeight: 'bold' }}>
                     {paxPromedioDia > 0 ? `${paxPromedioDia} pax` : '--'}
                   </Text>
                 </View>
-                <View style={{ width: 1, height: 20, backgroundColor: '#88D8C0', opacity: 0.4 }} />
+                <View style={{ width: 1, height: 15, backgroundColor: 'rgba(255, 255, 255, 0.3)', opacity: 0.4 }} />
                 <View style={{ alignItems: 'center', flex: 1 }}>
-                  <Text style={{ color: '#A7F3D0', fontSize: 8.5, fontWeight: 'bold' }}>CAP. PROYECTADA</Text>
-                  <Text style={{ color: theme.headerText, fontSize: 12, fontWeight: 'bold' }}>
+                  <Text style={{ color: 'rgba(255, 255, 255, 0.85)', fontSize: 6.5, fontWeight: 'bold' }}>CAP. PROYECTADA</Text>
+                  <Text style={{ color: theme.headerText, fontSize: 9.5, fontWeight: 'bold' }}>
                     {proyeccionTotalPax} pax
                   </Text>
                 </View>
@@ -1370,14 +1398,14 @@ export default function EditorTREALScreen() {
         )}
 
         {!isExporting && (
-          <View style={{ flexDirection: 'row', paddingHorizontal: 20, paddingVertical: 12, backgroundColor: isDarkMode ? '#1A1A1A' : theme.headerText, borderBottomWidth: 1, borderBottomColor: isDarkMode ? '#333' : theme.border }}>
-            <View style={{ flex: 0.4 }}><Text style={[styles.th, {fontSize: 11}, isDarkMode && {color: '#aaa'}]}>NO.</Text></View>
-            <View style={{ flex: 0.5, paddingHorizontal: 1 }}><Text style={[styles.th, {fontSize: 11}, isDarkMode && {color: '#aaa'}]}>FREC</Text></View>
-            <View style={{ flex: 0.8, paddingHorizontal: 1 }}><Text style={[styles.th, {fontSize: 11}, isDarkMode && {color: '#aaa'}]}>HORA</Text></View>
-            <View style={{ flex: 0.8, paddingHorizontal: 1 }}><Text style={[styles.th, {fontSize: 11, color: isDarkMode ? '#aaa' : theme.text}]}>ECO</Text></View>
-            {!isIndios && <View style={{ flex: 0.8, paddingHorizontal: 1 }}><Text style={[styles.th, {fontSize: 11}, isDarkMode && {color: '#aaa'}]}>RUTA</Text></View>}
-            {(isIndios || isLagos) && <View style={{ flex: 0.5, paddingHorizontal: 1 }}><Text style={[styles.th, {fontSize: 11}, isDarkMode && {color: '#aaa'}]}>PAX</Text></View>}
-            <View style={{ flex: 0.6, paddingHorizontal: 1 }}><Text style={[styles.th, {fontSize: 11}, isDarkMode && {color: '#aaa'}]}>OBS</Text></View>
+          <View style={{ flexDirection: 'row', paddingHorizontal: 20, paddingVertical: 6, backgroundColor: (isDarkMode || themeName === 'midnight' || themeName === 'neon') ? '#1E1E2E' : (themeName === 'ocean' ? '#E0F2FE' : (themeName === 'classic' ? '#EAE5CE' : '#F8FAFC')), borderBottomWidth: 1, borderBottomColor: isDarkMode ? '#333' : theme.border }}>
+            <View style={{ flex: 0.4 }}><Text style={[styles.th, {fontSize: 7.5}, isDarkMode && {color: '#aaa'}]}>NO.</Text></View>
+            <View style={{ flex: 0.5, paddingHorizontal: 1 }}><Text style={[styles.th, {fontSize: 7.5}, isDarkMode && {color: '#aaa'}]}>FREC</Text></View>
+            <View style={{ flex: 0.8, paddingHorizontal: 1 }}><Text style={[styles.th, {fontSize: 7.5}, isDarkMode && {color: '#aaa'}]}>HORA</Text></View>
+            <View style={{ flex: 0.8, paddingHorizontal: 1 }}><Text style={[styles.th, {fontSize: 7.5, color: isDarkMode ? '#aaa' : theme.text}]}>ECO</Text></View>
+            {!isIndios && <View style={{ flex: 0.8, paddingHorizontal: 1 }}><Text style={[styles.th, {fontSize: 7.5}, isDarkMode && {color: '#aaa'}]}>RUTA</Text></View>}
+            {(isIndios || isLagos) && <View style={{ flex: 0.5, paddingHorizontal: 1 }}><Text style={[styles.th, {fontSize: 7.5}, isDarkMode && {color: '#aaa'}]}>PAX</Text></View>}
+            <View style={{ flex: 0.6, paddingHorizontal: 1 }}><Text style={[styles.th, {fontSize: 7.5}, isDarkMode && {color: '#aaa'}]}>OBS</Text></View>
             {!isReadOnly && <View style={{ width: 30 }} />}
           </View>
         )}
@@ -1401,7 +1429,7 @@ export default function EditorTREALScreen() {
                         </Text>
                       ) : null}
                       <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                        <Text style={{ color: '#0f172a', fontSize: 16, fontWeight: 'bold' }}>
+                        <Text style={{ color: (isDarkMode || themeName === 'midnight' || themeName === 'neon') ? '#E0E7FF' : '#0f172a', fontSize: 16, fontWeight: 'bold' }}>
                           Sistema Saturno V | Tablerista: {(() => {
                             let name = creadorName.replace('[TREAL] ', '').trim();
                             if (!name || name.toLowerCase() === 'tablerista') return 'Emiliano';
@@ -1413,30 +1441,34 @@ export default function EditorTREALScreen() {
                         <Text style={{ color: baseColor, fontSize: 16, fontWeight: 'bold' }}>Fecha: {new Date().toLocaleDateString()}</Text>
                       </View>
                     </View>
-
-                    {/* Tabla de Exportación 2 Columnas */}
+                        {obsGeneral ? (
+                          <View style={{ marginBottom: 15, padding: 10, backgroundColor: '#fef3c7', borderRadius: 8, borderWidth: 1, borderColor: '#fde047' }}>
+                            <Text style={{ color: '#92400e', fontSize: 14, fontWeight: 'bold' }}>Observaciones: <Text style={{ fontWeight: 'normal' }}>{obsGeneral}</Text></Text>
+                          </View>
+                        ) : null}
+                      {/* Tabla de Exportación 2 Columnas */}
                     <View style={{ flexDirection: 'row', gap: 40 }}>
                       
                       {/* Columna Izquierda */}
                       <View style={{ flex: 1 }}>
                         <View style={{ flexDirection: 'row', backgroundColor: exportTheme.bg, borderBottomWidth: 2, borderColor: exportTheme.border, paddingVertical: 8, marginBottom: 8, alignItems: 'flex-end' }}>
-                          <Text style={{ flex: 0.4, color: '#0f172a', fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>NO.</Text>
-                          <Text style={{ flex: 0.5, color: '#0f172a', fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>FREC</Text>
-                          <Text style={{ flex: 0.8, color: '#0f172a', fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>HORA</Text>
-                          <Text style={{ flex: 0.8, color: '#0f172a', fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>ECO</Text>
-                          {!isIndios && <Text style={{ flex: 0.8, color: '#0f172a', fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>RUTA</Text>}
-                          {(isIndios || isLagos) && <Text style={{ flex: 0.5, color: '#0f172a', fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>PAX</Text>}
-                          <Text style={{ flex: (isIndios || !isLagos) ? 2.2 : 1.6, color: '#0f172a', fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>OBS</Text>
+                          <Text style={{ flex: 0.4, color: (isDarkMode || themeName === 'midnight' || themeName === 'neon') ? '#E0E7FF' : '#0f172a', fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>NO.</Text>
+                          <Text style={{ flex: 0.5, color: (isDarkMode || themeName === 'midnight' || themeName === 'neon') ? '#E0E7FF' : '#0f172a', fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>FREC</Text>
+                          <Text style={{ flex: 0.8, color: (isDarkMode || themeName === 'midnight' || themeName === 'neon') ? '#E0E7FF' : '#0f172a', fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>HORA</Text>
+                          <Text style={{ flex: 0.8, color: (isDarkMode || themeName === 'midnight' || themeName === 'neon') ? '#E0E7FF' : '#0f172a', fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>ECO</Text>
+                          {!isIndios && <Text style={{ flex: 0.8, color: (isDarkMode || themeName === 'midnight' || themeName === 'neon') ? '#E0E7FF' : '#0f172a', fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>RUTA</Text>}
+                          {(isIndios || isLagos) && <Text style={{ flex: 0.5, color: (isDarkMode || themeName === 'midnight' || themeName === 'neon') ? '#E0E7FF' : '#0f172a', fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>PAX</Text>}
+                          <Text style={{ flex: (isIndios || !isLagos) ? 2.2 : 1.6, color: (isDarkMode || themeName === 'midnight' || themeName === 'neon') ? '#E0E7FF' : '#0f172a', fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>OBS</Text>
                         </View>
                         {rows.slice(0, Math.ceil(rows.length / 2)).map((row) => (
                           <View key={row.id} style={[{ flexDirection: 'row', backgroundColor: row.highlightColor ? `${row.highlightColor}60` : 'transparent', borderBottomWidth: 1, borderColor: baseColor, paddingVertical: 10, alignItems: 'center' }, row.es_manual && { borderWidth: 2, borderColor: '#ef4444', borderStyle: 'dashed', borderRadius: 4, marginVertical: 2 }, row.isGhost && { opacity: 0.35 }]}>
                             {renderTurnoIndicator(row, false, true)}
                             <Text style={{ flex: 0.5, color: baseColor, fontSize: 13, textAlign: 'center', fontWeight: 'bold' }}>{row.frec}</Text>
                             <Text style={{ flex: 0.8, color: baseColor, fontSize: 13, textAlign: 'center', fontWeight: 'bold' }}>{row.horario}</Text>
-                            <Text style={{ flex: 0.8, color: '#0f172a', fontSize: 13, textAlign: 'center', fontWeight: 'bold' }}>{row.isGhost ? '-' : (row.eco || '-')}</Text>
+                            <Text style={{ flex: 0.8, color: (isDarkMode || themeName === 'midnight' || themeName === 'neon') ? '#E0E7FF' : '#0f172a', fontSize: 13, textAlign: 'center', fontWeight: 'bold' }}>{row.isGhost ? '-' : (row.eco || '-')}</Text>
                             {!isIndios && <Text style={{ flex: 0.8, color: row.ruta === 'MEX' ? '#008000' : row.ruta === 'REY' ? '#D22B2B' : '#4B0082', fontSize: 11, textAlign: 'center', fontWeight: 'bold' }}>{row.ruta || '-'}</Text>}
-                            {(isIndios || isLagos) && <Text style={{ flex: 0.5, color: '#0f172a', fontSize: 13, textAlign: 'center' }}>{row.isGhost ? '-' : (row.pax || '-')}</Text>}
-                            <Text style={{ flex: (isIndios || !isLagos) ? 2.2 : 1.6, color: '#0f172a', fontSize: 11, textAlign: 'center', paddingHorizontal: 2, flexShrink: 1, flexWrap: 'wrap' }}>{row.observaciones || ''}</Text>
+                            {(isIndios || isLagos) && <Text style={{ flex: 0.5, color: (isDarkMode || themeName === 'midnight' || themeName === 'neon') ? '#E0E7FF' : '#0f172a', fontSize: 13, textAlign: 'center' }}>{row.isGhost ? '-' : (row.pax || '-')}</Text>}
+                            <Text style={{ flex: (isIndios || !isLagos) ? 2.2 : 1.6, color: (isDarkMode || themeName === 'midnight' || themeName === 'neon') ? '#E0E7FF' : '#0f172a', fontSize: 11, textAlign: 'center', paddingHorizontal: 2, flexShrink: 1, flexWrap: 'wrap' }}>{row.observaciones || ''}</Text>
                           </View>
                         ))}
                       </View>
@@ -1445,23 +1477,23 @@ export default function EditorTREALScreen() {
                       {rows.length > 1 && (
                         <View style={{ flex: 1 }}>
                           <View style={{ flexDirection: 'row', backgroundColor: exportTheme.bg, borderBottomWidth: 2, borderColor: exportTheme.border, paddingVertical: 8, marginBottom: 8, alignItems: 'flex-end' }}>
-                            <Text style={{ flex: 0.4, color: '#0f172a', fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>NO.</Text>
-                            <Text style={{ flex: 0.6, color: '#0f172a', fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>FREC</Text>
-                            <Text style={{ flex: 1, color: '#0f172a', fontWeight: '900', fontSize: 11, textAlign: 'center' }}>HORA</Text>
-                            <Text style={{ flex: 1, color: '#0f172a', fontWeight: '900', fontSize: 11, textAlign: 'center' }}>ECO</Text>
-                            {!isIndios && <Text style={{ flex: 0.8, color: '#0f172a', fontWeight: '900', fontSize: 11, textAlign: 'center' }}>RUTA</Text>}
-                            {(isIndios || isLagos) && <Text style={{ flex: 0.5, color: '#0f172a', fontWeight: '900', fontSize: 11, textAlign: 'center' }}>PAX</Text>}
-                            <Text style={{ flex: (isIndios || !isLagos) ? 2.2 : 1.6, color: '#0f172a', fontWeight: '900', fontSize: 11, textAlign: 'center' }}>OBS</Text>
+                            <Text style={{ flex: 0.4, color: (isDarkMode || themeName === 'midnight' || themeName === 'neon') ? '#E0E7FF' : '#0f172a', fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>NO.</Text>
+                            <Text style={{ flex: 0.6, color: (isDarkMode || themeName === 'midnight' || themeName === 'neon') ? '#E0E7FF' : '#0f172a', fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>FREC</Text>
+                            <Text style={{ flex: 1, color: (isDarkMode || themeName === 'midnight' || themeName === 'neon') ? '#E0E7FF' : '#0f172a', fontWeight: '900', fontSize: 11, textAlign: 'center' }}>HORA</Text>
+                            <Text style={{ flex: 1, color: (isDarkMode || themeName === 'midnight' || themeName === 'neon') ? '#E0E7FF' : '#0f172a', fontWeight: '900', fontSize: 11, textAlign: 'center' }}>ECO</Text>
+                            {!isIndios && <Text style={{ flex: 0.8, color: (isDarkMode || themeName === 'midnight' || themeName === 'neon') ? '#E0E7FF' : '#0f172a', fontWeight: '900', fontSize: 11, textAlign: 'center' }}>RUTA</Text>}
+                            {(isIndios || isLagos) && <Text style={{ flex: 0.5, color: (isDarkMode || themeName === 'midnight' || themeName === 'neon') ? '#E0E7FF' : '#0f172a', fontWeight: '900', fontSize: 11, textAlign: 'center' }}>PAX</Text>}
+                            <Text style={{ flex: (isIndios || !isLagos) ? 2.2 : 1.6, color: (isDarkMode || themeName === 'midnight' || themeName === 'neon') ? '#E0E7FF' : '#0f172a', fontWeight: '900', fontSize: 11, textAlign: 'center' }}>OBS</Text>
                           </View>
                           {rows.slice(Math.ceil(rows.length / 2)).map((row) => (
                             <View key={row.id} style={[{ flexDirection: 'row', backgroundColor: row.highlightColor ? `${row.highlightColor}60` : 'transparent', borderBottomWidth: 1, borderColor: baseColor, paddingVertical: 10, alignItems: 'center' }, row.es_manual && { borderWidth: 2, borderColor: '#ef4444', borderStyle: 'dashed', borderRadius: 4, marginVertical: 2 }, row.isGhost && { opacity: 0.35 }]}>
                               {renderTurnoIndicator(row, false, true)}
                               <Text style={{ flex: 0.6, color: baseColor, fontSize: 13, textAlign: 'center', fontWeight: '900' }}>{row.frec}</Text>
                               <Text style={{ flex: 1, color: baseColor, fontSize: 13, textAlign: 'center', fontWeight: '900' }}>{row.horario}</Text>
-                              <Text style={{ flex: 1, color: '#0f172a', fontSize: 13, textAlign: 'center', fontWeight: '900' }}>{row.isGhost ? '-' : (row.eco || '-')}</Text>
+                              <Text style={{ flex: 1, color: (isDarkMode || themeName === 'midnight' || themeName === 'neon') ? '#E0E7FF' : '#0f172a', fontSize: 13, textAlign: 'center', fontWeight: '900' }}>{row.isGhost ? '-' : (row.eco || '-')}</Text>
                               {!isIndios && <Text style={{ flex: 0.8, color: row.ruta === 'MEX' ? '#008000' : row.ruta === 'REY' ? '#D22B2B' : '#4B0082', fontSize: 11, textAlign: 'center', fontWeight: '900' }}>{row.ruta || '-'}</Text>}
-                              {(isIndios || isLagos) && <Text style={{ flex: 0.5, color: '#0f172a', fontSize: 13, textAlign: 'center' }}>{row.isGhost ? '-' : (row.pax || '-')}</Text>}
-                              <Text style={{ flex: (isIndios || !isLagos) ? 2.2 : 1.6, color: '#0f172a', fontSize: 11, textAlign: 'center', paddingHorizontal: 2, flexShrink: 1, flexWrap: 'wrap' }}>{row.observaciones || ''}</Text>
+                              {(isIndios || isLagos) && <Text style={{ flex: 0.5, color: (isDarkMode || themeName === 'midnight' || themeName === 'neon') ? '#E0E7FF' : '#0f172a', fontSize: 13, textAlign: 'center' }}>{row.isGhost ? '-' : (row.pax || '-')}</Text>}
+                              <Text style={{ flex: (isIndios || !isLagos) ? 2.2 : 1.6, color: (isDarkMode || themeName === 'midnight' || themeName === 'neon') ? '#E0E7FF' : '#0f172a', fontSize: 11, textAlign: 'center', paddingHorizontal: 2, flexShrink: 1, flexWrap: 'wrap' }}>{row.observaciones || ''}</Text>
                             </View>
                           ))}
                         </View>
@@ -1541,14 +1573,14 @@ export default function EditorTREALScreen() {
                     onPress={() => handleOpenFrecSelector(row.id, row.frec)}
                     disabled={isReadOnly}
                   >
-                    <Text style={[{ color: '#000080', fontWeight: '900', textAlign: 'center', fontSize: 13 }, isDarkMode && { color: theme.text }]}>
+                    <Text style={[{ color: (isDarkMode || themeName === 'midnight' || themeName === 'neon') ? '#E0E7FF' : '#000080', fontWeight: '900', textAlign: 'center', fontSize: 13 }, isDarkMode && { color: theme.text }]}>
                       {row.frec || '---'}
                     </Text>
                   </TouchableOpacity>
                 </View>
 
                 <View style={{ flex: 0.8, paddingHorizontal: 1, justifyContent: 'center' }}>
-                  <ControlledCellInput style={[styles.inputCell, { flex: 1, color: '#000080', fontWeight: '900', paddingVertical: 8, fontSize: 13, textAlign: 'center' }, isDarkMode && { backgroundColor: '#333', borderColor: '#444', color: theme.text }, (isReadOnly || (!row.es_manual && userAccessLevel < 10)) && { opacity: 0.8, borderColor: 'transparent' }]}
+                  <ControlledCellInput style={[styles.inputCell, { flex: 1, color: (isDarkMode || themeName === 'midnight' || themeName === 'neon') ? '#E0E7FF' : '#000080', fontWeight: '900', paddingVertical: 8, fontSize: 13, textAlign: 'center' }, isDarkMode && { backgroundColor: '#333', borderColor: '#444', color: theme.text }, (isReadOnly || (!row.es_manual && userAccessLevel < 10)) && { opacity: 0.8, borderColor: 'transparent' }]}
                     value={row.horario}
                     onChangeText={(t) => handleUpdateField(row.id, 'horario', t)}
                     onFocus={() => {
@@ -1579,7 +1611,7 @@ export default function EditorTREALScreen() {
                     }}
                     disabled={isReadOnly}
                   >
-                    <Text style={[{ color: '#0f172a', fontWeight: '900', textAlign: 'center', fontSize: 13 }, !row.eco && { color: isDarkMode ? "#666" : "#475569" }, isDarkMode && row.eco && { color: theme.text }]}>
+                    <Text style={[{ color: (isDarkMode || themeName === 'midnight' || themeName === 'neon') ? '#E0E7FF' : '#0f172a', fontWeight: '900', textAlign: 'center', fontSize: 13 }, !row.eco && { color: isDarkMode ? "#666" : "#475569" }, isDarkMode && row.eco && { color: theme.text }]}>
                       {row.eco ? String(row.eco) : '--'}
                     </Text>
                   </TouchableOpacity>
@@ -1620,7 +1652,7 @@ export default function EditorTREALScreen() {
                           style={[
                             styles.inputCell, 
                             { paddingVertical: 8, fontSize: 13 },
-                            hasWrittenPax ? { color: '#0f172a', fontWeight: '900' } : { color: '#94a3b8', fontStyle: 'italic', opacity: unitCap > 0 ? 0.9 : 1 },
+                            hasWrittenPax ? { color: (isDarkMode || themeName === 'midnight' || themeName === 'neon') ? '#E0E7FF' : '#0f172a', fontWeight: '900' } : { color: '#94a3b8', fontStyle: 'italic', opacity: unitCap > 0 ? 0.9 : 1 },
                             isDarkMode && { backgroundColor: '#333', borderColor: '#444', color: hasWrittenPax ? theme.text : '#888' },
                             isReadOnly && { opacity: 0.8, borderColor: 'transparent' }
                           ]}
@@ -1653,33 +1685,27 @@ export default function EditorTREALScreen() {
               </View>
               );
             }}
-            ListFooterComponent={null}
+            ListFooterComponent={<View style={{ height: 300 }} />}
           />
           <View style={{ position: 'absolute', bottom: 160, alignSelf: 'center', alignItems: 'center', zIndex: 100 }}>
             <TouchableOpacity 
-              style={{ backgroundColor: '#3b82f6', borderColor: '#2563eb', borderWidth: 1, paddingVertical: 12, paddingHorizontal: 30, borderRadius: 25, flexDirection: 'row', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 5, elevation: 8, marginBottom: 15 }} 
+              style={{ backgroundColor: '#3b82f6', borderColor: '#2563eb', borderWidth: 1, paddingVertical: 5, paddingHorizontal: 12, borderRadius: 10, flexDirection: 'row', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 5, elevation: 8, marginBottom: 15 }} 
               onPress={openCamera}
             >
-              <Feather name="camera" size={24} color="#ffffff" />
-              <Text style={{ color: '#ffffff', marginLeft: 8, fontWeight: '900', fontSize: 18 }}>Escanear QR Unidad</Text>
+              <Feather name="camera" size={18} color="#ffffff" />
+              <Text style={{ color: '#ffffff', marginLeft: 8, fontWeight: '900', fontSize: 14 }}>Escanear QR Unidad</Text>
             </TouchableOpacity>
 
             <View style={{ flexDirection: 'row', gap: 15 }}>
               <TouchableOpacity 
-                style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255, 255, 255, 0.95)', paddingVertical: 10, paddingHorizontal: 15, borderRadius: 20, borderWidth: 1, borderColor: '#f97316', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 3, elevation: 4 }} 
+                style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255, 255, 255, 0.95)', paddingVertical: 3, paddingHorizontal: 8, borderRadius: 8, borderWidth: 1, borderColor: '#f97316', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 3, elevation: 4 }} 
                 onPress={handleAddRow}
               >
                 <Feather name="plus" size={16} color="#f97316" />
-                <Text style={{ color: '#f97316', marginLeft: 5, fontSize: 14, fontWeight: '900' }}>Registro Manual</Text>
+                <Text style={{ color: '#f97316', marginLeft: 5, fontSize: 11, fontWeight: '900' }}>Registro Manual</Text>
               </TouchableOpacity>
               
-              <TouchableOpacity 
-                style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255, 255, 255, 0.95)', paddingVertical: 10, paddingHorizontal: 15, borderRadius: 20, borderWidth: 1, borderColor: '#eab308', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 3, elevation: 4 }} 
-                onPress={handleDuplicateRound}
-              >
-                <Feather name="copy" size={16} color="#eab308" />
-                <Text style={{ color: '#eab308', marginLeft: 5, fontSize: 14, fontWeight: '900' }}>Duplicar</Text>
-              </TouchableOpacity>
+              
             </View>
           </View>
           </>
@@ -1801,7 +1827,12 @@ export default function EditorTREALScreen() {
               style={{ width: '100%', height: 60, backgroundColor: isDarkMode ? '#333' : '#f0f0f0', borderRadius: 12, textAlign: 'center', fontSize: 28, fontWeight: 'bold', color: isDarkMode ? '#fff' : '#000', marginBottom: 20 }}
               keyboardType="number-pad"
               value={nfcPaxValue}
-              onChangeText={setNfcPaxValue}
+              maxLength={2}
+              onChangeText={(t) => {
+                let clean = t.replace(/[^0-9]/g, '').slice(0, 2);
+                if (clean && parseInt(clean, 10) >= 60) clean = clean.slice(0, 1);
+                setNfcPaxValue(clean);
+              }}
               autoFocus={true}
             />
             
@@ -1850,7 +1881,7 @@ export default function EditorTREALScreen() {
     </SafeAreaView>
       {toastMsg ? (
         <View style={{ position: 'absolute', bottom: 50, alignSelf: 'center', backgroundColor: '#0f172a', paddingHorizontal: 20, paddingVertical: 12, borderRadius: 25, shadowColor: '#000', shadowOffset: {width:0, height: 4}, shadowOpacity: 0.3, shadowRadius: 5, elevation: 10 }}>
-          <Text style={{ color: theme.headerText, fontSize: 14, fontWeight: 'bold' }}>{toastMsg}</Text>
+          <Text style={{ color: theme.headerText, fontSize: 9.5, fontWeight: 'bold' }}>{toastMsg}</Text>
         </View>
       ) : null}
     </KeyboardAvoidingView>
@@ -1859,22 +1890,22 @@ export default function EditorTREALScreen() {
 
 function getStyles(theme: any) { return StyleSheet.create({
   container: { flex: 1, backgroundColor: theme.background },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: theme.border },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 10, paddingVertical: 5, borderBottomWidth: 1, borderBottomColor: theme.border },
   backBtn: { padding: 4 },
   title: { fontSize: 16, fontWeight: '600', color: theme.text },
-  th: { color: theme.textMuted, fontSize: 12, fontWeight: '600', textAlign: 'center' },
+  th: { color: (isDarkMode || themeName === 'midnight' || themeName === 'neon') ? '#E2E8F0' : (themeName === 'ocean' ? '#0C4A6E' : (themeName === 'classic' ? '#334155' : '#475569')), fontSize: 7.5, fontWeight: '600', textAlign: 'center' },
   content: { padding: 10, paddingBottom: 40 },
   tableRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: theme.border, borderRadius: 8, marginBottom: 8, backgroundColor: theme.background },
   td: { color: theme.text, fontSize: 12, textAlign: 'center' },
   inputCell: {
-    backgroundColor: '#EAE5CE', // Burbujas color hueso
+    backgroundColor: (isDarkMode || themeName === 'midnight' || themeName === 'neon') ? '#2e2e2e' : (themeName === 'ocean' ? '#F0F9FF' : '#EAE5CE'),
     borderRadius: 20,
     borderWidth: 1,
     borderColor: theme.border,
     paddingVertical: 8,
     paddingHorizontal: 4,
     fontSize: 14,
-    color: '#0f172a',
+    color: (isDarkMode || themeName === 'midnight' || themeName === 'neon') ? '#E0E7FF' : '#0f172a',
     textAlign: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
@@ -1885,9 +1916,9 @@ function getStyles(theme: any) { return StyleSheet.create({
   fab: { paddingVertical: 12, fontSize: 16, fontWeight: 'bold' },
   btnAddRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 15, marginTop: 10, borderWidth: 1, borderColor: theme.border, borderStyle: 'dashed', borderRadius: 8 },
   footer: { flexDirection: 'row', padding: 15, borderTopWidth: 1, borderTopColor: theme.border, backgroundColor: theme.background, gap: 15 },
-  btnShare: { flex: 1, backgroundColor: theme.primary, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingVertical: 6, borderRadius: 6, gap: 4 },
-  btnGuardar: { flex: 1, backgroundColor: theme.primary, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 6, borderRadius: 6, gap: 4 },
-  btnGuardarText: { color: theme.headerText, fontSize: 13, fontWeight: 'bold' },
+  btnShare: { flex: 1, backgroundColor: theme.primary, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingVertical: 12, borderRadius: 6, gap: 4 },
+  btnGuardar: { flex: 1, backgroundColor: theme.primary, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12, borderRadius: 6, gap: 4 },
+  btnGuardarText: { color: theme.headerText, fontSize: 9.5, fontWeight: 'bold' },
   marcatextosContainer: { position: 'absolute', bottom: 100, alignSelf: 'center', flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 12, backgroundColor: 'rgba(255, 255, 255, 0.95)', gap: 15, borderRadius: 30, zIndex: 100, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 5, elevation: 8, borderWidth: 1, borderColor: theme.border },
   colorCircle: { width: 24, height: 24, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
   colorCircleActive: {
@@ -1905,3 +1936,13 @@ function getStyles(theme: any) { return StyleSheet.create({
   ecoItemClear: { padding: 20, marginTop: 10, backgroundColor: '#FFD1D1', borderRadius: 8, borderWidth: 1, borderColor: '#D2042D' }
 });
 }
+
+// trigger rebuild 3
+// trigger rebuild 4
+// trigger rebuild 5
+// trigger rebuild 6
+// trigger rebuild 8
+// trigger rebuild 9
+// trigger rebuild 10
+// trigger rebuild 11
+// trigger rebuild 1
