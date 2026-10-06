@@ -307,8 +307,8 @@ export default function EditorOTPScreen() {
 
       const matchingRoles = data.filter(d => {
         const parts = d.creado_por?.split('|') || [];
-        const bName = parts.length > 1 ? parts[1].trim() : (d.plantillas_predeterminadas?.name || '');
-        const rName = parts.length > 2 ? parts[2].trim() : (d.plantillas_predeterminadas?.name || '');
+        const bName = parts.length > 1 ? parts[1].trim() : ((d.plantillas_predeterminadas as any)?.name || '');
+        const rName = parts.length > 2 ? parts[2].trim() : ((d.plantillas_predeterminadas as any)?.name || '');
         
         // 1. Coincidencia de Base
         if (!bName.toLowerCase().includes(baseName.toLowerCase()) && !baseName.toLowerCase().includes(bName.toLowerCase())) {

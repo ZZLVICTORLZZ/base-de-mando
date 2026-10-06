@@ -8,6 +8,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Swipeable from 'react-native-gesture-handler/Swipeable';
 import ViewShot from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
+import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
 import { supabase } from '../src/services/supabaseClient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CameraView, useCameraPermissions } from 'expo-camera';
@@ -221,6 +223,97 @@ export default function EditorTREALScreen() {
     setIsCameraVisible(true);
   };
 
+
+  const handleMandatoryPhoto = async (targetIdRow: string, updatedRowsArg: any[], isPaxModal: boolean) => {
+    try {
+      const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
+      if (!permissionResult.granted) {
+        Alert.alert("Permiso Denegado", "Se requiere acceso a la cámara para tomar la foto obligatoria.");
+        return false;
+      }
+
+      const result = await ImagePicker.launchCameraAsync({
+        allowsEditing: false,
+        quality: 0.5,
+      });
+
+      if (result.canceled) {
+        Alert.alert("Foto Obligatoria", "Debes tomar la fotografía de la unidad para registrar la checada.");
+        return false;
+      }
+
+      showToast("Subiendo evidencia...");
+
+      const manipResult = await ImageManipulator.manipulateAsync(
+        result.assets[0].uri,
+        [{ resize: { width: 800 } }],
+        { compress: 0.4, format: ImageManipulator.SaveFormat.JPEG }
+      );
+      
+      const fileName = `treal_${targetIdRow}_${Date.now()}.jpg`;
+      const response = await fetch(manipResult.uri);
+      const blob = await response.blob();
+      
+      // Blob conversion using FileReader for React Native Supabase upload
+      const reader = new FileReader();
+      reader.readAsDataURL(blob);
+      reader.onloadend = async () => {
+        const base64data = reader.result;
+        if (typeof base64data !== 'string') return;
+        const base64Content = base64data.split(',')[1];
+        
+        // Supabase JS doesn't support Base64 upload natively in React Native easily without Buffer
+        // Wait, fetch arrayBuffer works perfectly with Supabase 2.x!
+      };
+      
+      // Actually fetch arrayBuffer works fine in modern React Native
+      const arrayBuffer = await new Response(blob).arrayBuffer();
+      
+      const { data, error } = await supabase.storage.from('checkin_photos').upload(fileName, arrayBuffer, { contentType: 'image/jpeg' });
+      
+      let finalPhotoUrl = '';
+      if (!error) {
+         finalPhotoUrl = supabase.storage.from('checkin_photos').getPublicUrl(fileName).data.publicUrl;
+      } else {
+         console.error('Error uploading:', error);
+      }
+
+      const finalRows = updatedRowsArg.map(r => r.id === targetIdRow ? { ...r, photoUrl: finalPhotoUrl } : r);
+      setRows(finalRows);
+      
+      const targetId = activeRolId || (rol_id as string);
+      if (targetId) {
+         SyncManager.queueTREALUpdate(targetId, finalRows);
+         syncToOTP(finalRows);
+      }
+      
+      if (isPaxModal) {
+         const row = finalRows.find(r => r.id === targetIdRow);
+         if (row && targetId) {
+            supabase.from('firmas_operativas').insert([{
+              treal_id: targetId,
+              treal_row_id: row.id,
+              fecha: new Date().toISOString().split('T')[0],
+              base: plantillaName,
+              checador: creadorName || 'Desconocido',
+              horario: row.horario,
+              eco: row.eco,
+              pax: row.pax,
+              photo_url: finalPhotoUrl
+            }]).then();
+         }
+      }
+      
+      showToast(`Unidad registrada con éxito ✅`);
+      return true;
+
+    } catch (e) {
+      console.error('Camera error', e);
+      Alert.alert("Error", "No se pudo procesar la foto.");
+      return false;
+    }
+  };
+
   const handleBarcodeScanned = ({ data }: { data: string }) => {
     if (qrCooldown) return;
     
@@ -272,8 +365,7 @@ export default function EditorTREALScreen() {
       const currentIsIndios = plantillaName.toLowerCase().includes('indios');
       const currentIsLagos = plantillaName.toLowerCase().includes('lagos');
       if (targetId && !currentIsIndios && !currentIsLagos) {
-        SyncManager.queueTREALUpdate(targetId, recalculatedRows);
-        syncToOTP(recalculatedRows);
+        handleMandatoryPhoto(newData[ghostIndex].id, recalculatedRows, false);
       }
     } else {
       const lastRow = rows[rows.length - 1];
@@ -300,12 +392,9 @@ export default function EditorTREALScreen() {
       const currentIsIndios = plantillaName.toLowerCase().includes('indios');
       const currentIsLagos = plantillaName.toLowerCase().includes('lagos');
       if (targetId && !currentIsIndios && !currentIsLagos) {
-        SyncManager.queueTREALUpdate(targetId, recalculatedRows);
-        syncToOTP(recalculatedRows);
+        handleMandatoryPhoto(newRow.id, recalculatedRows, false);
       }
     }
-    
-    showToast(`Unidad ${eco} Registrada ✅`);
     setIsCameraVisible(false);
 
     // Solicitar PAX si es Indios Verdes o Lagos 2
@@ -335,33 +424,15 @@ export default function EditorTREALScreen() {
     }
   };
 
-  const handleSaveNfcPax = () => {
+  const handleSaveNfcPax = async () => {
     if (nfcPaxRowId) {
       let updatedRows = [...rows];
       const rowIndex = updatedRows.findIndex(r => r.id === nfcPaxRowId);
       if (rowIndex !== -1) {
          updatedRows[rowIndex] = { ...updatedRows[rowIndex], pax: nfcPaxValue };
          setRows(updatedRows);
-         
-         const targetId = activeRolId || (rol_id as string);
-         if (targetId) {
-           SyncManager.queueTREALUpdate(targetId, updatedRows);
-           syncToOTP(updatedRows);
-         }
-      }
-
-      const row = updatedRows.find(r => r.id === nfcPaxRowId);
-      if (row && (activeRolId || rol_id)) {
-        supabase.from('firmas_operativas').insert([{
-          treal_id: activeRolId || rol_id,
-          treal_row_id: row.id,
-          fecha: new Date().toISOString().split('T')[0],
-          base: plantillaName,
-          checador: creadorName || 'Desconocido',
-          horario: row.horario,
-          eco: row.eco,
-          pax: nfcPaxValue
-        }]).then();
+         // Call mandatory photo function
+         await handleMandatoryPhoto(nfcPaxRowId, updatedRows, true);
       }
     }
     setNfcPaxModalVisible(false);
@@ -502,8 +573,8 @@ export default function EditorTREALScreen() {
 
       const matchingRoles = data.filter(d => {
         const parts = d.creado_por?.split('|') || [];
-        const bName = parts.length > 1 ? parts[1].trim() : (d.plantillas_predeterminadas?.name || '');
-        const rName = parts.length > 2 ? parts[2].trim() : (d.plantillas_predeterminadas?.name || '');
+        const bName = parts.length > 1 ? parts[1].trim() : ((d.plantillas_predeterminadas as any)?.name || '');
+        const rName = parts.length > 2 ? parts[2].trim() : ((d.plantillas_predeterminadas as any)?.name || '');
         
         // 1. Coincidencia de Base
         if (!bName.toLowerCase().includes(baseName.toLowerCase()) && !baseName.toLowerCase().includes(bName.toLowerCase())) {
@@ -874,9 +945,9 @@ export default function EditorTREALScreen() {
     if (isReadOnly || !isAllowedToEdit) return;
 
     const currentRow = rows.find(r => r.id === id);
-    if (currentRow && !currentRow.es_manual && userAccessLevel < 10) {
-      if (field === 'horario' || field === 'eco' || field === 'frec') {
-        Alert.alert('Registro Protegido', 'Solo un Administrador (Nivel 10) puede modificar la hora, económico o frecuencia de un registro ingresado automáticamente por QR.');
+    if (currentRow && !currentRow.es_manual) {
+      if (field !== 'observaciones') {
+        Alert.alert('Registro Protegido', 'Los registros escaneados por QR son de solo lectura y no pueden modificarse. Solo se pueden agregar observaciones.');
         return;
       }
     }
@@ -921,6 +992,12 @@ export default function EditorTREALScreen() {
     const rowIndex = rows.findIndex(r => r.id === id);
     if (rowIndex === -1) return;
     const currentRow = rows[rowIndex];
+    
+    if (!currentRow.es_manual) {
+      Alert.alert('Registro Protegido', 'Los registros escaneados por QR son de solo lectura.');
+      return;
+    }
+    
     if (!currentRow.horario || !currentRow.horario.includes(':')) return;
     
     const [h, m] = currentRow.horario.split(':').map(Number);
@@ -961,7 +1038,7 @@ export default function EditorTREALScreen() {
   const handleInsertRow = (index: number) => {
     if (isReadOnly || !isAllowedToEdit) return;
     const prevFrec = rows[index] ? rows[index].frec : '15';
-    const newRow = { id: Date.now().toString(), no: 0, frec: prevFrec, horario: '--:--', eco: '', ruta: 'MEX', observaciones: '', pax: '', es_manual: true };
+    const newRow = { id: Date.now().toString(), no: 0, frec: prevFrec, horario: '--:--', eco: '', ruta: 'MEX', observaciones: '', pax: '', es_manual: userAccessLevel < 10 };
     const newRows = [...rows];
     newRows.splice(index + 1, 0, newRow);
     setRows(calculateTimes(newRows, index, 'frec'));
@@ -1104,7 +1181,7 @@ export default function EditorTREALScreen() {
         ...newData[ghostIndex],
         eco: '',
         isGhost: false,
-        es_manual: true,
+        es_manual: userAccessLevel < 10,
         highlightColor: newData[ghostIndex].highlightColor === '#cbd5e1' ? null : newData[ghostIndex].highlightColor
       };
       setRows(newData);
@@ -1115,7 +1192,7 @@ export default function EditorTREALScreen() {
     } else {
       const lastRow = rows[rows.length - 1];
       const prevFrec = lastRow ? lastRow.frec : '15';
-      const newRow = { id: Date.now().toString(), no: (lastRow?.no || 0) + 1, frec: prevFrec, horario: '--:--', eco: '', ruta: 'MEX', observaciones: '', pax: '', es_manual: true, isGhost: false };
+      const newRow = { id: Date.now().toString(), no: (lastRow?.no || 0) + 1, frec: prevFrec, horario: '--:--', eco: '', ruta: 'MEX', observaciones: '', pax: '', es_manual: userAccessLevel < 10, isGhost: false };
       setRows(calculateTimes([...rows, newRow], rows.length - 1, 'frec'));
     }
   };
@@ -1701,13 +1778,21 @@ export default function EditorTREALScreen() {
                   </View>
                 )}
 
-                <View style={{ flex: 0.6, paddingHorizontal: 1, alignItems: 'center', justifyContent: 'center' }}>
+                <View style={{ flex: 1, flexDirection: 'row', paddingHorizontal: 1, alignItems: 'center', justifyContent: 'center' }}>
                   <TouchableOpacity 
                     style={{ padding: 6, backgroundColor: row.observaciones ? '#eab30820' : 'transparent', borderRadius: 8 }}
                     onPress={() => handleOpenObsModal(row.id, row.observaciones)}
                   >
-                    <Feather name="message-square" size={18} color={row.observaciones ? '#eab308' : '#64748b'} />
+                    <Feather name="message-square" size={16} color={row.observaciones ? '#eab308' : '#64748b'} />
                   </TouchableOpacity>
+                  {row.photoUrl ? (
+                    <TouchableOpacity 
+                      style={{ padding: 6, backgroundColor: '#3b82f620', borderRadius: 8, marginLeft: 2 }}
+                      onPress={() => Linking.openURL(row.photoUrl)}
+                    >
+                      <Feather name="camera" size={16} color="#3b82f6" />
+                    </TouchableOpacity>
+                  ) : null}
                 </View>
 
                 
@@ -1845,7 +1930,12 @@ export default function EditorTREALScreen() {
   
 
       {/* Modal Pax NFC */}
-      <Modal visible={nfcPaxModalVisible} transparent={true} animationType="fade">
+      <Modal 
+        visible={nfcPaxModalVisible} 
+        transparent={true} 
+        animationType="fade"
+        onShow={() => setTimeout(() => paxInputRef.current?.focus(), 100)}
+      >
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center' }}>
           <View style={{ backgroundColor: isDarkMode ? '#222' : '#fff', padding: 25, borderRadius: 20, width: '80%', alignItems: 'center' }}>
             <View style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: '#10b98120', justifyContent: 'center', alignItems: 'center', marginBottom: 15 }}>
