@@ -73,11 +73,11 @@ export default function NuevoRolScreen() {
       <View style={styles.calendarContainer}>
         <View style={styles.calHeaderRow}>
           <TouchableOpacity onPress={() => setCurrentMonth(new Date(year, month - 1, 1))}>
-            <Feather name="chevron-left" size={24} color="#f8fafc" />
+            <Feather name="chevron-left" size={24} color={theme.text} />
           </TouchableOpacity>
           <Text style={styles.calMonthText}>{monthNames[month]} {year}</Text>
           <TouchableOpacity onPress={() => setCurrentMonth(new Date(year, month + 1, 1))}>
-            <Feather name="chevron-right" size={24} color="#f8fafc" />
+            <Feather name="chevron-right" size={24} color={theme.text} />
           </TouchableOpacity>
         </View>
         <View style={styles.calWeekDaysRow}>
@@ -96,7 +96,7 @@ export default function NuevoRolScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-          <Feather name="arrow-left" size={24} color="#f8fafc" />
+          <Feather name="arrow-left" size={24} color={theme.text} />
         </TouchableOpacity>
         <Text style={styles.title}>Crear Nuevo Rol</Text>
         <View style={{ width: 24 }} />
@@ -107,9 +107,9 @@ export default function NuevoRolScreen() {
         
         <View style={styles.grid}>
           {loading ? (
-            <Text style={{ color: '#94a3b8' }}>Cargando plantillas de la nube...</Text>
+            <Text style={{ color: theme.textMuted }}>Cargando plantillas de la nube...</Text>
           ) : templates.length === 0 ? (
-            <Text style={{ color: '#94a3b8' }}>No hay plantillas creadas. Ve a la Base de Mando Web para crear una.</Text>
+            <Text style={{ color: theme.textMuted }}>No hay plantillas creadas. Ve a la Base de Mando Web para crear una.</Text>
           ) : (
             templates.map(tpl => {
               const isSelected = selectedTemplate === tpl.id;
@@ -140,8 +140,8 @@ export default function NuevoRolScreen() {
             style={[styles.input, { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}
             onPress={() => setCalendarVisible(true)}
           >
-            <Text style={{ color: '#f8fafc', fontSize: 16 }}>{dateStr}</Text>
-            <Feather name="calendar" size={20} color="#94a3b8" />
+            <Text style={{ color: theme.text, fontSize: 16 }}>{dateStr}</Text>
+            <Feather name="calendar" size={20} color={theme.textMuted} />
           </TouchableOpacity>
         </View>
 
@@ -149,9 +149,9 @@ export default function NuevoRolScreen() {
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                <Text style={{ color: '#f8fafc', fontSize: 18, fontWeight: 'bold' }}>Selecciona una Fecha</Text>
+                <Text style={{ color: theme.text, fontSize: 18, fontWeight: 'bold' }}>Selecciona una Fecha</Text>
                 <TouchableOpacity onPress={() => setCalendarVisible(false)}>
-                  <Feather name="x" size={24} color="#94a3b8" />
+                  <Feather name="x" size={24} color={theme.textMuted} />
                 </TouchableOpacity>
               </View>
               {renderCalendar()}
@@ -259,12 +259,12 @@ function getStyles(theme: any) { return StyleSheet.create({
 
   // Calendar styles
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', padding: 20 },
-  modalContent: { backgroundColor: '#1e293b', borderRadius: 16, padding: 20 },
+  modalContent: { backgroundColor: theme.surface, borderRadius: 16, padding: 20 },
   calendarContainer: { width: '100%' },
   calHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-  calMonthText: { color: '#f8fafc', fontSize: 18, fontWeight: 'bold' },
+  calMonthText: { color: theme.text, fontSize: 18, fontWeight: 'bold' },
   calWeekDaysRow: { flexDirection: 'row', justifyContent: 'space-around', marginBottom: 10 },
-  calWeekDayText: { color: '#94a3b8', fontSize: 12, width: '14.28%', textAlign: 'center', fontWeight: 'bold' },
+  calWeekDayText: { color: theme.textMuted, fontSize: 12, width: '14.28%', textAlign: 'center', fontWeight: 'bold' },
   calGrid: { flexDirection: 'row', flexWrap: 'wrap' },
   calDay: { width: '14.28%', aspectRatio: 1, justifyContent: 'center', alignItems: 'center', padding: 2 },
   calDaySelected: { backgroundColor: '#3b82f6', borderRadius: 20 },
