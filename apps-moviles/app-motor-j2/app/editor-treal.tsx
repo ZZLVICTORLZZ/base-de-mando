@@ -1216,8 +1216,11 @@ export default function EditorTREALScreen() {
       
       let finalPlantillaId = sourceData?.plantilla_base_id || null;
 
+      const today = new Date();
+      const localDateString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
       const newTREAL = {
-        fecha: new Date().toISOString().split('T')[0],
+        fecha: localDateString,
         plantilla_base_id: finalPlantillaId,
         creado_por: `[TREAL] ${currentUser} | ${plantillaName} | ${tipoRolName}` + (obsGeneral ? ` | OBS: ${obsGeneral}` : ''), // Guardar nombre y tipo de rol para que isIndios funcione
         rows: rows

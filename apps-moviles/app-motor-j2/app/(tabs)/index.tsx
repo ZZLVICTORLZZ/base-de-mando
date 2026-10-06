@@ -222,6 +222,8 @@ export default function DashboardScreen() {
         <Text style={styles.updateBtnText}>Descargar Actualizaciones OTA</Text>
       </TouchableOpacity>
       
+      <Text style={{ textAlign: 'center', color: theme.text, marginTop: 15, marginBottom: 30, opacity: 0.5, fontSize: 12, fontWeight: 'bold' }}>Motor J2 Beta v1.0.1</Text>
+      
     </ScrollView>
   );
 }
