@@ -1413,6 +1413,20 @@ export default function EditorTREALScreen() {
             </View>
           </View>
         )}
+        
+        {/* Barra de Incidencias del Día (Siempre visible debajo de la tabla verde) */}
+        {!isExporting && (
+          <View style={{ paddingHorizontal: 10, paddingBottom: 6, paddingTop: 4 }}>
+            <TextInput
+              style={{ backgroundColor: isDarkMode ? '#222' : '#fff', borderColor: theme.border, borderWidth: 1, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, color: theme.text, fontSize: 13 }}
+              placeholder="📝 Añadir incidencias del día..."
+              placeholderTextColor={isDarkMode ? '#888' : '#94a3b8'}
+              value={obsGeneral}
+              onChangeText={setObsGeneral}
+              multiline={false}
+            />
+          </View>
+        )}
 
         {!isExporting && (
           <View style={{ flexDirection: 'row', paddingHorizontal: 20, paddingVertical: 6, backgroundColor: theme.background, borderBottomWidth: 1, borderBottomColor: isDarkMode ? '#333' : theme.border }}>

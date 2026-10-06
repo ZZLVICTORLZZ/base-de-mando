@@ -1051,7 +1051,7 @@ export default function EditorOTPScreen() {
         </View>
 
         {!isExporting && (
-          <View style={{ paddingHorizontal: 15, paddingTop: 6, paddingBottom: 5 }}>
+          <View style={{ paddingHorizontal: 10, paddingTop: 0, paddingBottom: 2 }}>
             
 
             <View style={{ backgroundColor: theme.primary, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4, shadowColor: '#000', shadowOffset: {width: 0, height: 3}, shadowOpacity: 0.15, shadowRadius: 4, elevation: 3 }}>

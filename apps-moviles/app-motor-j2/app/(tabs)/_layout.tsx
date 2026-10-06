@@ -4,7 +4,7 @@ import { View, Text } from 'react-native';
 import { supabase } from '../../src/services/supabaseClient';
 import { Session } from '@supabase/supabase-js';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { Feather } from '@expo/vector-icons';
+import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../../src/theme/ThemeContext';
 import { TouchableOpacity } from 'react-native';
 
@@ -16,7 +16,7 @@ export default function TabLayout() {
         headerStyle: { backgroundColor: theme.background },
         headerRight: () => (
           <TouchableOpacity onPress={cycleTheme} style={{ marginRight: 15 }}>
-            <Feather name="droplet" size={24} color={theme.primary} />
+            <MaterialCommunityIcons name="palette" size={24} color={theme.primary} />
           </TouchableOpacity>
         ),
         headerTintColor: theme.text,
