@@ -131,6 +131,8 @@ export default function EditorTREALScreen() {
   const [nfcPaxModalVisible, setNfcPaxModalVisible] = useState(false);
   const [nfcPaxRowId, setNfcPaxRowId] = useState<string | null>(null);
   const [nfcPaxValue, setNfcPaxValue] = useState('');
+  const paxInputRef = useRef<any>(null);
+  useEffect(() => { if (nfcPaxModalVisible) { setTimeout(() => paxInputRef.current?.focus(), 150); } }, [nfcPaxModalVisible]);
   const [isNfcScanning, setIsNfcScanning] = useState(false);
   const [activeRolId, setActiveRolId] = useState<string | null>((rol_id as string) || null);
   const [lastSavedTime, setLastSavedTime] = useState<string>('');
@@ -267,7 +269,9 @@ export default function EditorTREALScreen() {
       setRows(recalculatedRows);
       
       const targetId = activeRolId || (rol_id as string);
-      if (targetId) {
+      const currentIsIndios = plantillaName.toLowerCase().includes('indios');
+      const currentIsLagos = plantillaName.toLowerCase().includes('lagos');
+      if (targetId && !currentIsIndios && !currentIsLagos) {
         SyncManager.queueTREALUpdate(targetId, recalculatedRows);
         syncToOTP(recalculatedRows);
       }
@@ -293,7 +297,9 @@ export default function EditorTREALScreen() {
       setRows(recalculatedRows);
       
       const targetId = activeRolId || (rol_id as string);
-      if (targetId) {
+      const currentIsIndios = plantillaName.toLowerCase().includes('indios');
+      const currentIsLagos = plantillaName.toLowerCase().includes('lagos');
+      if (targetId && !currentIsIndios && !currentIsLagos) {
         SyncManager.queueTREALUpdate(targetId, recalculatedRows);
         syncToOTP(recalculatedRows);
       }
@@ -331,9 +337,20 @@ export default function EditorTREALScreen() {
 
   const handleSaveNfcPax = () => {
     if (nfcPaxRowId) {
-      handleUpdateField(nfcPaxRowId, 'pax', nfcPaxValue);
-      // Buscar la fila para enviar a firmas_operativas
-      const row = rows.find(r => r.id === nfcPaxRowId);
+      let updatedRows = [...rows];
+      const rowIndex = updatedRows.findIndex(r => r.id === nfcPaxRowId);
+      if (rowIndex !== -1) {
+         updatedRows[rowIndex] = { ...updatedRows[rowIndex], pax: nfcPaxValue };
+         setRows(updatedRows);
+         
+         const targetId = activeRolId || (rol_id as string);
+         if (targetId) {
+           SyncManager.queueTREALUpdate(targetId, updatedRows);
+           syncToOTP(updatedRows);
+         }
+      }
+
+      const row = updatedRows.find(r => r.id === nfcPaxRowId);
       if (row && (activeRolId || rol_id)) {
         supabase.from('firmas_operativas').insert([{
           treal_id: activeRolId || rol_id,
@@ -1826,6 +1843,7 @@ export default function EditorTREALScreen() {
             <TextInput
               style={{ width: '100%', height: 60, backgroundColor: isDarkMode ? '#333' : '#f0f0f0', borderRadius: 12, textAlign: 'center', fontSize: 28, fontWeight: 'bold', color: isDarkMode ? '#fff' : '#000', marginBottom: 20 }}
               keyboardType="number-pad"
+              ref={paxInputRef}
               value={nfcPaxValue}
               maxLength={2}
               onChangeText={(t: string) => {
