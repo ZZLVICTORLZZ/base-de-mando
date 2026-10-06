@@ -41,14 +41,14 @@ export default function TabLayout() {
       <Tabs.Screen
         name="otp"
         options={{
-          title: 'Proyección',
+          title: 'P. Servicio',
           tabBarIcon: ({ color }) => <Feather name="list" size={20} color={color} />,
         }}
       />
       <Tabs.Screen
         name="ctr"
         options={{
-          title: 'T. Real',
+          title: 'Tabla Real',
           tabBarIcon: ({ color }) => <Feather name="activity" size={20} color={color} />,
         }}
       />

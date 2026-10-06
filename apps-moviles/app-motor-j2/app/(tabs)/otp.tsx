@@ -115,7 +115,7 @@ export default function OTPScreen() {
       Alert.alert('Acceso Denegado', 'Solo los administradores pueden borrar proyecciones.');
       return;
     }
-    Alert.alert('Confirmar Eliminación', '¿Estás seguro de eliminar permanentemente esta Proyección OTP?', [
+    Alert.alert('Confirmar Eliminación', '¿Estás seguro de eliminar permanentemente esta Proyección de Servicio?', [
       { text: 'Cancelar', style: 'cancel' },
       { text: 'Eliminar', style: 'destructive', onPress: async () => {
           const { error } = await supabase.from('roles_del_dia').delete().eq('id', id);

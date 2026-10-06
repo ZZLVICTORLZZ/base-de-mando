@@ -854,7 +854,7 @@ export default function EditorOTPScreen() {
         const uri = await viewShotRef.current.capture();
         setIsExporting(false);
         if (await Sharing.isAvailableAsync()) {
-          await Sharing.shareAsync(uri, { mimeType: 'image/png', dialogTitle: 'Compartir Proyección OTP', UTI: 'public.png' });
+          await Sharing.shareAsync(uri, { mimeType: 'image/png', dialogTitle: 'Compartir Proyección de Servicio', UTI: 'public.png' });
         }
       } catch (error) {
         setIsExporting(false);
@@ -1125,7 +1125,7 @@ export default function EditorOTPScreen() {
                       
                       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: tipoRolName ? 5 : 10 }}>
                         <Text style={{ color: '#64748b', fontSize: 22, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 1, marginRight: 15 }}>
-                          PROYECCIÓN OTP
+                          PROYECCIÓN DE SERVICIO
                         </Text>
                         <View style={{ backgroundColor: baseColor, paddingHorizontal: 20, paddingVertical: 8, borderRadius: 25 }}>
                           <Text style={{ color: '#ffffff', fontSize: 24, fontWeight: '900', letterSpacing: 0.5 }}>{plantillaName?.toUpperCase()}</Text>
