@@ -1540,7 +1540,7 @@ export default function EditorTREALScreen() {
                         </Text>
                       ) : null}
                       <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                        <Text style={{ color: theme.text, fontSize: 16, fontWeight: 'bold' }}>
+                        <Text style={{ color: '#0f172a', fontSize: 16, fontWeight: 'bold' }}>
                           Sistema Saturno V | Tablerista: {(() => {
                             let name = creadorName.replace('[TREAL] ', '').trim();
                             if (!name || name.toLowerCase() === 'tablerista') return 'Emiliano';
@@ -1563,23 +1563,23 @@ export default function EditorTREALScreen() {
                       {/* Columna Izquierda */}
                       <View style={{ flex: 1 }}>
                         <View style={{ flexDirection: 'row', backgroundColor: exportTheme.bg, borderBottomWidth: 2, borderColor: exportTheme.border, paddingVertical: 8, marginBottom: 8, alignItems: 'flex-end' }}>
-                          <Text style={{ flex: 0.4, color: theme.text, fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>NO.</Text>
-                          <Text style={{ flex: 0.5, color: theme.text, fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>FREC</Text>
-                          <Text style={{ flex: 0.8, color: theme.text, fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>HORA</Text>
-                          <Text style={{ flex: 0.8, color: theme.text, fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>ECO</Text>
-                          {!isIndios && <Text style={{ flex: 0.8, color: theme.text, fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>RUTA</Text>}
-                          {(isIndios || isLagos) && <Text style={{ flex: 0.5, color: theme.text, fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>PAX</Text>}
-                          <Text style={{ flex: (isIndios || !isLagos) ? 2.2 : 1.6, color: theme.text, fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>OBS</Text>
+                          <Text style={{ flex: 0.4, color: '#0f172a', fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>NO.</Text>
+                          <Text style={{ flex: 0.5, color: '#0f172a', fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>FREC</Text>
+                          <Text style={{ flex: 0.8, color: '#0f172a', fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>HORA</Text>
+                          <Text style={{ flex: 0.8, color: '#0f172a', fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>ECO</Text>
+                          {!isIndios && <Text style={{ flex: 0.8, color: '#0f172a', fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>RUTA</Text>}
+                          {(isIndios || isLagos) && <Text style={{ flex: 0.5, color: '#0f172a', fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>PAX</Text>}
+                          <Text style={{ flex: (isIndios || !isLagos) ? 2.2 : 1.6, color: '#0f172a', fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>OBS</Text>
                         </View>
                         {rows.slice(0, Math.ceil(rows.length / 2)).map((row) => (
                           <View key={row.id} style={[{ flexDirection: 'row', backgroundColor: row.highlightColor ? `${row.highlightColor}60` : 'transparent', borderBottomWidth: 1, borderColor: baseColor, paddingVertical: 10, alignItems: 'center' }, row.es_manual && { borderWidth: 2, borderColor: '#ef4444', borderStyle: 'dashed', borderRadius: 4, marginVertical: 2 }, row.isGhost && { opacity: 0.35 }]}>
                             {renderTurnoIndicator(row, false, true)}
                             <Text style={{ flex: 0.5, color: baseColor, fontSize: 13, textAlign: 'center', fontWeight: 'bold' }}>{row.frec}</Text>
                             <Text style={{ flex: 0.8, color: baseColor, fontSize: 13, textAlign: 'center', fontWeight: 'bold' }}>{row.horario}</Text>
-                            <Text style={{ flex: 0.8, color: theme.text, fontSize: 13, textAlign: 'center', fontWeight: 'bold' }}>{row.isGhost ? '-' : (row.eco || '-')}</Text>
+                            <Text style={{ flex: 0.8, color: '#0f172a', fontSize: 13, textAlign: 'center', fontWeight: 'bold' }}>{row.isGhost ? '-' : (row.eco || '-')}</Text>
                             {!isIndios && <Text style={{ flex: 0.8, color: row.ruta === 'MEX' ? '#008000' : row.ruta === 'REY' ? '#D22B2B' : '#4B0082', fontSize: 11, textAlign: 'center', fontWeight: 'bold' }}>{row.ruta || '-'}</Text>}
-                            {(isIndios || isLagos) && <Text style={{ flex: 0.5, color: theme.text, fontSize: 13, textAlign: 'center' }}>{row.isGhost ? '-' : (row.pax || '-')}</Text>}
-                            <Text style={{ flex: (isIndios || !isLagos) ? 2.2 : 1.6, color: theme.text, fontSize: 11, textAlign: 'center', paddingHorizontal: 2, flexShrink: 1, flexWrap: 'wrap' }}>{row.observaciones || ''}</Text>
+                            {(isIndios || isLagos) && <Text style={{ flex: 0.5, color: '#0f172a', fontSize: 13, textAlign: 'center' }}>{row.isGhost ? '-' : (row.pax || '-')}</Text>}
+                            <Text style={{ flex: (isIndios || !isLagos) ? 2.2 : 1.6, color: '#0f172a', fontSize: 11, textAlign: 'center', paddingHorizontal: 2, flexShrink: 1, flexWrap: 'wrap' }}>{row.observaciones || ''}</Text>
                           </View>
                         ))}
                       </View>
@@ -1588,23 +1588,23 @@ export default function EditorTREALScreen() {
                       {rows.length > 1 && (
                         <View style={{ flex: 1 }}>
                           <View style={{ flexDirection: 'row', backgroundColor: exportTheme.bg, borderBottomWidth: 2, borderColor: exportTheme.border, paddingVertical: 8, marginBottom: 8, alignItems: 'flex-end' }}>
-                            <Text style={{ flex: 0.4, color: theme.text, fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>NO.</Text>
-                            <Text style={{ flex: 0.6, color: theme.text, fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>FREC</Text>
-                            <Text style={{ flex: 1, color: theme.text, fontWeight: '900', fontSize: 11, textAlign: 'center' }}>HORA</Text>
-                            <Text style={{ flex: 1, color: theme.text, fontWeight: '900', fontSize: 11, textAlign: 'center' }}>ECO</Text>
-                            {!isIndios && <Text style={{ flex: 0.8, color: theme.text, fontWeight: '900', fontSize: 11, textAlign: 'center' }}>RUTA</Text>}
-                            {(isIndios || isLagos) && <Text style={{ flex: 0.5, color: theme.text, fontWeight: '900', fontSize: 11, textAlign: 'center' }}>PAX</Text>}
-                            <Text style={{ flex: (isIndios || !isLagos) ? 2.2 : 1.6, color: theme.text, fontWeight: '900', fontSize: 11, textAlign: 'center' }}>OBS</Text>
+                            <Text style={{ flex: 0.4, color: '#0f172a', fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>NO.</Text>
+                            <Text style={{ flex: 0.6, color: '#0f172a', fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>FREC</Text>
+                            <Text style={{ flex: 1, color: '#0f172a', fontWeight: '900', fontSize: 11, textAlign: 'center' }}>HORA</Text>
+                            <Text style={{ flex: 1, color: '#0f172a', fontWeight: '900', fontSize: 11, textAlign: 'center' }}>ECO</Text>
+                            {!isIndios && <Text style={{ flex: 0.8, color: '#0f172a', fontWeight: '900', fontSize: 11, textAlign: 'center' }}>RUTA</Text>}
+                            {(isIndios || isLagos) && <Text style={{ flex: 0.5, color: '#0f172a', fontWeight: '900', fontSize: 11, textAlign: 'center' }}>PAX</Text>}
+                            <Text style={{ flex: (isIndios || !isLagos) ? 2.2 : 1.6, color: '#0f172a', fontWeight: '900', fontSize: 11, textAlign: 'center' }}>OBS</Text>
                           </View>
                           {rows.slice(Math.ceil(rows.length / 2)).map((row) => (
                             <View key={row.id} style={[{ flexDirection: 'row', backgroundColor: row.highlightColor ? `${row.highlightColor}60` : 'transparent', borderBottomWidth: 1, borderColor: baseColor, paddingVertical: 10, alignItems: 'center' }, row.es_manual && { borderWidth: 2, borderColor: '#ef4444', borderStyle: 'dashed', borderRadius: 4, marginVertical: 2 }, row.isGhost && { opacity: 0.35 }]}>
                               {renderTurnoIndicator(row, false, true)}
                               <Text style={{ flex: 0.6, color: baseColor, fontSize: 13, textAlign: 'center', fontWeight: '900' }}>{row.frec}</Text>
                               <Text style={{ flex: 1, color: baseColor, fontSize: 13, textAlign: 'center', fontWeight: '900' }}>{row.horario}</Text>
-                              <Text style={{ flex: 1, color: theme.text, fontSize: 13, textAlign: 'center', fontWeight: '900' }}>{row.isGhost ? '-' : (row.eco || '-')}</Text>
+                              <Text style={{ flex: 1, color: '#0f172a', fontSize: 13, textAlign: 'center', fontWeight: '900' }}>{row.isGhost ? '-' : (row.eco || '-')}</Text>
                               {!isIndios && <Text style={{ flex: 0.8, color: row.ruta === 'MEX' ? '#008000' : row.ruta === 'REY' ? '#D22B2B' : '#4B0082', fontSize: 11, textAlign: 'center', fontWeight: '900' }}>{row.ruta || '-'}</Text>}
-                              {(isIndios || isLagos) && <Text style={{ flex: 0.5, color: theme.text, fontSize: 13, textAlign: 'center' }}>{row.isGhost ? '-' : (row.pax || '-')}</Text>}
-                              <Text style={{ flex: (isIndios || !isLagos) ? 2.2 : 1.6, color: theme.text, fontSize: 11, textAlign: 'center', paddingHorizontal: 2, flexShrink: 1, flexWrap: 'wrap' }}>{row.observaciones || ''}</Text>
+                              {(isIndios || isLagos) && <Text style={{ flex: 0.5, color: '#0f172a', fontSize: 13, textAlign: 'center' }}>{row.isGhost ? '-' : (row.pax || '-')}</Text>}
+                              <Text style={{ flex: (isIndios || !isLagos) ? 2.2 : 1.6, color: '#0f172a', fontSize: 11, textAlign: 'center', paddingHorizontal: 2, flexShrink: 1, flexWrap: 'wrap' }}>{row.observaciones || ''}</Text>
                             </View>
                           ))}
                         </View>
@@ -1791,7 +1791,7 @@ export default function EditorTREALScreen() {
                   {row.photoUrl ? (
                     <TouchableOpacity 
                       style={{ padding: 6, backgroundColor: '#3b82f620', borderRadius: 8, marginLeft: 2 }}
-                      onPress={() => Linking.openURL(row.photoUrl)}
+                      onPress={() => Linking.openURL(row.photoUrl).catch(e => Alert.alert('Error', 'No se pudo abrir la foto. Verifica que Supabase guardó el archivo.'))}
                     >
                       <Feather name="camera" size={16} color="#3b82f6" />
                     </TouchableOpacity>
@@ -1808,11 +1808,10 @@ export default function EditorTREALScreen() {
           />
           <View style={{ position: 'absolute', bottom: 160, alignSelf: 'center', alignItems: 'center', zIndex: 100 }}>
             <TouchableOpacity 
-              style={{ backgroundColor: '#3b82f6', borderColor: '#2563eb', borderWidth: 1, paddingVertical: 5, paddingHorizontal: 12, borderRadius: 10, flexDirection: 'row', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 5, elevation: 8, marginBottom: 15 }} 
+              style={{ backgroundColor: '#3b82f6', borderColor: '#2563eb', borderWidth: 1, width: 64, height: 64, borderRadius: 16, justifyContent: 'center', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 5, elevation: 8, marginBottom: 15 }} 
               onPress={openCamera}
             >
-              <Feather name="camera" size={18} color="#ffffff" />
-              <Text style={{ color: '#ffffff', marginLeft: 8, fontWeight: '900', fontSize: 14 }}>Escanear QR Unidad</Text>
+              <Feather name="camera" size={32} color="#ffffff" />
             </TouchableOpacity>
 
             <View style={{ flexDirection: 'row', gap: 15 }}>
@@ -1879,7 +1878,7 @@ export default function EditorTREALScreen() {
               
               <TextInput 
                 autoFocus={true}
-                style={[{ backgroundColor: theme.headerText, borderWidth: 1, borderColor: theme.border, borderRadius: 12, color: themeName === 'neon' ? '#FFFFFF' : '#0f172a', padding: 18, fontSize: 16, marginBottom: 25, textAlignVertical: 'top' }, isDarkMode && { backgroundColor: '#333', borderColor: '#444', color: theme.text }]}
+                style={{ backgroundColor: theme.surface || '#fff', borderWidth: 1, borderColor: theme.border, borderRadius: 12, color: theme.text, padding: 18, fontSize: 16, marginBottom: 25, textAlignVertical: 'top' }}
                 value={obsInputValue}
                 onChangeText={setObsInputValue}
                 placeholder="Ej. Salió a ruta 3 min tarde..."
