@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useTheme } from '../src/theme/ThemeContext';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, KeyboardAvoidingView, Platform, Modal, Alert, LayoutAnimation, UIManager, Pressable, FlatList } from 'react-native';
+import { View, Text, Linking, StyleSheet, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, KeyboardAvoidingView, Platform, Modal, Alert, LayoutAnimation, UIManager, Pressable, FlatList } from 'react-native';
 
 import { Feather } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -945,7 +945,7 @@ export default function EditorTREALScreen() {
     if (isReadOnly || !isAllowedToEdit) return;
 
     const currentRow = rows.find(r => r.id === id);
-    if (currentRow && !currentRow.es_manual) {
+    if (currentRow && !currentRow.es_manual && userAccessLevel < 10) {
       if (field !== 'observaciones') {
         Alert.alert('Registro Protegido', 'Los registros escaneados por QR son de solo lectura y no pueden modificarse. Solo se pueden agregar observaciones.');
         return;
@@ -993,7 +993,7 @@ export default function EditorTREALScreen() {
     if (rowIndex === -1) return;
     const currentRow = rows[rowIndex];
     
-    if (!currentRow.es_manual) {
+    if (!currentRow.es_manual && userAccessLevel < 10) {
       Alert.alert('Registro Protegido', 'Los registros escaneados por QR son de solo lectura.');
       return;
     }
