@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useTheme } from '../src/theme/ThemeContext';
-import { View, Text, Linking, StyleSheet, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, KeyboardAvoidingView, Platform, Modal, Alert, LayoutAnimation, UIManager, Pressable, FlatList } from 'react-native';
+import { View, Text, Linking, Image, StyleSheet, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, KeyboardAvoidingView, Platform, Modal, Alert, LayoutAnimation, UIManager, Pressable, FlatList } from 'react-native';
 
 import { Feather } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -148,6 +148,8 @@ export default function EditorTREALScreen() {
   // Camara
   const [permission, requestPermission] = useCameraPermissions();
   const [isCameraVisible, setIsCameraVisible] = useState(false);
+  const [photoViewerVisible, setPhotoViewerVisible] = useState(false);
+  const [photoViewerUrl, setPhotoViewerUrl] = useState('');
   const [qrCooldown, setQrCooldown] = useState(false);
   
   
@@ -364,7 +366,7 @@ export default function EditorTREALScreen() {
       const targetId = activeRolId || (rol_id as string);
       const currentIsIndios = plantillaName.toLowerCase().includes('indios');
       const currentIsLagos = plantillaName.toLowerCase().includes('lagos');
-      if (targetId && !currentIsIndios && !currentIsLagos) {
+      if (!currentIsIndios && !currentIsLagos) {
         handleMandatoryPhoto(newData[ghostIndex].id, recalculatedRows, false);
       }
     } else {
@@ -391,7 +393,7 @@ export default function EditorTREALScreen() {
       const targetId = activeRolId || (rol_id as string);
       const currentIsIndios = plantillaName.toLowerCase().includes('indios');
       const currentIsLagos = plantillaName.toLowerCase().includes('lagos');
-      if (targetId && !currentIsIndios && !currentIsLagos) {
+      if (!currentIsIndios && !currentIsLagos) {
         handleMandatoryPhoto(newRow.id, recalculatedRows, false);
       }
     }
@@ -424,15 +426,20 @@ export default function EditorTREALScreen() {
     }
   };
 
-  const handleSaveNfcPax = async () => {
+  const handleSaveNfcPax = () => {
     if (nfcPaxRowId) {
       let updatedRows = [...rows];
       const rowIndex = updatedRows.findIndex(r => r.id === nfcPaxRowId);
       if (rowIndex !== -1) {
          updatedRows[rowIndex] = { ...updatedRows[rowIndex], pax: nfcPaxValue };
          setRows(updatedRows);
-         // Call mandatory photo function
-         await handleMandatoryPhoto(nfcPaxRowId, updatedRows, true);
+         setNfcPaxModalVisible(false); // Cerrar Inmediatamente
+         
+         // Timeout pequeño para no encimar la animacion del modal cerrando con la camara abriendo
+         setTimeout(async () => {
+             await handleMandatoryPhoto(nfcPaxRowId, updatedRows, true);
+         }, 300);
+         return;
       }
     }
     setNfcPaxModalVisible(false);
@@ -1226,8 +1233,26 @@ export default function EditorTREALScreen() {
         rows: rows
       };
 
-      const { error } = await supabase.from('tablas_treal').insert([newTREAL]);
+      const { data: newRowData, error } = await supabase.from('tablas_treal').insert([newTREAL]).select('id').single();
       errorObj = error;
+
+      if (newRowData && newRowData.id) {
+         // Guardar retroactivamente en firmas_operativas las checadas previas a guardar
+         const firmasToInsert = rows.filter(r => !r.isGhost && (!r.es_manual || r.photoUrl)).map(r => ({
+              treal_id: newRowData.id,
+              treal_row_id: r.id,
+              fecha: localDateString,
+              base: plantillaName,
+              checador: `${currentUser}`,
+              horario: r.horario,
+              eco: r.eco,
+              pax: r.pax,
+              photo_url: r.photoUrl || null
+         }));
+         if (firmasToInsert.length > 0) {
+             supabase.from('firmas_operativas').insert(firmasToInsert).then();
+         }
+      }
     }
 
     setSaving(false);
@@ -1791,7 +1816,7 @@ export default function EditorTREALScreen() {
                   {row.photoUrl ? (
                     <TouchableOpacity 
                       style={{ padding: 6, backgroundColor: '#3b82f620', borderRadius: 8, marginLeft: 2 }}
-                      onPress={() => Linking.openURL(row.photoUrl).catch(e => Alert.alert('Error', 'No se pudo abrir la foto. Verifica que Supabase guardó el archivo.'))}
+                      onPress={() => { setPhotoViewerUrl(row.photoUrl); setPhotoViewerVisible(true); }}
                     >
                       <Feather name="camera" size={16} color="#3b82f6" />
                     </TouchableOpacity>
@@ -1930,6 +1955,19 @@ export default function EditorTREALScreen() {
 
   
   
+
+      
+      {/* Visor de Fotos */}
+      <Modal visible={photoViewerVisible} transparent={true} animationType="fade" onRequestClose={() => setPhotoViewerVisible(false)}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.9)', justifyContent: 'center', alignItems: 'center' }}>
+          <TouchableOpacity style={{ position: 'absolute', top: 50, right: 20, zIndex: 10, padding: 10 }} onPress={() => setPhotoViewerVisible(false)}>
+            <Feather name="x" size={32} color="#fff" />
+          </TouchableOpacity>
+          {photoViewerUrl ? (
+            <Image source={{ uri: photoViewerUrl }} style={{ width: '100%', height: '80%', resizeMode: 'contain' }} />
+          ) : null}
+        </View>
+      </Modal>
 
       {/* Modal Pax NFC */}
       <Modal 
