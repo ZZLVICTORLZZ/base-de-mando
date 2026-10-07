@@ -534,7 +534,7 @@ export default function EditorTREALScreen() {
           creado_por: `[TREAL] ${currentUser} | ${plantillaName} | ${tipoRolName}` + (obsGeneral ? ` | OBS: ${obsGeneral}` : ''),
           rows: rows
         };
-        if (saving) return; // Prevent double save during AutoSave\n        const { data: inserted, error } = await supabase.from('tablas_treal').insert([newTREAL]).select('id').single();
+        if (saving) return;        const { data: inserted, error } = await supabase.from('tablas_treal').insert([newTREAL]).select('id').single();
         if (inserted && !error) {
           setActiveRolId(inserted.id);
           setLastSavedTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
