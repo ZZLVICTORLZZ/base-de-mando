@@ -513,7 +513,7 @@ export default function EditorOTPScreen() {
       
       if (newRows[startIndex].frec !== 'S.F.' && prevTime && prevTime.includes(':') && newTime && newTime.includes(':')) {
         const [hPrev, mPrev] = prevTime.split(':').map(Number);
-        const [hNew, mNew] = newTime.split(':').map(Number);
+        let [hNew, mNew] = newTime.split(':').map(Number);
         
         if (!isNaN(hPrev) && !isNaN(hNew)) {
           let prevMins = hPrev * 60 + mPrev;
