@@ -39,7 +39,7 @@ const FrecModal = ({ visible, onClose, initialFrec, onSave, isDarkMode }: any) =
           </View>
           
           <TextInput 
-            style={[{ backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: theme.border, borderRadius: 12, color: theme.text, padding: 18, fontSize: 24, fontWeight: 'bold', marginBottom: 25, textAlign: 'center' }, isDarkMode && { backgroundColor: '#333', borderColor: '#444', color: theme.text }]}
+            style={[{ backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: theme.border, borderRadius: 12, color: '#0f172a', padding: 18, fontSize: 24, fontWeight: 'bold', marginBottom: 25, textAlign: 'center' }, {}]}
             value={val}
             onChangeText={setVal}
             keyboardType="number-pad"
@@ -85,7 +85,7 @@ const ControlledCellInput = ({ value, onChangeText, onFocus, ...props }: any) =>
     <TextInput 
       {...props}
       value={localVal}
-      onChangeText={(t: string) => {
+      onChangeText={(t) => {
         setLocalVal(t);
         onChangeText(t);
       }}
@@ -307,8 +307,8 @@ export default function EditorOTPScreen() {
 
       const matchingRoles = data.filter(d => {
         const parts = d.creado_por?.split('|') || [];
-        const bName = parts.length > 1 ? parts[1].trim() : ((d.plantillas_predeterminadas as any)?.name || '');
-        const rName = parts.length > 2 ? parts[2].trim() : ((d.plantillas_predeterminadas as any)?.name || '');
+        const bName = parts.length > 1 ? parts[1].trim() : (d.plantillas_predeterminadas?.name || '');
+        const rName = parts.length > 2 ? parts[2].trim() : (d.plantillas_predeterminadas?.name || '');
         
         // 1. Coincidencia de Base
         if (!bName.toLowerCase().includes(baseName.toLowerCase()) && !baseName.toLowerCase().includes(bName.toLowerCase())) {
@@ -369,8 +369,8 @@ export default function EditorOTPScreen() {
     
     const parts = data.creado_por?.split('|') || [];
     const savedName = parts.length > 1 ? parts[1].trim() : '';
-    const savedTipoRol = parts.length > 2 ? parts[2].trim() : ((data.plantillas_predeterminadas as any)?.name || '');
-    const baseToUse = savedName || (data.plantillas_predeterminadas as any)?.name || 'Proyección Sin Nombre';
+    const savedTipoRol = parts.length > 2 ? parts[2].trim() : (data.plantillas_predeterminadas?.name || '');
+    const baseToUse = savedName || data.plantillas_predeterminadas?.name || 'Proyección Sin Nombre';
     
     setPlantillaName(baseToUse);
     setTipoRolName(savedTipoRol);
@@ -408,7 +408,7 @@ export default function EditorOTPScreen() {
       return;
     }
     
-    const baseName = (data.plantillas_predeterminadas as any)?.name || '';
+    const baseName = data.plantillas_predeterminadas?.name || '';
     setTipoRolName(baseName);
     // Usar la base_chequeo si existe (para nueva proyeccion), de lo contrario la baseName original
     const effectiveBase = base_chequeo ? (base_chequeo as string) : baseName;
@@ -512,8 +512,8 @@ export default function EditorOTPScreen() {
       const newTime = newRows[startIndex].horario;
       
       if (newRows[startIndex].frec !== 'S.F.' && prevTime && prevTime.includes(':') && newTime && newTime.includes(':')) {
-        let [hPrev, mPrev] = prevTime.split(':').map(Number);
-        let [hNew, mNew] = newTime.split(':').map(Number);
+        const [hPrev, mPrev] = prevTime.split(':').map(Number);
+        const [hNew, mNew] = newTime.split(':').map(Number);
         
         if (!isNaN(hPrev) && !isNaN(hNew)) {
           let prevMins = hPrev * 60 + mPrev;
@@ -854,7 +854,7 @@ export default function EditorOTPScreen() {
         const uri = await viewShotRef.current.capture();
         setIsExporting(false);
         if (await Sharing.isAvailableAsync()) {
-          await Sharing.shareAsync(uri, { mimeType: 'image/png', dialogTitle: 'Compartir Proyección de Servicio', UTI: 'public.png' });
+          await Sharing.shareAsync(uri, { mimeType: 'image/png', dialogTitle: 'Compartir Proyección OTP', UTI: 'public.png' });
         }
       } catch (error) {
         setIsExporting(false);
@@ -1005,7 +1005,7 @@ export default function EditorOTPScreen() {
             styles.td, 
             { fontWeight: 'bold' }, 
             isDark && { color: theme.text },
-            isExport && { color: theme.text }
+            isExport && { color: '#0f172a' }
           ]}>
             {row.no}
           </Text>
@@ -1051,7 +1051,7 @@ export default function EditorOTPScreen() {
         </View>
 
         {!isExporting && (
-          <View style={{ paddingHorizontal: 10, paddingTop: 0, paddingBottom: 2 }}>
+          <View style={{ paddingHorizontal: 15, paddingTop: 6, paddingBottom: 5 }}>
             
 
             <View style={{ backgroundColor: theme.primary, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4, shadowColor: '#000', shadowOffset: {width: 0, height: 3}, shadowOpacity: 0.15, shadowRadius: 4, elevation: 3 }}>
@@ -1100,7 +1100,7 @@ export default function EditorOTPScreen() {
         )}
 
         {!isExporting && (
-          <View style={{ flexDirection: 'row', paddingHorizontal: 20, paddingVertical: 6, backgroundColor: theme.background, borderBottomWidth: 1, borderBottomColor: isDarkMode ? '#333' : theme.border }}>
+          <View style={{ flexDirection: 'row', paddingHorizontal: 20, paddingVertical: 6, backgroundColor: (false) ? '#1E1E2E' : (false ? '#E0F2FE' : (themeName === 'classic' ? '#EAE5CE' : '#F8FAFC')), borderBottomWidth: 1, borderBottomColor: isDarkMode ? '#333' : theme.border }}>
             <View style={{ flex: 0.4 }}><Text style={[styles.th, {fontSize: 7.5}, isDarkMode && {color: '#aaa'}]}>NO.</Text></View>
             <View style={{ flex: 0.5, paddingHorizontal: 1 }}><Text style={[styles.th, {fontSize: 7.5}, isDarkMode && {color: '#aaa'}]}>FREC</Text></View>
             <View style={{ flex: 0.8, paddingHorizontal: 1 }}><Text style={[styles.th, {fontSize: 7.5}, isDarkMode && {color: '#aaa'}]}>HORA</Text></View>
@@ -1125,7 +1125,7 @@ export default function EditorOTPScreen() {
                       
                       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: tipoRolName ? 5 : 10 }}>
                         <Text style={{ color: '#64748b', fontSize: 22, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 1, marginRight: 15 }}>
-                          PROYECCIÓN DE SERVICIO
+                          PROYECCIÓN OTP
                         </Text>
                         <View style={{ backgroundColor: baseColor, paddingHorizontal: 20, paddingVertical: 8, borderRadius: 25 }}>
                           <Text style={{ color: '#ffffff', fontSize: 24, fontWeight: '900', letterSpacing: 0.5 }}>{plantillaName?.toUpperCase()}</Text>
@@ -1169,10 +1169,10 @@ export default function EditorOTPScreen() {
                             {renderTurnoIndicator(row, false, true)}
                             <Text style={{ flex: 0.5, color: baseColor, fontSize: 13, textAlign: 'center', fontWeight: '900' }}>{row.frec}</Text>
                             <Text style={{ flex: 0.8, color: baseColor, fontSize: 13, textAlign: 'center', fontWeight: '900' }}>{row.horario}</Text>
-                            <Text style={{ flex: 0.8, color: theme.text, fontSize: 13, textAlign: 'center', fontWeight: '900' }}>{row.eco || '-'}</Text>
+                            <Text style={{ flex: 0.8, color: '#0f172a', fontSize: 13, textAlign: 'center', fontWeight: '900' }}>{row.eco || '-'}</Text>
                             {!isIndios && <Text style={{ flex: 0.8, color: row.ruta === 'MEX' ? '#008000' : row.ruta === 'REY' ? '#D22B2B' : '#4B0082', fontSize: 11, textAlign: 'center', fontWeight: '900' }}>{row.ruta || '-'}</Text>}
-                            {(isIndios || isLagos) && <Text style={{ flex: 0.5, color: theme.text, fontSize: 13, textAlign: 'center', fontWeight: '900' }}>{row.pax || '-'}</Text>}
-                            <Text style={{ flex: (isIndios || !isLagos) ? 2.2 : 1.6, color: theme.text, fontSize: 11, textAlign: 'center', paddingHorizontal: 2, flexShrink: 1, flexWrap: 'wrap', fontWeight: '900' }}>{row.observaciones || ''}</Text>
+                            {(isIndios || isLagos) && <Text style={{ flex: 0.5, color: '#0f172a', fontSize: 13, textAlign: 'center', fontWeight: '900' }}>{row.pax || '-'}</Text>}
+                            <Text style={{ flex: (isIndios || !isLagos) ? 2.2 : 1.6, color: '#0f172a', fontSize: 11, textAlign: 'center', paddingHorizontal: 2, flexShrink: 1, flexWrap: 'wrap', fontWeight: '900' }}>{row.observaciones || ''}</Text>
                           </View>
                         ))}
                       </View>
@@ -1194,10 +1194,10 @@ export default function EditorOTPScreen() {
                               {renderTurnoIndicator(row, false, true)}
                               <Text style={{ flex: 0.6, color: baseColor, fontSize: 13, textAlign: 'center', fontWeight: '900' }}>{row.frec}</Text>
                               <Text style={{ flex: 1, color: baseColor, fontSize: 13, textAlign: 'center', fontWeight: '900' }}>{row.horario}</Text>
-                              <Text style={{ flex: 1, color: theme.text, fontSize: 13, textAlign: 'center', fontWeight: '900' }}>{row.eco || '-'}</Text>
+                              <Text style={{ flex: 1, color: '#0f172a', fontSize: 13, textAlign: 'center', fontWeight: '900' }}>{row.eco || '-'}</Text>
                               {!isIndios && <Text style={{ flex: 0.8, color: row.ruta === 'MEX' ? '#008000' : row.ruta === 'REY' ? '#D22B2B' : '#4B0082', fontSize: 11, textAlign: 'center', fontWeight: '900' }}>{row.ruta || '-'}</Text>}
-                              {(isIndios || isLagos) && <Text style={{ flex: 0.5, color: theme.text, fontSize: 13, textAlign: 'center', fontWeight: '900' }}>{row.pax || '-'}</Text>}
-                              <Text style={{ flex: (isIndios || !isLagos) ? 2.2 : 1.6, color: theme.text, fontSize: 11, textAlign: 'center', paddingHorizontal: 2, flexShrink: 1, flexWrap: 'wrap', fontWeight: '900' }}>{row.observaciones || ''}</Text>
+                              {(isIndios || isLagos) && <Text style={{ flex: 0.5, color: '#0f172a', fontSize: 13, textAlign: 'center', fontWeight: '900' }}>{row.pax || '-'}</Text>}
+                              <Text style={{ flex: (isIndios || !isLagos) ? 2.2 : 1.6, color: '#0f172a', fontSize: 11, textAlign: 'center', paddingHorizontal: 2, flexShrink: 1, flexWrap: 'wrap', fontWeight: '900' }}>{row.observaciones || ''}</Text>
                             </View>
                           ))}
                         </View>
@@ -1273,14 +1273,14 @@ export default function EditorOTPScreen() {
                     onPress={() => handleOpenFrecSelector(row.id, row.frec)}
                     disabled={isReadOnly}
                   >
-                    <Text style={[{ color: theme.text, fontWeight: 'bold', textAlign: 'center', fontSize: 13 }, isDarkMode && { color: theme.text }]}>
+                    <Text style={[{ color: '#0f172a', fontWeight: 'bold', textAlign: 'center', fontSize: 13 }, isDarkMode && { color: theme.text }]}>
                       {row.frec || '---'}
                     </Text>
                   </TouchableOpacity>
                 </View>
 
                 <View style={{ flex: 0.8, paddingHorizontal: 1, justifyContent: 'center' }}>
-                  <ControlledCellInput style={[styles.inputCell, { flex: 1, color: theme.text, fontWeight: 'bold', paddingVertical: 8, fontSize: 13, textAlign: 'center' }, isDarkMode && { backgroundColor: '#333', borderColor: '#444', color: theme.text }, isReadOnly && { opacity: 0.8, borderColor: 'transparent' }]}
+                  <ControlledCellInput style={[styles.inputCell, { flex: 1, color: '#0f172a', fontWeight: 'bold', paddingVertical: 8, fontSize: 13, textAlign: 'center' }, {}, isReadOnly && { opacity: 0.8, borderColor: 'transparent' }]}
                     value={row.horario}
                     onChangeText={(t: string) => handleUpdateField(row.id, 'horario', t)}
                     onFocus={() => toggleExpand(null)}
@@ -1301,7 +1301,7 @@ export default function EditorOTPScreen() {
                     }}
                     disabled={isReadOnly}
                   >
-                    <Text style={[{ color: theme.text, fontWeight: 'bold', textAlign: 'center', fontSize: 13 }, !row.eco && { color: isDarkMode ? "#666" : "#475569" }, isDarkMode && row.eco && { color: theme.text }]}>
+                    <Text style={[{ color: '#0f172a', fontWeight: 'bold', textAlign: 'center', fontSize: 13 }, !row.eco && { color: isDarkMode ? "#666" : "#475569" }, isDarkMode && row.eco && { color: theme.text }]}>
                       {row.eco ? String(row.eco) : '--'}
                     </Text>
                   </TouchableOpacity>
@@ -1342,7 +1342,7 @@ export default function EditorOTPScreen() {
                           style={[
                             styles.inputCell, 
                             { paddingVertical: 8, fontSize: 13 },
-                            hasWrittenPax ? { color: theme.text, fontWeight: 'bold' } : { color: '#94a3b8', fontStyle: 'italic', opacity: unitCap > 0 ? 0.9 : 1 },
+                            hasWrittenPax ? { color: '#0f172a', fontWeight: 'bold' } : { color: '#94a3b8', fontStyle: 'italic', opacity: unitCap > 0 ? 0.9 : 1 },
                             isDarkMode && { backgroundColor: '#333', borderColor: '#444', color: hasWrittenPax ? theme.text : '#888' },
                             isReadOnly && { opacity: 0.8, borderColor: 'transparent' }
                           ]}
@@ -1444,7 +1444,7 @@ export default function EditorOTPScreen() {
               
               <TextInput 
                 autoFocus={true}
-                style={[{ backgroundColor: theme.headerText, borderWidth: 1, borderColor: theme.border, borderRadius: 12, color: themeName === 'neon' ? '#FFFFFF' : '#0f172a', padding: 18, fontSize: 16, marginBottom: 25, textAlignVertical: 'top' }, isDarkMode && { backgroundColor: '#333', borderColor: '#444', color: theme.text }]}
+                style={[{ backgroundColor: theme.headerText, borderWidth: 1, borderColor: theme.border, borderRadius: 12, color: themeName === 'neon' ? '#FFFFFF' : '#0f172a', padding: 18, fontSize: 16, marginBottom: 25, textAlignVertical: 'top' }, {}]}
                 value={obsInputValue}
                 onChangeText={setObsInputValue}
                 placeholder="Ej. Salió a ruta 3 min tarde..."
@@ -1472,7 +1472,7 @@ export default function EditorOTPScreen() {
               </View>
               
               <TextInput 
-                style={[{ backgroundColor: theme.headerText, borderWidth: 1, borderColor: theme.border, borderRadius: 12, color: themeName === 'neon' ? '#FFFFFF' : '#0f172a', padding: 18, fontSize: 24, fontWeight: 'bold', marginBottom: 25, textAlign: 'center' }, isDarkMode && { backgroundColor: '#333', borderColor: '#444', color: theme.text }]}
+                style={[{ backgroundColor: theme.headerText, borderWidth: 1, borderColor: theme.border, borderRadius: 12, color: themeName === 'neon' ? '#FFFFFF' : '#0f172a', padding: 18, fontSize: 24, fontWeight: 'bold', marginBottom: 25, textAlign: 'center' }, {}]}
                 value={ecoInputValue}
                 onChangeText={setEcoInputValue}
                 placeholder="Ej. 1320"
@@ -1515,14 +1515,14 @@ function getStyles(theme: any) { return StyleSheet.create({
   tableRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: theme.border, borderRadius: 8, marginBottom: 8, backgroundColor: theme.background },
   td: { color: theme.text, fontSize: 12, textAlign: 'center' },
   inputCell: {
-    backgroundColor: theme.surface,
+    backgroundColor: (false) ? '#2e2e2e' : (false ? '#F0F9FF' : '#EAE5CE'),
     borderRadius: 20,
     borderWidth: 1,
     borderColor: theme.border,
     paddingVertical: 8,
     paddingHorizontal: 4,
     fontSize: 14,
-    color: theme.text,
+    color: '#0f172a',
     textAlign: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
@@ -1561,5 +1561,3 @@ function getStyles(theme: any) { return StyleSheet.create({
 // trigger rebuild 7
 // trigger rebuild 8
 // trigger rebuild 1
-
-// trigger rebuild 2
