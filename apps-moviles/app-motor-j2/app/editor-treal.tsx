@@ -14,6 +14,7 @@ import { supabase } from '../src/services/supabaseClient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { SyncManager } from '../src/services/SyncManager';
+import { decode } from 'base64-arraybuffer';
 
 const FrecModal = ({ visible, onClose, initialFrec, onSave, isDarkMode }: any) => {
   const { theme, themeName } = useTheme();
@@ -387,7 +388,7 @@ export default function EditorTREALScreen() {
       };
       newData.push(newRow);
       
-      const recalculatedRows = calculateTimes(newData, newData.length - 1, 'frec');
+      const recalculatedRows = calculateTimes(newData, newData.length - 1, 'horario');
       setRows(recalculatedRows);
       
       const targetId = activeRolId || (rol_id as string);
