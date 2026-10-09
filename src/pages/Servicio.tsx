@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Calendar, Clock, ListOrdered, LayoutGrid, ArrowLeft, ScanLine } from 'lucide-react';
+import { Calendar, Clock, ListOrdered, LayoutGrid, ArrowLeft, ScanLine, Activity } from 'lucide-react';
+import { MonitorTreal } from './MonitorTreal';
 
 const mockReporte = [
   { no: 1, frec: 'I.F.', hEntrada: '05:00', hSalida: '05:30', pax: 2, eco: '2540' },
@@ -12,7 +13,7 @@ const mockReporte = [
 ];
 
 export const Servicio = () => {
-  const [view, setView] = useState<'dashboard' | 'tablas_dia' | 'rol_despegue' | 'roles_predeterminados'>('dashboard');
+  const [view, setView] = useState<'dashboard' | 'tablas_dia' | 'rol_despegue' | 'roles_predeterminados' | 'monitoreo_treal'>('dashboard');
   const [reporte, setReporte] = useState(mockReporte);
 
   const simulateNFC = (no: number) => {
@@ -27,6 +28,10 @@ export const Servicio = () => {
       return row;
     }));
   };
+
+  if (view === 'monitoreo_treal') {
+    return <MonitorTreal onBack={() => setView('dashboard')} />;
+  }
 
   if (view === 'dashboard') {
     return (
