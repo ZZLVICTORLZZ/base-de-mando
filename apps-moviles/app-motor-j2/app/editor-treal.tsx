@@ -34,16 +34,16 @@ const FrecModal = ({ visible, onClose, initialFrec, onSave, isDarkMode }: any) =
   return (
     <Modal visible={visible} animationType="none" transparent={true} onRequestClose={onClose}>
       <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}>
-        <View style={[styles.modalContent, { height: 'auto', paddingBottom: 30 }, isDarkMode && { backgroundColor: '#222' }]}>
-          <View style={[styles.modalHeader, isDarkMode && { borderBottomColor: '#333' }]}>
-            <Text style={[styles.modalTitle, isDarkMode && { color: theme.text }]}>Configurar Frecuencia</Text>
+        <View style={[styles.modalContent, { height: 'auto', paddingBottom: 30 }, { backgroundColor: theme.surface }]}>
+          <View style={[styles.modalHeader, { borderBottomColor: theme.border }]}>
+            <Text style={[styles.modalTitle, { color: theme.text }]}>Configurar Frecuencia</Text>
             <TouchableOpacity onPress={onClose}>
               <Feather name="x" size={24} color="#94a3b8" />
             </TouchableOpacity>
           </View>
           
           <TextInput 
-            style={[{ backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: theme.border, borderRadius: 12, color: theme.text, padding: 18, fontSize: 24, fontWeight: 'bold', marginBottom: 25, textAlign: 'center' }, isDarkMode && { backgroundColor: '#333', borderColor: '#444', color: theme.text }]}
+            style={[{ backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.border, borderRadius: 12, color: theme.text, padding: 18, fontSize: 24, fontWeight: 'bold', marginBottom: 25, textAlign: 'center' }]}
             value={val}
             onChangeText={setVal}
             keyboardType="number-pad"
@@ -456,7 +456,7 @@ export default function EditorTREALScreen() {
   
   // Marcatextos
   const [activeColor, setActiveColor] = useState<string | null>(null);
-  const COLORS = ['#FF1493', '#00FFFF', '#39FF14', '#FFFF00', '#FF8C00', '#8A2BE2', '#FF4500'];
+  const COLORS = ['#FFEB3B', '#00E676', '#00E5FF', '#FF4081', '#FF9100'];
   const [creadorName, setCreadorName] = useState<string>('');
 
 // Exportación
@@ -1446,12 +1446,12 @@ export default function EditorTREALScreen() {
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <SafeAreaView style={[styles.container, isDarkMode && { backgroundColor: "#1A1A1A" }]}>
-        <View style={[styles.header, { borderBottomWidth: 4, borderBottomColor: '#ef4444', backgroundColor: isDarkMode ? '#2a1111' : '#fff0f0' }]}>
+        <View style={[styles.header, { borderBottomWidth: 4, borderBottomColor: '#ef4444', backgroundColor: theme.surface }]}>
           <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
             <Feather name="arrow-left" size={24} color="#ef4444" />
           </TouchableOpacity>
           <View style={{ alignItems: 'center' }}>
-            <Text style={[styles.title, { color: '#ef4444' }]}>🔴 TREAL - {plantillaName}</Text>
+            <Text style={[styles.title, { color: theme.danger || '#ef4444' }]}>🔴 TREAL - {plantillaName}</Text>
             {tipoRolName ? <Text style={{ fontSize: 11, color: isDarkMode ? '#aaa' : '#64748b', fontWeight: 'bold' }}>Rol: {tipoRolName}</Text> : null}
             
             {lastSavedTime ? <Text style={{ fontSize: 10, color: '#10b981', fontWeight: 'bold' }}>⚡ Guardado {lastSavedTime}</Text> : null}
@@ -1524,7 +1524,7 @@ export default function EditorTREALScreen() {
         {!isExporting && (
           <View style={{ paddingHorizontal: 10, paddingBottom: 6, paddingTop: 4 }}>
             <TextInput
-              style={{ backgroundColor: isDarkMode ? '#222' : '#fff', borderColor: theme.border, borderWidth: 1, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, color: theme.text, fontSize: 13 }}
+              style={{ backgroundColor: theme.surface, borderColor: theme.border, borderWidth: 1, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, color: theme.text, fontSize: 13 }}
               placeholder="📝 Añadir incidencias del día..."
               placeholderTextColor={isDarkMode ? '#888' : '#94a3b8'}
               value={obsGeneral}
@@ -1535,14 +1535,14 @@ export default function EditorTREALScreen() {
         )}
 
         {!isExporting && (
-          <View style={{ flexDirection: 'row', paddingHorizontal: 20, paddingVertical: 6, backgroundColor: theme.background, borderBottomWidth: 1, borderBottomColor: isDarkMode ? '#333' : theme.border }}>
-            <View style={{ flex: 0.4 }}><Text style={[styles.th, {fontSize: 7.5}, isDarkMode && {color: '#aaa'}]}>NO.</Text></View>
-            <View style={{ flex: 0.5, paddingHorizontal: 1 }}><Text style={[styles.th, {fontSize: 7.5}, isDarkMode && {color: '#aaa'}]}>FREC</Text></View>
-            <View style={{ flex: 0.8, paddingHorizontal: 1 }}><Text style={[styles.th, {fontSize: 7.5}, isDarkMode && {color: '#aaa'}]}>HORA</Text></View>
-            <View style={{ flex: 0.8, paddingHorizontal: 1 }}><Text style={[styles.th, {fontSize: 7.5, color: isDarkMode ? '#aaa' : theme.text}]}>ECO</Text></View>
-            {!isIndios && <View style={{ flex: 0.8, paddingHorizontal: 1 }}><Text style={[styles.th, {fontSize: 7.5}, isDarkMode && {color: '#aaa'}]}>RUTA</Text></View>}
-            {(isIndios || isLagos) && <View style={{ flex: 0.5, paddingHorizontal: 1 }}><Text style={[styles.th, {fontSize: 7.5}, isDarkMode && {color: '#aaa'}]}>PAX</Text></View>}
-            <View style={{ flex: 0.6, paddingHorizontal: 1 }}><Text style={[styles.th, {fontSize: 7.5}, isDarkMode && {color: '#aaa'}]}>OBS</Text></View>
+          <View style={{ flexDirection: 'row', paddingHorizontal: 20, paddingVertical: 6, backgroundColor: theme.surface, borderBottomWidth: 1, borderBottomColor: theme.border }}>
+            <View style={{ flex: 0.4 }}><Text style={[styles.th, {fontSize: 7.5}, {color: theme.textMuted}]}>NO.</Text></View>
+            <View style={{ flex: 0.5, paddingHorizontal: 1 }}><Text style={[styles.th, {fontSize: 7.5}, {color: theme.textMuted}]}>FREC</Text></View>
+            <View style={{ flex: 0.8, paddingHorizontal: 1 }}><Text style={[styles.th, {fontSize: 7.5}, {color: theme.textMuted}]}>HORA</Text></View>
+            <View style={{ flex: 0.8, paddingHorizontal: 1 }}><Text style={[styles.th, {fontSize: 7.5, color: theme.textMuted}]}>ECO</Text></View>
+            {!isIndios && <View style={{ flex: 0.8, paddingHorizontal: 1 }}><Text style={[styles.th, {fontSize: 7.5}, {color: theme.textMuted}]}>RUTA</Text></View>}
+            {(isIndios || isLagos) && <View style={{ flex: 0.5, paddingHorizontal: 1 }}><Text style={[styles.th, {fontSize: 7.5}, {color: theme.textMuted}]}>PAX</Text></View>}
+            <View style={{ flex: 0.6, paddingHorizontal: 1 }}><Text style={[styles.th, {fontSize: 7.5}, {color: theme.textMuted}]}>OBS</Text></View>
             {!isReadOnly && <View style={{ width: 30 }} />}
           </View>
         )}
@@ -1598,13 +1598,13 @@ export default function EditorTREALScreen() {
                           <Text style={{ flex: (isIndios || !isLagos) ? 2.2 : 1.6, color: '#0f172a', fontWeight: 'bold', fontSize: 11, textAlign: 'center' }}>OBS</Text>
                         </View>
                         {rows.slice(0, Math.ceil(rows.length / 2)).map((row) => (
-                          <View key={row.id} style={[{ flexDirection: 'row', backgroundColor: row.highlightColor ? `${row.highlightColor}60` : 'transparent', borderBottomWidth: 1, borderColor: baseColor, paddingVertical: 10, alignItems: 'center' }, row.es_manual && { borderWidth: 2, borderColor: '#ef4444', borderStyle: 'dashed', borderRadius: 4, marginVertical: 2 }, row.isGhost && { opacity: 0.35 }]}>
+                          <View key={row.id} style={[{ flexDirection: 'row', backgroundColor: row.highlightColor ? row.highlightColor : 'transparent', borderBottomWidth: 1, borderColor: baseColor, paddingVertical: 10, alignItems: 'center' }, row.es_manual && { borderWidth: 2, borderColor: '#ef4444', borderStyle: 'dashed', borderRadius: 4, marginVertical: 2 }, row.isGhost && { opacity: 0.35 }]}>
                             {renderTurnoIndicator(row, false, true)}
-                            <Text style={{ flex: 0.5, color: baseColor, fontSize: 13, textAlign: 'center', fontWeight: 'bold' }}>{row.frec}</Text>
-                            <Text style={{ flex: 0.8, color: baseColor, fontSize: 13, textAlign: 'center', fontWeight: 'bold' }}>{row.horario}</Text>
+                            <Text style={{ flex: 0.5, color: row.highlightColor ? '#0f172a' : baseColor, fontSize: 13, textAlign: 'center', fontWeight: 'bold' }}>{row.frec}</Text>
+                            <Text style={{ flex: 0.8, color: row.highlightColor ? '#0f172a' : baseColor, fontSize: 13, textAlign: 'center', fontWeight: 'bold' }}>{row.horario}</Text>
                             <Text style={{ flex: 0.8, color: '#0f172a', fontSize: 13, textAlign: 'center', fontWeight: 'bold' }}>{row.isGhost ? '-' : (row.eco || '-')}</Text>
-                            {!isIndios && <Text style={{ flex: 0.8, color: row.ruta === 'MEX' ? '#008000' : row.ruta === 'REY' ? '#D22B2B' : '#4B0082', fontSize: 11, textAlign: 'center', fontWeight: 'bold' }}>{row.ruta || '-'}</Text>}
-                            {(isIndios || isLagos) && <Text style={{ flex: 0.5, color: '#0f172a', fontSize: 13, textAlign: 'center' }}>{row.isGhost ? '-' : (row.pax || '-')}</Text>}
+                            {!isIndios && <Text style={{ flex: 0.8, color: row.highlightColor ? '#0f172a' : (row.ruta === 'MEX' ? '#008000' : row.ruta === 'REY' ? '#D22B2B' : '#4B0082'), fontSize: 11, textAlign: 'center', fontWeight: 'bold' }}>{row.ruta || '-'}</Text>}
+                            {(isIndios || isLagos) && <Text style={{ flex: 0.5, color: row.highlightColor ? '#0f172a' : (isDarkMode ? theme.text : '#0f172a'), fontSize: 13, textAlign: 'center' }}>{row.isGhost ? '-' : (row.pax || '-')}</Text>}
                             <Text style={{ flex: (isIndios || !isLagos) ? 2.2 : 1.6, color: '#0f172a', fontSize: 11, textAlign: 'center', paddingHorizontal: 2, flexShrink: 1, flexWrap: 'wrap' }}>{row.observaciones || ''}</Text>
                           </View>
                         ))}
@@ -1623,12 +1623,12 @@ export default function EditorTREALScreen() {
                             <Text style={{ flex: (isIndios || !isLagos) ? 2.2 : 1.6, color: '#0f172a', fontWeight: '900', fontSize: 11, textAlign: 'center' }}>OBS</Text>
                           </View>
                           {rows.slice(Math.ceil(rows.length / 2)).map((row) => (
-                            <View key={row.id} style={[{ flexDirection: 'row', backgroundColor: row.highlightColor ? `${row.highlightColor}60` : 'transparent', borderBottomWidth: 1, borderColor: baseColor, paddingVertical: 10, alignItems: 'center' }, row.es_manual && { borderWidth: 2, borderColor: '#ef4444', borderStyle: 'dashed', borderRadius: 4, marginVertical: 2 }, row.isGhost && { opacity: 0.35 }]}>
+                            <View key={row.id} style={[{ flexDirection: 'row', backgroundColor: row.highlightColor ? row.highlightColor : 'transparent', borderBottomWidth: 1, borderColor: baseColor, paddingVertical: 10, alignItems: 'center' }, row.es_manual && { borderWidth: 2, borderColor: '#ef4444', borderStyle: 'dashed', borderRadius: 4, marginVertical: 2 }, row.isGhost && { opacity: 0.35 }]}>
                               {renderTurnoIndicator(row, false, true)}
-                              <Text style={{ flex: 0.6, color: baseColor, fontSize: 13, textAlign: 'center', fontWeight: '900' }}>{row.frec}</Text>
-                              <Text style={{ flex: 1, color: baseColor, fontSize: 13, textAlign: 'center', fontWeight: '900' }}>{row.horario}</Text>
+                              <Text style={{ flex: 0.6, color: row.highlightColor ? '#0f172a' : baseColor, fontSize: 13, textAlign: 'center', fontWeight: '900' }}>{row.frec}</Text>
+                              <Text style={{ flex: 1, color: row.highlightColor ? '#0f172a' : baseColor, fontSize: 13, textAlign: 'center', fontWeight: '900' }}>{row.horario}</Text>
                               <Text style={{ flex: 1, color: '#0f172a', fontSize: 13, textAlign: 'center', fontWeight: '900' }}>{row.isGhost ? '-' : (row.eco || '-')}</Text>
-                              {!isIndios && <Text style={{ flex: 0.8, color: row.ruta === 'MEX' ? '#008000' : row.ruta === 'REY' ? '#D22B2B' : '#4B0082', fontSize: 11, textAlign: 'center', fontWeight: '900' }}>{row.ruta || '-'}</Text>}
+                              {!isIndios && <Text style={{ flex: 0.8, color: row.highlightColor ? '#0f172a' : (row.ruta === 'MEX' ? '#008000' : row.ruta === 'REY' ? '#D22B2B' : '#4B0082'), fontSize: 11, textAlign: 'center', fontWeight: '900' }}>{row.ruta || '-'}</Text>}
                               {(isIndios || isLagos) && <Text style={{ flex: 0.5, color: '#0f172a', fontSize: 13, textAlign: 'center' }}>{row.isGhost ? '-' : (row.pax || '-')}</Text>}
                               <Text style={{ flex: (isIndios || !isLagos) ? 2.2 : 1.6, color: '#0f172a', fontSize: 11, textAlign: 'center', paddingHorizontal: 2, flexShrink: 1, flexWrap: 'wrap' }}>{row.observaciones || ''}</Text>
                             </View>
@@ -1695,8 +1695,8 @@ export default function EditorTREALScreen() {
                 }}
                 style={[
                   styles.tableRow, 
-                  isDarkMode && { backgroundColor: '#222', borderBottomColor: '#333' },
-                  row.highlightColor && { backgroundColor: `${row.highlightColor}40` },
+                  isDarkMode && { backgroundColor: theme.surface, borderBottomColor: theme.border },
+                  row.highlightColor && { backgroundColor: row.highlightColor },
                   row.es_manual && { borderWidth: 2, borderColor: '#ef4444', borderStyle: 'dashed' },
                   row.isGhost && { opacity: 0.35, backgroundColor: isDarkMode ? '#333' : '#f8fafc' },
                   searchEco.trim() !== '' && String(row.eco) !== searchEco.trim() && { opacity: 0.15 }
@@ -1706,18 +1706,18 @@ export default function EditorTREALScreen() {
                 
                 <View style={{ flex: 0.6, paddingHorizontal: 1 }}>
                   <TouchableOpacity 
-                    style={[styles.inputCell, isDarkMode && { backgroundColor: '#333', borderColor: '#444' }, { justifyContent: 'center', paddingVertical: 8 }, isReadOnly && { opacity: 0.8, borderColor: 'transparent' }]}
+                    style={[styles.inputCell, row.highlightColor ? { backgroundColor: 'transparent', borderColor: 'transparent' } : { backgroundColor: theme.surface, borderColor: theme.border }, { justifyContent: 'center', paddingVertical: 8 }, isReadOnly && { opacity: 0.8, borderColor: 'transparent' }]}
                     onPress={() => handleOpenFrecSelector(row.id, row.frec)}
                     disabled={isReadOnly}
                   >
-                    <Text style={[{ color: theme.text, fontWeight: '900', textAlign: 'center', fontSize: 13 }, isDarkMode && { color: theme.text }]}>
+                    <Text style={[{ color: theme.text, fontWeight: '900', textAlign: 'center', fontSize: 13 }, { color: theme.text }, row.highlightColor && { color: '#0f172a' }]}>
                       {row.frec || '---'}
                     </Text>
                   </TouchableOpacity>
                 </View>
 
                 <View style={{ flex: 0.8, paddingHorizontal: 1, justifyContent: 'center' }}>
-                  <ControlledCellInput style={[styles.inputCell, { flex: 1, color: theme.text, fontWeight: '900', paddingVertical: 8, fontSize: 13, textAlign: 'center' }, isDarkMode && { backgroundColor: '#333', borderColor: '#444', color: theme.text }, (isReadOnly || (!row.es_manual && userAccessLevel < 10)) && { opacity: 0.8, borderColor: 'transparent' }]}
+                  <ControlledCellInput style={[styles.inputCell, { flex: 1, color: theme.text, fontWeight: '900', paddingVertical: 8, fontSize: 13, textAlign: 'center' }, row.highlightColor ? { backgroundColor: 'transparent', borderColor: 'transparent', color: '#0f172a' } : { backgroundColor: theme.surface, borderColor: theme.border, color: theme.text }, (isReadOnly || (!row.es_manual && userAccessLevel < 10)) && { opacity: 0.8, borderColor: 'transparent' }]}
                     value={row.horario}
                     onChangeText={(t: string) => handleUpdateField(row.id, 'horario', t)}
                     onFocus={() => {
@@ -1735,7 +1735,7 @@ export default function EditorTREALScreen() {
                 
                 <View style={{ flex: 1, paddingHorizontal: 1 }}>
                   <TouchableOpacity 
-                    style={[styles.inputCell, { justifyContent: 'center', paddingVertical: 8 }, isDarkMode && { backgroundColor: '#333', borderColor: '#444' }, isReadOnly && { opacity: 0.8, borderColor: 'transparent' }]}
+                    style={[styles.inputCell, { justifyContent: 'center', paddingVertical: 8 }, row.highlightColor ? { backgroundColor: 'transparent', borderColor: 'transparent' } : { backgroundColor: theme.surface, borderColor: theme.border }, isReadOnly && { opacity: 0.8, borderColor: 'transparent' }]}
                     onPress={() => {
                       if(isReadOnly || !isAllowedToEdit) return;
                       if (!row.es_manual && userAccessLevel < 10) {
@@ -1748,7 +1748,7 @@ export default function EditorTREALScreen() {
                     }}
                     disabled={isReadOnly}
                   >
-                    <Text style={[{ color: theme.text, fontWeight: '900', textAlign: 'center', fontSize: 13 }, !row.eco && { color: isDarkMode ? "#666" : "#475569" }, isDarkMode && row.eco && { color: theme.text }]}>
+                    <Text style={[{ color: theme.text, fontWeight: '900', textAlign: 'center', fontSize: 13 }, !row.eco && { color: isDarkMode ? "#666" : "#475569" }, isDarkMode && row.eco && { color: theme.text }, row.highlightColor && { color: '#0f172a' }]}>
                       {row.eco ? String(row.eco) : '--'}
                     </Text>
                   </TouchableOpacity>
@@ -1769,7 +1769,7 @@ export default function EditorTREALScreen() {
                     >
                       <Text style={[
                         { fontWeight: '900', textAlign: 'center', fontSize: 13 },
-                        row.ruta === 'MEX' ? { color: '#10b981' } : row.ruta === 'REY' ? { color: '#ef4444' } : { color: isDarkMode ? '#aaa' : '#475569' }
+                        row.highlightColor ? { color: '#0f172a' } : (row.ruta === 'MEX' ? { color: '#10b981' } : row.ruta === 'REY' ? { color: '#ef4444' } : { color: isDarkMode ? '#aaa' : '#475569' })
                       ]}>
                         {row.ruta || '---'}
                       </Text>
@@ -1856,7 +1856,7 @@ export default function EditorTREALScreen() {
         )}
 
         {!isReadOnly && !isExporting && (
-          <View style={[styles.marcatextosContainer, isDarkMode && { backgroundColor: 'rgba(30, 30, 30, 0.95)', borderColor: '#444' }]}>
+          <View style={[styles.marcatextosContainer, { backgroundColor: theme.surface, borderColor: theme.border }]}>
             <TouchableOpacity 
               style={[styles.colorCircle, { backgroundColor: 'transparent', borderWidth: 1, borderColor: '#64748b', marginRight: 10 }, activeColor === null && styles.colorCircleActive]} 
               onPress={() => setActiveColor(null)}
@@ -1894,9 +1894,9 @@ export default function EditorTREALScreen() {
         {/* Modal Observaciones */}
         <Modal visible={obsModalVisible} animationType="none" transparent={true} onRequestClose={() => setObsModalVisible(false)}>
           <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}>
-            <View style={[styles.modalContent, { height: 'auto', paddingBottom: 30 }, isDarkMode && { backgroundColor: '#222' }]}>
-              <View style={[styles.modalHeader, isDarkMode && { borderBottomColor: '#333' }]}>
-                <Text style={[styles.modalTitle, isDarkMode && { color: theme.text }]}>Observaciones</Text>
+            <View style={[styles.modalContent, { height: 'auto', paddingBottom: 30 }, { backgroundColor: theme.surface }]}>
+              <View style={[styles.modalHeader, { borderBottomColor: theme.border }]}>
+                <Text style={[styles.modalTitle, { color: theme.text }]}>Observaciones</Text>
                 <TouchableOpacity onPress={() => setObsModalVisible(false)}>
                   <Feather name="x" size={24} color="#94a3b8" />
                 </TouchableOpacity>
@@ -1904,7 +1904,7 @@ export default function EditorTREALScreen() {
               
               <TextInput 
                 autoFocus={true}
-                style={{ backgroundColor: theme.surface || '#fff', borderWidth: 1, borderColor: theme.border, borderRadius: 12, color: theme.text, padding: 18, fontSize: 16, marginBottom: 25, textAlignVertical: 'top' }}
+                style={{ backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.border, borderRadius: 12, color: theme.text, padding: 18, fontSize: 16, marginBottom: 25, textAlignVertical: 'top' }}
                 value={obsInputValue}
                 onChangeText={setObsInputValue}
                 placeholder="Ej. Salió a ruta 3 min tarde..."
@@ -1923,16 +1923,16 @@ export default function EditorTREALScreen() {
         {/* Modal ECO */}
         <Modal visible={ecoModalVisible} animationType="none" transparent={true} onRequestClose={() => setEcoModalVisible(false)}>
           <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}>
-            <View style={[styles.modalContent, { height: 'auto', paddingBottom: 30 }, isDarkMode && { backgroundColor: '#222' }]}>
-              <View style={[styles.modalHeader, isDarkMode && { borderBottomColor: '#333' }]}>
-                <Text style={[styles.modalTitle, isDarkMode && { color: theme.text }]}>Unidad (ECO)</Text>
+            <View style={[styles.modalContent, { height: 'auto', paddingBottom: 30 }, { backgroundColor: theme.surface }]}>
+              <View style={[styles.modalHeader, { borderBottomColor: theme.border }]}>
+                <Text style={[styles.modalTitle, { color: theme.text }]}>Unidad (ECO)</Text>
                 <TouchableOpacity onPress={() => setEcoModalVisible(false)}>
                   <Feather name="x" size={24} color="#94a3b8" />
                 </TouchableOpacity>
               </View>
               
               <TextInput 
-                style={[{ backgroundColor: theme.headerText, borderWidth: 1, borderColor: theme.border, borderRadius: 12, color: themeName === 'neon' ? '#FFFFFF' : '#0f172a', padding: 18, fontSize: 24, fontWeight: 'bold', marginBottom: 25, textAlign: 'center' }, isDarkMode && { backgroundColor: '#333', borderColor: '#444', color: theme.text }]}
+                style={[{ backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.border, borderRadius: 12, color: theme.text, padding: 18, fontSize: 24, fontWeight: 'bold', marginBottom: 25, textAlign: 'center' }]}
                 value={ecoInputValue}
                 onChangeText={setEcoInputValue}
                 placeholder="Ej. 1320"
@@ -1978,15 +1978,15 @@ export default function EditorTREALScreen() {
         onShow={() => setTimeout(() => paxInputRef.current?.focus(), 100)}
       >
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', alignItems: 'center' }}>
-          <View style={{ backgroundColor: isDarkMode ? '#222' : '#fff', padding: 25, borderRadius: 20, width: '80%', alignItems: 'center' }}>
+          <View style={{ backgroundColor: theme.surface, padding: 25, borderRadius: 20, width: '80%', alignItems: 'center' }}>
             <View style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: '#10b98120', justifyContent: 'center', alignItems: 'center', marginBottom: 15 }}>
               <Feather name="users" size={30} color="#10b981" />
             </View>
-            <Text style={{ fontSize: 22, fontWeight: 'bold', color: isDarkMode ? '#fff' : '#000', marginBottom: 10 }}>Pasajeros a Bordo</Text>
-            <Text style={{ fontSize: 14, color: isDarkMode ? '#aaa' : '#666', marginBottom: 20, textAlign: 'center' }}>Ingresa la cantidad de pasajeros de esta unidad</Text>
+            <Text style={{ fontSize: 22, fontWeight: 'bold', color: theme.text, marginBottom: 10 }}>Pasajeros a Bordo</Text>
+            <Text style={{ fontSize: 14, color: theme.textMuted, marginBottom: 20, textAlign: 'center' }}>Ingresa la cantidad de pasajeros de esta unidad</Text>
             
             <TextInput
-              style={{ width: '100%', height: 60, backgroundColor: isDarkMode ? '#333' : '#f0f0f0', borderRadius: 12, textAlign: 'center', fontSize: 28, fontWeight: 'bold', color: isDarkMode ? '#fff' : '#000', marginBottom: 20 }}
+              style={{ width: '100%', height: 60, backgroundColor: theme.surface, borderRadius: 12, textAlign: 'center', fontSize: 28, fontWeight: 'bold', color: theme.text, marginBottom: 20 }}
               keyboardType="number-pad"
               ref={paxInputRef}
               value={nfcPaxValue}
