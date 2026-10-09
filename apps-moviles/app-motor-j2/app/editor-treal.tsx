@@ -1557,9 +1557,14 @@ export default function EditorTREALScreen() {
                     <View style={{ width: 900, backgroundColor: '#FFFFFF', padding: 30 }}>
                     {/* Header de Exportación TREAL */}
                     <View style={{ flexDirection: 'column', borderBottomWidth: 2, borderColor: baseColor, paddingBottom: 15, marginBottom: 20 }}>
-                      <Text style={{ color: exportTheme.text, fontSize: 24, fontWeight: 'bold', textAlign: 'center', marginBottom: tipoRolName ? 4 : 10 }}>
-                        {exportTheme.emoji} TABLA EN TIEMPO REAL - {plantillaName?.toUpperCase()}
-                      </Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: tipoRolName ? 5 : 10 }}>
+                        <Text style={{ color: exportTheme.text, fontSize: 22, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 1, marginRight: 15 }}>
+                          TABLA EN TIEMPO REAL
+                        </Text>
+                        <View style={{ backgroundColor: baseColor, paddingHorizontal: 20, paddingVertical: 8, borderRadius: 25 }}>
+                          <Text style={{ color: '#ffffff', fontSize: 24, fontWeight: '900', letterSpacing: 0.5 }}>{plantillaName?.toUpperCase()}</Text>
+                        </View>
+                      </View>
                       {tipoRolName ? (
                         <Text style={{ color: '#475569', fontSize: 16, fontWeight: 'bold', textAlign: 'center', marginBottom: 12 }}>
                           Rol: {tipoRolName}
