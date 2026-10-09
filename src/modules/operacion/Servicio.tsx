@@ -43,10 +43,6 @@ export const Servicio = () => {
 
   // Removido simulador NFC y lógica de despacho a petición del usuario.
 
-  if (view === 'monitoreo_treal') {
-    return <MonitorTreal onBack={() => setView('dashboard')} />;
-  }
-
   if (view === 'dashboard') {
     return (
       <div className="animate-fade-in">
@@ -203,6 +199,7 @@ export const Servicio = () => {
         {view === 'roles_predeterminados' && <PlantillasPredeterminadas />}
         {view === 'rol_despegue' && <RolDespegue />}
         {view === 'otp' && <OtpProyecciones />}
+        {view === 'monitoreo_treal' && <MonitorTreal />}
         {view === 'incidencias' && <Incidencias />}
         {view === 'gestor_qr' && <GestorQR />}
         {view === 'tarjetas_firmas' && <TarjetasFirmas />}
