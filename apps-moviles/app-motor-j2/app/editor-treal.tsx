@@ -1875,19 +1875,7 @@ export default function EditorTREALScreen() {
                             placeholder={unitCap > 0 ? `${unitCap}` : '--'}
                             placeholderTextColor={unitCap > 0 ? theme.textMuted : theme.textMuted}
                           />
-                          {hasWrittenPax && unitCap > 0 && (
-                            <View style={{ marginTop: 2, width: '80%', alignItems: 'center' }}>
-                              <Text style={{ fontSize: 7, color: theme.textMuted, marginBottom: 1, fontWeight: 'bold' }}>{numPax} de {unitCap}</Text>
-                              <View style={{ flexDirection: 'row', alignItems: 'center', width: '100%' }}>
-                                <View style={{ flex: 1, height: 2, backgroundColor: theme.border, borderRadius: 1 }}>
-                                  <View style={{ width: `${progress}%`, height: '100%', backgroundColor: progress >= 100 ? theme.primary : '#3b82f6', borderRadius: 1 }} />
-                                </View>
-                                {extra > 0 && (
-                                  <Text style={{ fontSize: 7, color: '#eab308', fontWeight: '900', marginLeft: 2 }}>+{extra}</Text>
-                                )}
-                              </View>
-                            </View>
-                          )}
+                          
                         </View>
                       );
                     })()}
