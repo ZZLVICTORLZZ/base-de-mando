@@ -890,12 +890,12 @@ export default function EditorTREALScreen() {
       const r = newRows[rowIndex];
       
       if (r.ruta === 'MEX') {
-        newRows[rowIndex] = { ...r, ruta: 'REY', frec: 'S.F.' };
+        newRows[rowIndex] = { ...r, ruta: 'REY' };
       } else {
-        newRows[rowIndex] = { ...r, ruta: 'MEX', frec: '15' }; // Valor por defecto al regresar a MEX
+        newRows[rowIndex] = { ...r, ruta: 'MEX' }; // Valor por defecto al regresar a MEX
       }
       
-      return calculateTimes(newRows, rowIndex, 'frec');
+      return newRows;
     });
   };
 
