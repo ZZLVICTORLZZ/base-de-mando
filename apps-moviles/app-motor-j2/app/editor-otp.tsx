@@ -1125,7 +1125,7 @@ export default function EditorOTPScreen() {
                       
                       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: tipoRolName ? 5 : 10 }}>
                         <Text style={{ color: '#64748b', fontSize: 22, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 1, marginRight: 15 }}>
-                          PROYECCIÓN OTP
+                          PROYECCIÓN DE SERVICIO
                         </Text>
                         <View style={{ backgroundColor: baseColor, paddingHorizontal: 20, paddingVertical: 8, borderRadius: 25 }}>
                           <Text style={{ color: '#ffffff', fontSize: 24, fontWeight: '900', letterSpacing: 0.5 }}>{plantillaName?.toUpperCase()}</Text>

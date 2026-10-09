@@ -1558,7 +1558,7 @@ export default function EditorTREALScreen() {
                     {/* Header de Exportación TREAL */}
                     <View style={{ flexDirection: 'column', borderBottomWidth: 2, borderColor: baseColor, paddingBottom: 15, marginBottom: 20 }}>
                       <Text style={{ color: exportTheme.text, fontSize: 24, fontWeight: 'bold', textAlign: 'center', marginBottom: tipoRolName ? 4 : 10 }}>
-                        {exportTheme.emoji} PROYECCIÓN TREAL - {plantillaName?.toUpperCase()}
+                        {exportTheme.emoji} TABLA EN TIEMPO REAL - {plantillaName?.toUpperCase()}
                       </Text>
                       {tipoRolName ? (
                         <Text style={{ color: '#475569', fontSize: 16, fontWeight: 'bold', textAlign: 'center', marginBottom: 12 }}>
