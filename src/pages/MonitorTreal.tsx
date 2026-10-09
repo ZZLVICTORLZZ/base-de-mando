@@ -41,6 +41,9 @@ export const MonitorTreal = () => {
 
   const selectedTabla = tablas.find(t => t.id === selectedTablaId);
 
+  const getChecador = (creado_por: string) => { if (!creado_por) return 'Desconocido'; return creado_por.split('|')[0].replace('[TREAL]', '').trim(); };
+  const getBase = (creado_por: string) => { if (!creado_por) return 'Base Desconocida'; const parts = creado_por.split('|'); if (parts.length > 1) return parts[1].trim(); return 'Base Desconocida'; };
+
   return (
     <div style={{ display: 'flex', gap: '2rem', marginTop: '1rem', height: '100%' }}>
       {/* Sidebar: Historial de Tablas */}
@@ -72,7 +75,7 @@ export const MonitorTreal = () => {
                 }}
               >
                 <div style={{ color: tabla.id === selectedTablaId ? 'var(--primary)' : 'var(--text-main)', fontWeight: 600, fontSize: '1rem', marginBottom: '4px' }}>
-                  Base: {tabla.base || 'Desconocida'}
+                  Base: {getBase(tabla.creado_por)}
                 </div>
                 <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', display: 'flex', justifyContent: 'space-between' }}>
                   <span>{tabla.fecha}</span>
@@ -92,9 +95,10 @@ export const MonitorTreal = () => {
               <div>
                 <h2 style={{ color: 'var(--primary)', fontSize: '1.5rem', display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '5px' }}>
                   <Car size={24} />
-                  Tabla Real: {selectedTabla.base}
+                  Tabla Real: {getBase(selectedTabla.creado_por)}
                 </h2>
-                <p style={{ color: 'var(--text-muted)' }}>Ruta: {selectedTabla.ruta}</p>
+                <p style={{ color: 'var(--text-muted)' }}>Ruta: {selectedTabla.ruta || 'N/A'}</p>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '4px' }}>Creado por: <span style={{color: 'var(--text-main)'}}>{getChecador(selectedTabla.creado_por)}</span></p>
               </div>
               <div style={{ textAlign: 'right' }}>
                 <div style={{ color: 'var(--text-main)', fontSize: '1.2rem', fontWeight: 'bold' }}>{selectedTabla.fecha}</div>
