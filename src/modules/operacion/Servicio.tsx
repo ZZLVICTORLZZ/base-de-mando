@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, Clock, ListOrdered, LayoutGrid, ArrowLeft, ScanLine, QrCode, FileSignature } from 'lucide-react';
+import { Calendar, Clock, ListOrdered, LayoutGrid, ArrowLeft, ScanLine, QrCode, FileSignature, Activity } from 'lucide-react';
+import { MonitorTreal } from '../../pages/MonitorTreal';
 import { PlantillasPredeterminadas } from './PlantillasPredeterminadas';
 import { RolDespegue } from './RolDespegue';
 import { OtpProyecciones } from './OtpProyecciones';
@@ -11,7 +12,7 @@ import { MiniListFirmas } from './MiniListFirmas';
 import { supabase } from '../../lib/supabaseClient';
 
 export const Servicio = () => {
-  const [view, setView] = useState<'dashboard' | 'tablas_dia' | 'rol_despegue' | 'roles_predeterminados' | 'otp' | 'incidencias' | 'gestor_qr' | 'tarjetas_firmas'>('dashboard');
+  const [view, setView] = useState<'dashboard' | 'tablas_dia' | 'rol_despegue' | 'roles_predeterminados' | 'otp' | 'incidencias' | 'gestor_qr' | 'tarjetas_firmas' | 'monitoreo_treal'>('dashboard');
   const [rolActivo, setRolActivo] = useState<any>(null);
   const [reporte, setReporte] = useState<any[]>([]);
 
@@ -41,6 +42,10 @@ export const Servicio = () => {
   }, [view]);
 
   // Removido simulador NFC y lógica de despacho a petición del usuario.
+
+  if (view === 'monitoreo_treal') {
+    return <MonitorTreal onBack={() => setView('dashboard')} />;
+  }
 
   if (view === 'dashboard') {
     return (
@@ -148,6 +153,19 @@ export const Servicio = () => {
             <div>
               <h3 style={{ fontSize: '1.25rem', color: 'var(--text-main)', marginBottom: '0.25rem' }}>Tarjetas y Firmas</h3>
               <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Historial de checadas y firmas por unidad.</p>
+            </div>
+          </div>
+          <div 
+            onClick={() => setView('monitoreo_treal')}
+            className="glass-card table-row-hover" 
+            style={{ padding: '2rem', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '1rem', alignItems: 'flex-start', border: '1px solid rgba(59, 130, 246, 0.3)' }}
+          >
+            <div style={{ background: 'rgba(59, 130, 246, 0.1)', padding: '12px', borderRadius: 'var(--radius-md)', color: '#3b82f6', border: '1px solid rgba(59, 130, 246, 0.3)' }}>
+              <Activity size={28} />
+            </div>
+            <div>
+              <h3 style={{ fontSize: '1.25rem', color: 'var(--text-main)', marginBottom: '0.25rem' }}>Monitor TREAL (App J2)</h3>
+              <p style={{ color: '#3b82f6', fontSize: '0.9rem', fontWeight: 600 }}>EN VIVO DESDE LA CALLE</p>
             </div>
           </div>
         </div>
