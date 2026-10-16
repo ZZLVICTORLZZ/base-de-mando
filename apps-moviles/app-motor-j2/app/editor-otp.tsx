@@ -1100,7 +1100,7 @@ export default function EditorOTPScreen() {
         )}
 
         {!isExporting && (
-          <View style={{ flexDirection: 'row', paddingHorizontal: 20, paddingVertical: 6, backgroundColor: (false) ? '#1E1E2E' : (false ? '#E0F2FE' : (themeName === 'classic' ? '#EAE5CE' : '#F8FAFC')), borderBottomWidth: 1, borderBottomColor: isDarkMode ? '#333' : theme.border }}>
+          <View style={{ flexDirection: 'row', paddingHorizontal: 20, paddingVertical: 6, backgroundColor: isDarkMode ? '#222' : theme.surface, borderBottomWidth: 1, borderBottomColor: isDarkMode ? '#333' : theme.border }}>
             <View style={{ flex: 0.4 }}><Text style={[styles.th, {fontSize: 7.5}, isDarkMode && {color: '#aaa'}]}>NO.</Text></View>
             <View style={{ flex: 0.5, paddingHorizontal: 1 }}><Text style={[styles.th, {fontSize: 7.5}, isDarkMode && {color: '#aaa'}]}>FREC</Text></View>
             <View style={{ flex: 0.8, paddingHorizontal: 1 }}><Text style={[styles.th, {fontSize: 7.5}, isDarkMode && {color: '#aaa'}]}>HORA</Text></View>
@@ -1173,38 +1173,40 @@ export default function EditorOTPScreen() {
                             {!isIndios && <Text style={{ flex: 0.8, color: row.ruta === 'MEX' ? '#008000' : row.ruta === 'REY' ? '#D22B2B' : '#4B0082', fontSize: 11, textAlign: 'center', fontWeight: '900' }}>{row.ruta || '-'}</Text>}
                             {(isIndios || isLagos) && (
                               <View style={{ flex: 0.5, alignItems: 'center', justifyContent: 'center' }}>
-                                {(() => {
-                                  const ecoClean = String(row.eco || '').replace(/[^0-9]/g, '');
-                                  const unitCap = ecoClean ? (unidadesMap[ecoClean] || 0) : 0;
-                                  const hasWrittenPax = row.pax !== undefined && row.pax !== null && String(row.pax).trim() !== '';
-                                  const numPax = hasWrittenPax ? parseInt(String(row.pax).replace(/[^0-9]/g, '')) : 0;
-                                  const progress = unitCap > 0 ? Math.min(100, Math.round((numPax / unitCap) * 100)) : 0;
-                                  const extra = unitCap > 0 && numPax > unitCap ? numPax - unitCap : 0;
-                                  
-                                  return (
-                                    <View style={{ width: '100%', alignItems: 'center' }}>
-                                      <Text style={{ color: '#0f172a', fontSize: 13, textAlign: 'center', fontWeight: '900' }}>
-                                        {row.pax || '-'}
-                                      </Text>
-                                      {hasWrittenPax && unitCap > 0 && (
-                                        <View style={{ marginTop: 2, width: '80%', alignItems: 'center' }}>
-                                          <Text style={{ fontSize: 7, color: '#64748b', marginBottom: 1, fontWeight: 'bold' }}>{numPax} de {unitCap}</Text>
-                                          <View style={{ flexDirection: 'row', alignItems: 'center', width: '100%' }}>
-                                            <View style={{ flex: 1, height: 2, backgroundColor: '#e2e8f0', borderRadius: 1 }}>
-                                              <View style={{ width: `${progress}%`, height: '100%', backgroundColor: progress >= 100 ? '#10b981' : '#3b82f6', borderRadius: 1 }} />
-                                            </View>
-                                            {extra > 0 && (
-                                              <Text style={{ fontSize: 7, color: '#eab308', fontWeight: '900', marginLeft: 2 }}>+{extra}</Text>
-                                            )}
-                                          </View>
-                                        </View>
-                                      )}
-                                    </View>
-                                  );
-                                })()}
+                                <Text style={{ color: '#0f172a', fontSize: 13, textAlign: 'center', fontWeight: '900' }}>
+                                  {row.pax || '-'}
+                                </Text>
                               </View>
                             )}
-                            <Text style={{ flex: (isIndios || !isLagos) ? 2.2 : 1.6, color: '#0f172a', fontSize: 11, textAlign: 'center', paddingHorizontal: 2, flexShrink: 1, flexWrap: 'wrap', fontWeight: '900' }}>{row.observaciones || ''}</Text>
+                            <View style={{ flex: (isIndios || !isLagos) ? 2.2 : 1.6, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 }}>
+                              {row.observaciones ? (
+                                <Text style={{ color: '#0f172a', fontSize: 11, textAlign: 'center', flexShrink: 1, flexWrap: 'wrap', fontWeight: '900' }}>
+                                  {row.observaciones}
+                                </Text>
+                              ) : null}
+                              {(isIndios || isLagos) && (() => {
+                                const ecoClean = String(row.eco || '').replace(/[^0-9]/g, '');
+                                const unitCap = ecoClean ? (unidadesMap[ecoClean] || 0) : 0;
+                                const hasWrittenPax = row.pax !== undefined && row.pax !== null && String(row.pax).trim() !== '';
+                                const numPax = hasWrittenPax ? parseInt(String(row.pax).replace(/[^0-9]/g, '')) : 0;
+                                const progress = unitCap > 0 ? Math.min(100, Math.round((numPax / unitCap) * 100)) : 0;
+                                const extra = unitCap > 0 && numPax > unitCap ? numPax - unitCap : 0;
+                                if (!hasWrittenPax || unitCap <= 0) return null;
+                                return (
+                                  <View style={{ marginTop: row.observaciones ? 3 : 0, width: '92%', alignItems: 'center' }}>
+                                    <Text style={{ fontSize: 7.5, color: '#475569', marginBottom: 1, fontWeight: '900' }}>{numPax} de {unitCap}</Text>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', width: '100%' }}>
+                                      <View style={{ flex: 1, height: 3, backgroundColor: '#e2e8f0', borderRadius: 2, overflow: 'hidden' }}>
+                                        <View style={{ width: `${progress}%`, height: '100%', backgroundColor: progress >= 100 ? '#10b981' : '#3b82f6', borderRadius: 2 }} />
+                                      </View>
+                                      {extra > 0 && (
+                                        <Text style={{ fontSize: 8, color: '#eab308', fontWeight: '900', marginLeft: 4 }}>+{extra}</Text>
+                                      )}
+                                    </View>
+                                  </View>
+                                );
+                              })()}
+                            </View>
                           </View>
                         ))}
                       </View>
@@ -1230,38 +1232,40 @@ export default function EditorOTPScreen() {
                               {!isIndios && <Text style={{ flex: 0.8, color: row.ruta === 'MEX' ? '#008000' : row.ruta === 'REY' ? '#D22B2B' : '#4B0082', fontSize: 11, textAlign: 'center', fontWeight: '900' }}>{row.ruta || '-'}</Text>}
                               {(isIndios || isLagos) && (
                               <View style={{ flex: 0.5, alignItems: 'center', justifyContent: 'center' }}>
-                                {(() => {
+                                <Text style={{ color: '#0f172a', fontSize: 13, textAlign: 'center', fontWeight: '900' }}>
+                                  {row.pax || '-'}
+                                </Text>
+                              </View>
+                            )}
+                              <View style={{ flex: (isIndios || !isLagos) ? 2.2 : 1.6, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 }}>
+                                {row.observaciones ? (
+                                  <Text style={{ color: '#0f172a', fontSize: 11, textAlign: 'center', flexShrink: 1, flexWrap: 'wrap', fontWeight: '900' }}>
+                                    {row.observaciones}
+                                  </Text>
+                                ) : null}
+                                {(isIndios || isLagos) && (() => {
                                   const ecoClean = String(row.eco || '').replace(/[^0-9]/g, '');
                                   const unitCap = ecoClean ? (unidadesMap[ecoClean] || 0) : 0;
                                   const hasWrittenPax = row.pax !== undefined && row.pax !== null && String(row.pax).trim() !== '';
                                   const numPax = hasWrittenPax ? parseInt(String(row.pax).replace(/[^0-9]/g, '')) : 0;
                                   const progress = unitCap > 0 ? Math.min(100, Math.round((numPax / unitCap) * 100)) : 0;
                                   const extra = unitCap > 0 && numPax > unitCap ? numPax - unitCap : 0;
-                                  
+                                  if (!hasWrittenPax || unitCap <= 0) return null;
                                   return (
-                                    <View style={{ width: '100%', alignItems: 'center' }}>
-                                      <Text style={{ color: '#0f172a', fontSize: 13, textAlign: 'center', fontWeight: '900' }}>
-                                        {row.pax || '-'}
-                                      </Text>
-                                      {hasWrittenPax && unitCap > 0 && (
-                                        <View style={{ marginTop: 2, width: '80%', alignItems: 'center' }}>
-                                          <Text style={{ fontSize: 7, color: '#64748b', marginBottom: 1, fontWeight: 'bold' }}>{numPax} de {unitCap}</Text>
-                                          <View style={{ flexDirection: 'row', alignItems: 'center', width: '100%' }}>
-                                            <View style={{ flex: 1, height: 2, backgroundColor: '#e2e8f0', borderRadius: 1 }}>
-                                              <View style={{ width: `${progress}%`, height: '100%', backgroundColor: progress >= 100 ? '#10b981' : '#3b82f6', borderRadius: 1 }} />
-                                            </View>
-                                            {extra > 0 && (
-                                              <Text style={{ fontSize: 7, color: '#eab308', fontWeight: '900', marginLeft: 2 }}>+{extra}</Text>
-                                            )}
-                                          </View>
+                                    <View style={{ marginTop: row.observaciones ? 3 : 0, width: '92%', alignItems: 'center' }}>
+                                      <Text style={{ fontSize: 7.5, color: '#475569', marginBottom: 1, fontWeight: '900' }}>{numPax} de {unitCap}</Text>
+                                      <View style={{ flexDirection: 'row', alignItems: 'center', width: '100%' }}>
+                                        <View style={{ flex: 1, height: 3, backgroundColor: '#e2e8f0', borderRadius: 2, overflow: 'hidden' }}>
+                                          <View style={{ width: `${progress}%`, height: '100%', backgroundColor: progress >= 100 ? '#10b981' : '#3b82f6', borderRadius: 2 }} />
                                         </View>
-                                      )}
+                                        {extra > 0 && (
+                                          <Text style={{ fontSize: 8, color: '#eab308', fontWeight: '900', marginLeft: 4 }}>+{extra}</Text>
+                                        )}
+                                      </View>
                                     </View>
                                   );
                                 })()}
                               </View>
-                            )}
-                              <Text style={{ flex: (isIndios || !isLagos) ? 2.2 : 1.6, color: '#0f172a', fontSize: 11, textAlign: 'center', paddingHorizontal: 2, flexShrink: 1, flexWrap: 'wrap', fontWeight: '900' }}>{row.observaciones || ''}</Text>
                             </View>
                           ))}
                         </View>
@@ -1508,7 +1512,7 @@ export default function EditorOTPScreen() {
               
               <TextInput 
                 autoFocus={true}
-                style={[{ backgroundColor: theme.headerText, borderWidth: 1, borderColor: theme.border, borderRadius: 12, color: themeName === 'neon' ? '#FFFFFF' : '#0f172a', padding: 18, fontSize: 16, marginBottom: 25, textAlignVertical: 'top' }, {}]}
+                style={[{ backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.border, borderRadius: 12, color: theme.text, padding: 18, fontSize: 16, marginBottom: 25, textAlignVertical: 'top' }, isDarkMode && { backgroundColor: '#333', borderColor: '#444', color: '#FFF' }]}
                 value={obsInputValue}
                 onChangeText={setObsInputValue}
                 placeholder="Ej. Salió a ruta 3 min tarde..."
@@ -1536,7 +1540,7 @@ export default function EditorOTPScreen() {
               </View>
               
               <TextInput 
-                style={[{ backgroundColor: theme.headerText, borderWidth: 1, borderColor: theme.border, borderRadius: 12, color: themeName === 'neon' ? '#FFFFFF' : '#0f172a', padding: 18, fontSize: 24, fontWeight: 'bold', marginBottom: 25, textAlign: 'center' }, {}]}
+                style={[{ backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.border, borderRadius: 12, color: theme.text, padding: 18, fontSize: 24, fontWeight: 'bold', marginBottom: 25, textAlign: 'center' }, isDarkMode && { backgroundColor: '#333', borderColor: '#444', color: '#FFF' }]}
                 value={ecoInputValue}
                 onChangeText={setEcoInputValue}
                 placeholder="Ej. 1320"

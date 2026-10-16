@@ -1,27 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { CreditCard, CheckCircle, Clock, Bus, FileText, AlertCircle, RefreshCw, Trash2, Eye, Search, Plus, ArrowLeft, Save } from 'lucide-react';
 import { supabase } from '../core/supabaseClient';
+import { extractChecadasForEco, pairVueltasForEco, type TrealChecada, type TrealVuelta } from '../../lib/trealUtils';
 
-interface Checada {
-  treal_id: string;
-  fecha: string;
-  base_nombre: string;
-  row_id: string;
-  horario: string;
-  pax: string;
-  tipo_registro: string;
-  recaudado: boolean;
-  fecha_recaudacion?: string;
-  timestamp: number;
-  isMissing?: boolean;
-}
-
-interface Vuelta {
-  id: string;
-  checadas: Checada[];
-  completa: boolean;
-  yaPonchada: boolean;
-}
+type Checada = TrealChecada;
+type Vuelta = TrealVuelta;
 
 interface RecaudacionRecord {
   id: string;
@@ -41,7 +24,7 @@ export const Recaudacion = () => {
   const [vueltas, setVueltas] = useState<Vuelta[]>([]);
   const [selectedMedias, setSelectedMedias] = useState<Record<string, boolean>>({});
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState(null as string | null);
 
   // --- Estado Menú 1 (Historial) ---
   const [recaudaciones, setRecaudaciones] = useState<RecaudacionRecord[]>([]);
@@ -89,107 +72,27 @@ export const Recaudacion = () => {
     const eco = String(rawEco).trim();
     setLoadingData(true);
     try {
+      const sixtyDaysAgo = new Date();
+      sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
+
       const { data: trealData, error } = await supabase
         .from('tablas_treal')
         .select(`
           id, 
           fecha, 
+          creado_por,
+          created_at,
           rows, 
           plantillas_predeterminadas (name)
         `)
-        .contains('rows', JSON.stringify([{ eco: eco }]))
+        .gte('created_at', sixtyDaysAgo.toISOString())
         .order('fecha', { ascending: false })
-        .limit(2000);
+        .limit(500);
 
       if (error) throw error;
 
-      let allChecadas: Checada[] = [];
-
-      trealData?.forEach(treal => {
-        const plantillas: any = treal.plantillas_predeterminadas;
-        const baseName = (Array.isArray(plantillas) ? plantillas[0]?.name : plantillas?.name) || 'Desconocida';
-        const baseLower = baseName.toLowerCase();
-        
-        if (baseLower.includes('lago 2') || baseLower.includes('puente')) {
-          return;
-        }
-
-        const rows = treal.rows || [];
-        rows.forEach((row: any) => {
-          if (String(row.eco) === eco && row.horario) {
-            let timestamp = 0;
-            if (row.horario !== '--:--') {
-              const [hh, mm] = row.horario.split(':').map(Number);
-              const dateObj = new Date(treal.fecha + 'T12:00:00'); 
-              if (!isNaN(hh) && !isNaN(mm)) {
-                dateObj.setHours(hh, mm, 0, 0);
-                timestamp = dateObj.getTime();
-              }
-            }
-
-            allChecadas.push({
-              treal_id: treal.id,
-              fecha: treal.fecha,
-              base_nombre: baseName,
-              row_id: row.id,
-              horario: row.horario,
-              pax: row.pax || '0',
-              tipo_registro: row.tipo_registro || (row.es_manual ? 'Manual' : 'Desconocido'),
-              recaudado: !!row.recaudado,
-              fecha_recaudacion: row.fecha_recaudacion,
-              timestamp: timestamp
-            });
-          }
-        });
-      });
-
-      allChecadas.sort((a, b) => a.timestamp - b.timestamp);
-
-      const agrupadas: Vuelta[] = [];
-      let i = 0;
-      while (i < allChecadas.length) {
-        const c1 = allChecadas[i];
-        const c2 = i + 1 < allChecadas.length ? allChecadas[i + 1] : null;
-
-        if (c2 && c1.base_nombre !== c2.base_nombre) {
-          // Vuelta completa (bases diferentes)
-          const yaPonchada = c1.recaudado && c2.recaudado;
-          if (!yaPonchada) {
-            agrupadas.push({
-              id: `vuelta-${c1.row_id}`,
-              checadas: [c1, c2],
-              completa: true,
-              yaPonchada: false
-            });
-          }
-          i += 2;
-        } else {
-          // Media vuelta sin regreso (o regreso perdido)
-          const missingChecada: Checada = {
-            ...c1,
-            row_id: `missing-${c1.row_id}`,
-            base_nombre: 'FALTANTE',
-            horario: '--:--',
-            pax: '0',
-            isMissing: true,
-            recaudado: true, // Se marca como recaudado para que no se cobre
-          };
-          
-          const yaPonchada = c1.recaudado;
-          if (!yaPonchada) {
-            agrupadas.push({
-              id: `vuelta-${c1.row_id}`,
-              checadas: [c1, missingChecada],
-              completa: false,
-              yaPonchada: false
-            });
-          }
-          i += 1;
-        }
-      }
-
-      // Ordenar vueltas de forma descendente (las más recientes primero)
-      agrupadas.sort((a, b) => b.checadas[0].timestamp - a.checadas[0].timestamp);
+      const allChecadas = extractChecadasForEco(trealData || [], eco);
+      const agrupadas = pairVueltasForEco(allChecadas, false);
 
       setVueltas(agrupadas);
       
@@ -527,12 +430,9 @@ export const Recaudacion = () => {
                   <div style={{ width: 50, height: 50, borderRadius: '25px', backgroundColor: 'var(--surface-color)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <Bus color="var(--primary)" size={24} />
                   </div>
-                  <div style={{ background: 'red', color: 'white', padding: '10px', fontWeight: 'bold', borderRadius: '5px', marginBottom: '15px' }}>
-                    🚩 SI VES ESTE RECUADRO ROJO, ESTÁS VIENDO LA VERSIÓN MÁS RECIENTE DEL CÓDIGO
-                  </div>
                   <div>
                     <h1 style={{ margin: 0, color: 'var(--text-main)', fontSize: '2.5rem', fontWeight: '900', letterSpacing: '-1px' }}>UNIDAD {activeEco}</h1>
-                    <span style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>Selecciona las vueltas a recaudar</span>
+                    <span style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>Selecciona las vueltas a recaudar (Inicio: Nuevos Paseos → Cierre: Indios Verdes)</span>
                   </div>
                 </div>
                 
@@ -610,7 +510,7 @@ export const Recaudacion = () => {
                         c.isMissing ? (
                           <div key={c.row_id} style={{ background: 'rgba(239, 68, 68, 0.05)', border: '1px dashed rgba(239, 68, 68, 0.3)', padding: '12px', borderRadius: '8px', color: '#ef4444', textAlign: 'center', fontSize: '0.9rem', fontWeight: 'bold', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' }}>
                             <AlertCircle size={16} />
-                            MEDIA VUELTA SIN REGISTRAR
+                            FALTA FIRMA INTERMEDIA / INICIAL: {c.base_nombre.toUpperCase()}
                           </div>
                         ) : (
                           <div key={c.row_id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)', opacity: c.recaudado ? 0.5 : 1 }}>
@@ -624,12 +524,13 @@ export const Recaudacion = () => {
                               />
                               <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: i === 0 ? 'var(--primary)' : 'var(--text-muted)' }}></div>
                               <span style={{ fontWeight: 'bold', color: 'var(--text-main)', fontSize: '1.1rem' }}>{(c.base_nombre || 'Desconocida').toUpperCase()}</span>
+                              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>• {c.checador}</span>
                               {c.recaudado && <span style={{ fontSize: '0.7rem', background: '#10b98120', color: '#10b981', padding: '2px 6px', borderRadius: '4px', marginLeft: '4px', fontWeight: 'bold' }}>YA COBRADA</span>}
                             </div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                              {c.tipo_registro === 'NFC' ? 
-                                <span style={{ fontSize: '0.8rem', color: '#10b981', display: 'flex', alignItems: 'center', gap: '4px' }}><CreditCard size={12}/> NFC</span> :
-                                <span style={{ fontSize: '0.8rem', color: '#f59e0b', display: 'flex', alignItems: 'center', gap: '4px' }}>Manual</span>
+                              {!c.es_manual ? 
+                                <span style={{ fontSize: '0.8rem', color: '#10b981', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}><CreditCard size={12}/> {c.photoUrl ? 'QR + Foto' : 'QR / TREAL'}</span> :
+                                <span style={{ fontSize: '0.8rem', color: '#f59e0b', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>Manual</span>
                               }
                               <span style={{ color: 'var(--text-main)', fontWeight: 'bold' }}>{c.pax} PAX</span>
                               <div style={{ background: 'var(--surface-color)', padding: '4px 10px', borderRadius: '6px' }}>

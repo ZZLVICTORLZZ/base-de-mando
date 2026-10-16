@@ -56,6 +56,81 @@
   --text-muted: #f472b6;
 }
 
+[data-theme="emerald"] {
+  --bg-color: #04130e;
+  --surface-color: #092219;
+  --surface-hover: #0f3528;
+  --surface-glass: rgba(9, 34, 25, 0.78);
+  --glass-border: rgba(16, 185, 129, 0.25);
+  
+  --primary: #10b981;
+  --primary-glow: rgba(16, 185, 129, 0.35);
+  --secondary: #34d399;
+  
+  --text-main: #ecfdf5;
+  --text-muted: #6ee7b7;
+}
+
+[data-theme="gold"] {
+  --bg-color: #0c0d10;
+  --surface-color: #16181d;
+  --surface-hover: #22252d;
+  --surface-glass: rgba(22, 24, 29, 0.82);
+  --glass-border: rgba(245, 158, 11, 0.25);
+  
+  --primary: #f59e0b;
+  --primary-glow: rgba(245, 158, 11, 0.3);
+  --secondary: #fbbf24;
+  
+  --text-main: #f9fafb;
+  --text-muted: #d1d5db;
+}
+
+[data-theme="crimson"] {
+  --bg-color: #140709;
+  --surface-color: #240c11;
+  --surface-hover: #351219;
+  --surface-glass: rgba(36, 12, 17, 0.78);
+  --glass-border: rgba(244, 63, 94, 0.28);
+  
+  --primary: #f43f5e;
+  --primary-glow: rgba(244, 63, 94, 0.35);
+  --secondary: #fb923c;
+  
+  --text-main: #fff1f2;
+  --text-muted: #fda4af;
+}
+
+[data-theme="sand"] {
+  --bg-color: #f5f5dc;
+  --surface-color: #ffffff;
+  --surface-hover: #faf8eb;
+  --surface-glass: rgba(255, 255, 255, 0.88);
+  --glass-border: rgba(0, 104, 71, 0.2);
+  
+  --primary: #006847;
+  --primary-glow: rgba(0, 104, 71, 0.18);
+  --secondary: #059669;
+  
+  --text-main: #0f172a;
+  --text-muted: #475569;
+}
+
+[data-theme="oceanic"] {
+  --bg-color: #06101e;
+  --surface-color: #0c1e36;
+  --surface-hover: #132d50;
+  --surface-glass: rgba(12, 30, 54, 0.78);
+  --glass-border: rgba(56, 189, 248, 0.25);
+  
+  --primary: #38bdf8;
+  --primary-glow: rgba(56, 189, 248, 0.32);
+  --secondary: #818cf8;
+  
+  --text-main: #f0f9ff;
+  --text-muted: #93c5fd;
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -103,7 +178,8 @@ h1, h2, h3, h4, h5, h6 {
   transition: background 0.3s ease, border-color 0.3s ease;
 }
 
-[data-theme="light"] .glass-panel {
+[data-theme="light"] .glass-panel,
+[data-theme="sand"] .glass-panel {
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
 }
 

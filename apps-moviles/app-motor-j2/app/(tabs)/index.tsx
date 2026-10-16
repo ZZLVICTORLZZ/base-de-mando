@@ -200,7 +200,7 @@ export default function DashboardScreen() {
       <View style={styles.rowMetrics}>
         <View style={[styles.metricBox, { flex: 1 }]}>
           <Text style={styles.metricValue}>{totalDespachos.toLocaleString('en-US')}</Text>
-          <Text style={styles.metricLabel}>Autobuses Despachados</Text>
+          <Text style={styles.metricLabel}>Unidades Despachadas</Text>
         </View>
         
         <View style={[styles.metricBox, { flex: 1 }]}>

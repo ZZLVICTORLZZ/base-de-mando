@@ -125,6 +125,14 @@ export default function EditorTREALScreen() {
   const [selectedRowIdForEco, setSelectedRowIdForEco] = useState<string | null>(null);
   const [ecoInputValue, setEcoInputValue] = useState('');
 
+  // Estados para Registro Manual (Foto + Justificación Obligatoria en Observaciones)
+  const [manualModalVisible, setManualModalVisible] = useState(false);
+  const [manualTargetRowId, setManualTargetRowId] = useState<string | null>(null);
+  const [manualInsertAfterIndex, setManualInsertAfterIndex] = useState<number | null>(null);
+  const [manualEcoInput, setManualEcoInput] = useState('');
+  const [manualPaxInput, setManualPaxInput] = useState('');
+  const [manualObsInput, setManualObsInput] = useState('');
+
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
   
   // Novedades: Modo Oscuro, Foco y Toasts
@@ -227,6 +235,111 @@ export default function EditorTREALScreen() {
   };
 
 
+  const isUploadingPhotoQueueRef = useRef(false);
+
+  // Verifica si la red tiene señal fuerte midiendo latencia real contra Supabase (< 1800ms)
+  const checkStrongNetworkSignal = async (): Promise<boolean> => {
+    try {
+      const start = Date.now();
+      const timeoutPromise = new Promise<{ error: any }>((resolve) =>
+        setTimeout(() => resolve({ error: 'timeout' }), 1800)
+      );
+      const pingPromise = supabase.from('unidades').select('id', { head: true }).limit(1);
+      const res: any = await Promise.race([pingPromise, timeoutPromise]);
+      const latency = Date.now() - start;
+      return !res?.error && latency < 1800;
+    } catch {
+      return false;
+    }
+  };
+
+  const uploadSingleRowPhoto = async (targetIdRow: string, localUri: string, currentRowsSnapshot: any[], isPaxModal: boolean) => {
+    try {
+      const strongSignal = await checkStrongNetworkSignal();
+      if (!strongSignal) {
+        // Señal débil: dejar en estado 'pending' para que el monitor de señal la suba cuando mejore
+        setRows(prev => {
+          const next = prev.map(r => r.id === targetIdRow ? { ...r, localPhotoUri: localUri, photoUploadStatus: 'pending' } : r);
+          const targetId = activeRolId || (rol_id as string);
+          if (targetId) SyncManager.queueTREALUpdate(targetId, next);
+          return next;
+        });
+        showToast("Señal débil: foto en cola, se subirá al detectar buena red ⏳");
+        return false;
+      }
+
+      const fileName = `treal_${targetIdRow}_${Date.now()}.jpg`;
+      const response = await fetch(localUri);
+      const blob = await response.blob();
+      const arrayBuffer = await new Response(blob).arrayBuffer();
+
+      const { error } = await supabase.storage.from('checkin_photos').upload(fileName, arrayBuffer, { contentType: 'image/jpeg' });
+      if (error) {
+        throw error;
+      }
+
+      const finalPhotoUrl = supabase.storage.from('checkin_photos').getPublicUrl(fileName).data.publicUrl;
+
+      setRows(prev => {
+        const baseList = prev.length > 0 ? prev : currentRowsSnapshot;
+        const finalRows = baseList.map(r => r.id === targetIdRow ? { ...r, photoUrl: finalPhotoUrl, photoUploadStatus: 'uploaded' } : r);
+        const targetId = activeRolId || (rol_id as string);
+        if (targetId) {
+          SyncManager.queueTREALUpdate(targetId, finalRows);
+          syncToOTP(finalRows);
+        }
+        if (isPaxModal && targetId) {
+          const row = finalRows.find(r => r.id === targetIdRow);
+          if (row) {
+            supabase.from('firmas_operativas').insert([{
+              treal_id: targetId,
+              treal_row_id: row.id,
+              fecha: `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`,
+              base: plantillaName,
+              checador: creadorName || 'Desconocido',
+              horario: row.horario,
+              eco: row.eco,
+              pax: row.pax,
+              photo_url: finalPhotoUrl
+            }]).then();
+          }
+        }
+        return finalRows;
+      });
+
+      showToast("Evidencia respaldada en la nube ✅");
+      return true;
+    } catch (err) {
+      console.log('Photo upload deferred due to weak signal:', err);
+      setRows(prev => prev.map(r => r.id === targetIdRow ? { ...r, localPhotoUri: localUri, photoUploadStatus: 'pending' } : r));
+      showToast("Señal inestable: foto guardada, subiendo en cuanto mejore la red ⏳");
+      return false;
+    }
+  };
+
+  // Monitor automático en segundo plano: sube las fotos pendientes cuando detecta señal fuerte
+  useEffect(() => {
+    const pendingRows = rows.filter(r => !r.isGhost && r.localPhotoUri && !r.photoUrl && (r.photoUploadStatus === 'pending' || r.photoUploadStatus === 'uploading'));
+    if (pendingRows.length === 0) return;
+
+    const timer = setInterval(async () => {
+      if (isUploadingPhotoQueueRef.current) return;
+      const strong = await checkStrongNetworkSignal();
+      if (!strong) return;
+
+      isUploadingPhotoQueueRef.current = true;
+      try {
+        for (const pRow of pendingRows) {
+          await uploadSingleRowPhoto(pRow.id, pRow.localPhotoUri, rows, false);
+        }
+      } finally {
+        isUploadingPhotoQueueRef.current = false;
+      }
+    }, 8000);
+
+    return () => clearInterval(timer);
+  }, [rows, activeRolId, rol_id]);
+
   const handleMandatoryPhoto = async (targetIdRow: string, updatedRowsArg: any[], isPaxModal: boolean) => {
     try {
       const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
@@ -245,69 +358,26 @@ export default function EditorTREALScreen() {
         return false;
       }
 
-      showToast("Subiendo evidencia...");
-
       const manipResult = await ImageManipulator.manipulateAsync(
         result.assets[0].uri,
         [{ resize: { width: 800 } }],
         { compress: 0.4, format: ImageManipulator.SaveFormat.JPEG }
       );
-      
-      const fileName = `treal_${targetIdRow}_${Date.now()}.jpg`;
-      const response = await fetch(manipResult.uri);
-      const blob = await response.blob();
-      
-      // Blob conversion using FileReader for React Native Supabase upload
-      const reader = new FileReader();
-      reader.readAsDataURL(blob);
-      reader.onloadend = async () => {
-        const base64data = reader.result;
-        if (typeof base64data !== 'string') return;
-        const base64Content = base64data.split(',')[1];
-        
-        // Supabase JS doesn't support Base64 upload natively in React Native easily without Buffer
-        // Wait, fetch arrayBuffer works perfectly with Supabase 2.x!
-      };
-      
-      // Actually fetch arrayBuffer works fine in modern React Native
-      const arrayBuffer = await new Response(blob).arrayBuffer();
-      
-      const { data, error } = await supabase.storage.from('checkin_photos').upload(fileName, arrayBuffer, { contentType: 'image/jpeg' });
-      
-      let finalPhotoUrl = '';
-      if (!error) {
-         finalPhotoUrl = supabase.storage.from('checkin_photos').getPublicUrl(fileName).data.publicUrl;
-      } else {
-         console.error('Error uploading:', error);
-      }
 
-      const finalRows = updatedRowsArg.map(r => r.id === targetIdRow ? { ...r, photoUrl: finalPhotoUrl } : r);
-      setRows(finalRows);
-      
+      // Guardar inmediatamente la foto local y poner estado 'uploading' sin bloquear al checador
+      const initialRows = updatedRowsArg.map(r =>
+        r.id === targetIdRow ? { ...r, localPhotoUri: manipResult.uri, photoUploadStatus: 'uploading' } : r
+      );
+      setRows(initialRows);
+
       const targetId = activeRolId || (rol_id as string);
       if (targetId) {
-         SyncManager.queueTREALUpdate(targetId, finalRows);
-         syncToOTP(finalRows);
+        SyncManager.queueTREALUpdate(targetId, initialRows);
+        syncToOTP(initialRows);
       }
-      
-      if (isPaxModal) {
-         const row = finalRows.find(r => r.id === targetIdRow);
-         if (row && targetId) {
-            supabase.from('firmas_operativas').insert([{
-              treal_id: targetId,
-              treal_row_id: row.id,
-              fecha: `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`,
-              base: plantillaName,
-              checador: creadorName || 'Desconocido',
-              horario: row.horario,
-              eco: row.eco,
-              pax: row.pax,
-              photo_url: finalPhotoUrl
-            }]).then();
-         }
-      }
-      
-      showToast(`Unidad registrada con éxito ✅`);
+
+      // Intentar subida verificando señal fuerte
+      uploadSingleRowPhoto(targetIdRow, manipResult.uri, initialRows, isPaxModal);
       return true;
 
     } catch (e) {
@@ -317,37 +387,28 @@ export default function EditorTREALScreen() {
     }
   };
 
-  const handleBarcodeScanned = ({ data }: { data: string }) => {
-    if (qrCooldown) return;
-    
-    // Ignorar códigos que no sean de Saturno V
-    if (!data.includes('saturnov://checkin/unit?token=')) return;
-    
-    setQrCooldown(true);
-    setTimeout(() => setQrCooldown(false), 2000);
-    
-    const token = data.split('token=')[1];
-    if (!token) return;
+  // Busca si la misma unidad (ECO) ya fue checada hace menos de 15 minutos en la misma tabla
+  const findRecentDuplicateEco = (targetEco: string, targetHorarioStr: string, excludeRowId?: string) => {
+    const cleanTarget = String(targetEco || '').replace(/[^0-9]/g, '');
+    if (!cleanTarget || !targetHorarioStr || !targetHorarioStr.includes(':')) return null;
 
-    const unidad = unidadesList.find(u => u.qr_token === token);
-    
-    if (!unidad) {
-      Alert.alert("Unidad No Encontrada", "El código QR pertenece a una unidad que no está registrada en el sistema o su código fue revocado.");
-      setIsCameraVisible(false);
-      return;
-    }
+    const [tH, tM] = targetHorarioStr.split(':').map(Number);
+    if (isNaN(tH) || isNaN(tM)) return null;
+    const targetTotalMins = tH * 60 + tM;
 
-    const eco = String(unidad.numero);
-    
-    const now = new Date();
-    const horas = String(now.getHours()).padStart(2, '0');
-    const minutos = String(now.getMinutes()).padStart(2, '0');
-    const horarioStr = `${horas}:${minutos}`;
-    
-    // Eliminada la regla automática de remarcado para unidades >= 1000 
-    // a petición del usuario para evitar confusiones con el marcatextos manual.
+    return rows.find((r: any) => {
+      if (!r || r.isGhost || (excludeRowId && r.id === excludeRowId)) return false;
+      const rEco = String(r.eco || '').replace(/[^0-9]/g, '');
+      if (rEco !== cleanTarget || !r.horario || !r.horario.includes(':')) return false;
+      const [rH, rM] = r.horario.split(':').map(Number);
+      if (isNaN(rH) || isNaN(rM)) return false;
+      const diff = Math.abs(targetTotalMins - (rH * 60 + rM));
+      return diff <= 15;
+    });
+  };
+
+  const proceedWithQrCheckin = (eco: string, horarioStr: string) => {
     let hc = null;
-    
     const ghostIndex = rows.findIndex((r: any) => r.isGhost);
     let newData = [...rows];
     
@@ -364,7 +425,6 @@ export default function EditorTREALScreen() {
       const recalculatedRows = calculateTimes(newData, ghostIndex, 'horario');
       setRows(recalculatedRows);
       
-      const targetId = activeRolId || (rol_id as string);
       const currentIsIndios = plantillaName.toLowerCase().includes('indios');
       const currentIsLagos = plantillaName.toLowerCase().includes('lagos');
       if (!currentIsIndios && !currentIsLagos) {
@@ -391,14 +451,12 @@ export default function EditorTREALScreen() {
       const recalculatedRows = calculateTimes(newData, newData.length - 1, 'horario');
       setRows(recalculatedRows);
       
-      const targetId = activeRolId || (rol_id as string);
       const currentIsIndios = plantillaName.toLowerCase().includes('indios');
       const currentIsLagos = plantillaName.toLowerCase().includes('lagos');
       if (!currentIsIndios && !currentIsLagos) {
         handleMandatoryPhoto(newRow.id, recalculatedRows, false);
       }
     }
-    setIsCameraVisible(false);
 
     // Solicitar PAX si es Indios Verdes o Lagos 2
     const currentIsIndios = plantillaName.toLowerCase().includes('indios');
@@ -408,10 +466,8 @@ export default function EditorTREALScreen() {
     if (currentIsIndios || currentIsLagos) {
       setNfcPaxRowId(targetRowId);
       setNfcPaxValue('');
-      // Pequeño timeout para evitar conflicto visual al cerrar la cámara
       setTimeout(() => setNfcPaxModalVisible(true), 300);
     } else {
-      // Para otras bases, insertar directo en firmas_operativas sin PAX
       if (activeRolId || rol_id) {
         supabase.from('firmas_operativas').insert([{
           treal_id: activeRolId || rol_id,
@@ -425,6 +481,50 @@ export default function EditorTREALScreen() {
         }]).then();
       }
     }
+  };
+
+  const handleBarcodeScanned = ({ data }: { data: string }) => {
+    if (qrCooldown) return;
+    
+    // Ignorar códigos que no sean de Saturno V
+    if (!data.includes('saturnov://checkin/unit?token=')) return;
+    
+    setQrCooldown(true);
+    setTimeout(() => setQrCooldown(false), 2000);
+    
+    const token = data.split('token=')[1];
+    if (!token) return;
+
+    const unidad = unidadesList.find(u => u.qr_token === token);
+    
+    if (!unidad) {
+      Alert.alert("Unidad No Encontrada", "El código QR pertenece a una unidad que no está registrada en el sistema o su código fue revocado.");
+      setIsCameraVisible(false);
+      return;
+    }
+
+    const eco = String(unidad.numero);
+    const now = new Date();
+    const horas = String(now.getHours()).padStart(2, '0');
+    const minutos = String(now.getMinutes()).padStart(2, '0');
+    const horarioStr = `${horas}:${minutos}`;
+
+    setIsCameraVisible(false);
+
+    const dupRow = findRecentDuplicateEco(eco, horarioStr);
+    if (dupRow) {
+      Alert.alert(
+        "Posible Checada Duplicada",
+        `La unidad ${eco} ya fue checada a las ${dupRow.horario}. ¿Deseas registrarla nuevamente?`,
+        [
+          { text: "Cancelar", style: "cancel" },
+          { text: "Registrar de nuevo", onPress: () => proceedWithQrCheckin(eco, horarioStr) }
+        ]
+      );
+      return;
+    }
+
+    proceedWithQrCheckin(eco, horarioStr);
   };
 
   const handleSaveNfcPax = () => {
@@ -1045,12 +1145,150 @@ export default function EditorTREALScreen() {
 
   const handleInsertRow = (index: number) => {
     if (isReadOnly || !isAllowedToEdit) return;
-    const prevFrec = rows[index] ? rows[index].frec : '15';
-    const newRow = { id: Date.now().toString(), no: 0, frec: prevFrec, horario: '--:--', eco: '', ruta: 'MEX', observaciones: '', pax: '', es_manual: userAccessLevel < 10 };
-    const newRows = [...rows];
-    newRows.splice(index + 1, 0, newRow);
-    setRows(calculateTimes(newRows, index, 'frec'));
-    showToast('Turno Agregado');
+    setManualTargetRowId(null);
+    setManualInsertAfterIndex(index);
+    setManualEcoInput('');
+    setManualPaxInput('');
+    setManualObsInput('');
+    setManualModalVisible(true);
+  };
+
+  const handleConfirmManualRegistration = () => {
+    const cleanEco = manualEcoInput.replace(/[^0-9]/g, '').trim();
+    const cleanObs = manualObsInput.trim();
+    const cleanPax = manualPaxInput.replace(/[^0-9]/g, '').trim();
+
+    if (!cleanEco) {
+      Alert.alert('Unidad Requerida', 'Debes ingresar el número económico (ECO) de la unidad.');
+      return;
+    }
+    if (cleanObs.length < 3) {
+      Alert.alert(
+        'Justificación Obligatoria',
+        'Debes escribir en Observaciones la justificación del porqué se realiza este registro de forma manual.'
+      );
+      return;
+    }
+
+    const now = new Date();
+    const currentTimeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+    const executeManualCommit = async () => {
+      const previousRowsSnapshot = [...rows];
+      let updatedRows = [...rows];
+      let targetRowId = '';
+
+      if (manualTargetRowId) {
+        // Editando una fila existente
+        const idx = updatedRows.findIndex(r => r.id === manualTargetRowId);
+        if (idx !== -1) {
+          targetRowId = manualTargetRowId;
+          const horarioToUse =
+            updatedRows[idx].horario && updatedRows[idx].horario !== '--:--'
+              ? updatedRows[idx].horario
+              : currentTimeStr;
+          updatedRows[idx] = {
+            ...updatedRows[idx],
+            eco: cleanEco,
+            horario: horarioToUse,
+            pax: (isIndios || isLagos) ? (cleanPax || updatedRows[idx].pax || '') : updatedRows[idx].pax,
+            observaciones: cleanObs,
+            es_manual: true,
+            isGhost: false,
+          };
+          updatedRows = calculateTimes(updatedRows, idx, 'horario');
+        }
+      } else if (manualInsertAfterIndex !== null) {
+        // Insertando fila en posición específica
+        const index = manualInsertAfterIndex;
+        const prevFrec = updatedRows[index] ? updatedRows[index].frec : '15';
+        targetRowId = Date.now().toString();
+        const newRow = {
+          id: targetRowId,
+          no: 0,
+          frec: prevFrec,
+          horario: currentTimeStr,
+          eco: cleanEco,
+          ruta: 'MEX',
+          observaciones: cleanObs,
+          pax: (isIndios || isLagos) ? cleanPax : '',
+          es_manual: true,
+          isGhost: false,
+        };
+        updatedRows.splice(index + 1, 0, newRow);
+        updatedRows = calculateTimes(updatedRows, index + 1, 'horario');
+      } else {
+        // Botón "+ Registro Manual": usar primer ghost o agregar al final
+        const ghostIndex = updatedRows.findIndex((r: any) => r.isGhost);
+        if (ghostIndex !== -1) {
+          targetRowId = updatedRows[ghostIndex].id;
+          updatedRows[ghostIndex] = {
+            ...updatedRows[ghostIndex],
+            eco: cleanEco,
+            horario: currentTimeStr,
+            pax: (isIndios || isLagos) ? cleanPax : '',
+            observaciones: cleanObs,
+            isGhost: false,
+            es_manual: true,
+            highlightColor:
+              updatedRows[ghostIndex].highlightColor === '#cbd5e1'
+                ? null
+                : updatedRows[ghostIndex].highlightColor,
+          };
+          updatedRows = calculateTimes(updatedRows, ghostIndex, 'horario');
+        } else {
+          const lastRow = updatedRows[updatedRows.length - 1];
+          const prevFrec = lastRow ? lastRow.frec : '15';
+          targetRowId = Date.now().toString();
+          const newRow = {
+            id: targetRowId,
+            no: (lastRow?.no || 0) + 1,
+            frec: prevFrec,
+            horario: currentTimeStr,
+            eco: cleanEco,
+            ruta: 'MEX',
+            observaciones: cleanObs,
+            pax: (isIndios || isLagos) ? cleanPax : '',
+            es_manual: true,
+            isGhost: false,
+          };
+          updatedRows.push(newRow);
+          updatedRows = calculateTimes(updatedRows, updatedRows.length - 1, 'horario');
+        }
+      }
+
+      setManualModalVisible(false);
+      setManualTargetRowId(null);
+      setManualInsertAfterIndex(null);
+
+      // Abrir cámara para tomar la foto obligatoria de la unidad
+      setTimeout(async () => {
+        const photoTaken = await handleMandatoryPhoto(targetRowId, updatedRows, true);
+        if (!photoTaken) {
+          // Si canceló la foto, revertir porque la foto es obligatoria en registro manual
+          setRows(previousRowsSnapshot);
+          Alert.alert(
+            'Registro Cancelado',
+            'El registro manual requiere obligatoriamente tomar la fotografía de la unidad.'
+          );
+        }
+      }, 300);
+    };
+
+    const dupRow = findRecentDuplicateEco(cleanEco, currentTimeStr, manualTargetRowId || undefined);
+    if (dupRow) {
+      Alert.alert(
+        '⚠️ Posible Checada Duplicada',
+        `La unidad ECO ${cleanEco} ya fue checada a las ${dupRow.horario}.\n\n¿Deseas continuar con el registro manual?`,
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          { text: 'Sí, Continuar', style: 'destructive', onPress: executeManualCommit },
+        ]
+      );
+      return;
+    }
+
+    executeManualCommit();
   };
 
   
@@ -1182,27 +1420,12 @@ export default function EditorTREALScreen() {
 
   const handleAddRow = () => {
     if (isReadOnly || !isAllowedToEdit) return;
-    const ghostIndex = rows.findIndex((r: any) => r.isGhost);
-    if (ghostIndex !== -1) {
-      const newData = [...rows];
-      newData[ghostIndex] = {
-        ...newData[ghostIndex],
-        eco: '',
-        isGhost: false,
-        es_manual: userAccessLevel < 10,
-        highlightColor: newData[ghostIndex].highlightColor === '#cbd5e1' ? null : newData[ghostIndex].highlightColor
-      };
-      setRows(newData);
-      const targetId = activeRolId || (rol_id as string);
-      if (targetId) {
-        SyncManager.queueTREALUpdate(targetId, newData);
-      }
-    } else {
-      const lastRow = rows[rows.length - 1];
-      const prevFrec = lastRow ? lastRow.frec : '15';
-      const newRow = { id: Date.now().toString(), no: (lastRow?.no || 0) + 1, frec: prevFrec, horario: '--:--', eco: '', ruta: 'MEX', observaciones: '', pax: '', es_manual: userAccessLevel < 10, isGhost: false };
-      setRows(calculateTimes([...rows, newRow], rows.length - 1, 'frec'));
-    }
+    setManualTargetRowId(null);
+    setManualInsertAfterIndex(null);
+    setManualEcoInput('');
+    setManualPaxInput('');
+    setManualObsInput('');
+    setManualModalVisible(true);
   };
 
   const handleSaveTREAL = async () => {
@@ -1611,38 +1834,40 @@ export default function EditorTREALScreen() {
                             {!isIndios && <Text style={{ flex: 0.8, color: row.highlightColor ? '#0f172a' : (row.ruta === 'MEX' ? '#008000' : row.ruta === 'REY' ? '#D22B2B' : '#4B0082'), fontSize: 11, textAlign: 'center', fontWeight: 'bold' }}>{row.ruta || '-'}</Text>}
                             {(isIndios || isLagos) && (
                               <View style={{ flex: 0.5, alignItems: 'center', justifyContent: 'center' }}>
-                                {(() => {
-                                  const ecoClean = String(row.eco || '').replace(/[^0-9]/g, '');
-                                  const unitCap = ecoClean ? (unidadesMap[ecoClean] || 0) : 0;
-                                  const hasWrittenPax = row.pax !== undefined && row.pax !== null && String(row.pax).trim() !== '';
-                                  const numPax = hasWrittenPax ? parseInt(String(row.pax).replace(/[^0-9]/g, '')) : 0;
-                                  const progress = unitCap > 0 ? Math.min(100, Math.round((numPax / unitCap) * 100)) : 0;
-                                  const extra = unitCap > 0 && numPax > unitCap ? numPax - unitCap : 0;
-                                  
-                                  return (
-                                    <View style={{ width: '100%', alignItems: 'center' }}>
-                                      <Text style={{ color: row.highlightColor ? '#0f172a' : '#0f172a', fontSize: 13, textAlign: 'center', fontWeight: '900' }}>
-                                        {row.isGhost ? '-' : (row.pax || '-')}
-                                      </Text>
-                                      {!row.isGhost && hasWrittenPax && unitCap > 0 && (
-                                        <View style={{ marginTop: 2, width: '80%', alignItems: 'center' }}>
-                                          <Text style={{ fontSize: 7, color: row.highlightColor ? '#0f172a' : '#64748b', marginBottom: 1, fontWeight: 'bold' }}>{numPax} de {unitCap}</Text>
-                                          <View style={{ flexDirection: 'row', alignItems: 'center', width: '100%' }}>
-                                            <View style={{ flex: 1, height: 2, backgroundColor: row.highlightColor ? 'rgba(0,0,0,0.2)' : '#e2e8f0', borderRadius: 1 }}>
-                                              <View style={{ width: `${progress}%`, height: '100%', backgroundColor: progress >= 100 ? '#10b981' : '#3b82f6', borderRadius: 1 }} />
-                                            </View>
-                                            {extra > 0 && (
-                                              <Text style={{ fontSize: 7, color: '#eab308', fontWeight: '900', marginLeft: 2 }}>+{extra}</Text>
-                                            )}
-                                          </View>
-                                        </View>
-                                      )}
-                                    </View>
-                                  );
-                                })()}
+                                <Text style={{ color: '#0f172a', fontSize: 13, textAlign: 'center', fontWeight: '900' }}>
+                                  {row.isGhost ? '-' : (row.pax || '-')}
+                                </Text>
                               </View>
                             )}
-                            <Text style={{ flex: (isIndios || !isLagos) ? 2.2 : 1.6, color: '#0f172a', fontSize: 11, textAlign: 'center', fontWeight: '900', paddingHorizontal: 2, flexShrink: 1, flexWrap: 'wrap' }}>{row.observaciones || ''}</Text>
+                            <View style={{ flex: (isIndios || !isLagos) ? 2.2 : 1.6, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 }}>
+                              {row.observaciones ? (
+                                <Text style={{ color: '#0f172a', fontSize: 11, textAlign: 'center', fontWeight: '900', flexShrink: 1, flexWrap: 'wrap' }}>
+                                  {row.observaciones}
+                                </Text>
+                              ) : null}
+                              {(isIndios || isLagos) && !row.isGhost && (() => {
+                                const ecoClean = String(row.eco || '').replace(/[^0-9]/g, '');
+                                const unitCap = ecoClean ? (unidadesMap[ecoClean] || 0) : 0;
+                                const hasWrittenPax = row.pax !== undefined && row.pax !== null && String(row.pax).trim() !== '';
+                                const numPax = hasWrittenPax ? parseInt(String(row.pax).replace(/[^0-9]/g, '')) : 0;
+                                const progress = unitCap > 0 ? Math.min(100, Math.round((numPax / unitCap) * 100)) : 0;
+                                const extra = unitCap > 0 && numPax > unitCap ? numPax - unitCap : 0;
+                                if (!hasWrittenPax || unitCap <= 0) return null;
+                                return (
+                                  <View style={{ marginTop: row.observaciones ? 3 : 0, width: '92%', alignItems: 'center' }}>
+                                    <Text style={{ fontSize: 7.5, color: row.highlightColor ? '#0f172a' : '#475569', marginBottom: 1, fontWeight: '900' }}>{numPax} de {unitCap}</Text>
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', width: '100%' }}>
+                                      <View style={{ flex: 1, height: 3, backgroundColor: row.highlightColor ? 'rgba(0,0,0,0.2)' : '#e2e8f0', borderRadius: 2, overflow: 'hidden' }}>
+                                        <View style={{ width: `${progress}%`, height: '100%', backgroundColor: progress >= 100 ? '#10b981' : '#3b82f6', borderRadius: 2 }} />
+                                      </View>
+                                      {extra > 0 && (
+                                        <Text style={{ fontSize: 8, color: '#eab308', fontWeight: '900', marginLeft: 4 }}>+{extra}</Text>
+                                      )}
+                                    </View>
+                                  </View>
+                                );
+                              })()}
+                            </View>
                           </View>
                         ))}
                       </View>
@@ -1668,38 +1893,40 @@ export default function EditorTREALScreen() {
                               {!isIndios && <Text style={{ flex: 0.8, color: row.highlightColor ? '#0f172a' : (row.ruta === 'MEX' ? '#008000' : row.ruta === 'REY' ? '#D22B2B' : '#4B0082'), fontSize: 11, textAlign: 'center', fontWeight: '900' }}>{row.ruta || '-'}</Text>}
                               {(isIndios || isLagos) && (
                               <View style={{ flex: 0.5, alignItems: 'center', justifyContent: 'center' }}>
-                                {(() => {
+                                <Text style={{ color: '#0f172a', fontSize: 13, textAlign: 'center', fontWeight: '900' }}>
+                                  {row.isGhost ? '-' : (row.pax || '-')}
+                                </Text>
+                              </View>
+                            )}
+                              <View style={{ flex: (isIndios || !isLagos) ? 2.2 : 1.6, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 }}>
+                                {row.observaciones ? (
+                                  <Text style={{ color: '#0f172a', fontSize: 11, textAlign: 'center', fontWeight: '900', flexShrink: 1, flexWrap: 'wrap' }}>
+                                    {row.observaciones}
+                                  </Text>
+                                ) : null}
+                                {(isIndios || isLagos) && !row.isGhost && (() => {
                                   const ecoClean = String(row.eco || '').replace(/[^0-9]/g, '');
                                   const unitCap = ecoClean ? (unidadesMap[ecoClean] || 0) : 0;
                                   const hasWrittenPax = row.pax !== undefined && row.pax !== null && String(row.pax).trim() !== '';
                                   const numPax = hasWrittenPax ? parseInt(String(row.pax).replace(/[^0-9]/g, '')) : 0;
                                   const progress = unitCap > 0 ? Math.min(100, Math.round((numPax / unitCap) * 100)) : 0;
                                   const extra = unitCap > 0 && numPax > unitCap ? numPax - unitCap : 0;
-                                  
+                                  if (!hasWrittenPax || unitCap <= 0) return null;
                                   return (
-                                    <View style={{ width: '100%', alignItems: 'center' }}>
-                                      <Text style={{ color: row.highlightColor ? '#0f172a' : '#0f172a', fontSize: 13, textAlign: 'center', fontWeight: '900' }}>
-                                        {row.isGhost ? '-' : (row.pax || '-')}
-                                      </Text>
-                                      {!row.isGhost && hasWrittenPax && unitCap > 0 && (
-                                        <View style={{ marginTop: 2, width: '80%', alignItems: 'center' }}>
-                                          <Text style={{ fontSize: 7, color: row.highlightColor ? '#0f172a' : '#64748b', marginBottom: 1, fontWeight: 'bold' }}>{numPax} de {unitCap}</Text>
-                                          <View style={{ flexDirection: 'row', alignItems: 'center', width: '100%' }}>
-                                            <View style={{ flex: 1, height: 2, backgroundColor: row.highlightColor ? 'rgba(0,0,0,0.2)' : '#e2e8f0', borderRadius: 1 }}>
-                                              <View style={{ width: `${progress}%`, height: '100%', backgroundColor: progress >= 100 ? '#10b981' : '#3b82f6', borderRadius: 1 }} />
-                                            </View>
-                                            {extra > 0 && (
-                                              <Text style={{ fontSize: 7, color: '#eab308', fontWeight: '900', marginLeft: 2 }}>+{extra}</Text>
-                                            )}
-                                          </View>
+                                    <View style={{ marginTop: row.observaciones ? 3 : 0, width: '92%', alignItems: 'center' }}>
+                                      <Text style={{ fontSize: 7.5, color: row.highlightColor ? '#0f172a' : '#475569', marginBottom: 1, fontWeight: '900' }}>{numPax} de {unitCap}</Text>
+                                      <View style={{ flexDirection: 'row', alignItems: 'center', width: '100%' }}>
+                                        <View style={{ flex: 1, height: 3, backgroundColor: row.highlightColor ? 'rgba(0,0,0,0.2)' : '#e2e8f0', borderRadius: 2, overflow: 'hidden' }}>
+                                          <View style={{ width: `${progress}%`, height: '100%', backgroundColor: progress >= 100 ? '#10b981' : '#3b82f6', borderRadius: 2 }} />
                                         </View>
-                                      )}
+                                        {extra > 0 && (
+                                          <Text style={{ fontSize: 8, color: '#eab308', fontWeight: '900', marginLeft: 4 }}>+{extra}</Text>
+                                        )}
+                                      </View>
                                     </View>
                                   );
                                 })()}
                               </View>
-                            )}
-                              <Text style={{ flex: (isIndios || !isLagos) ? 2.2 : 1.6, color: '#0f172a', fontSize: 11, textAlign: 'center', fontWeight: '900', paddingHorizontal: 2, flexShrink: 1, flexWrap: 'wrap' }}>{row.observaciones || ''}</Text>
                             </View>
                           ))}
                         </View>
@@ -1807,8 +2034,17 @@ export default function EditorTREALScreen() {
                     style={[styles.inputCell, { justifyContent: 'center', paddingVertical: 8 }, row.highlightColor ? { backgroundColor: 'transparent', borderColor: 'transparent' } : { backgroundColor: theme.surface, borderColor: theme.border }, isReadOnly && { opacity: 0.8, borderColor: 'transparent' }]}
                     onPress={() => {
                       if(isReadOnly || !isAllowedToEdit) return;
-                      if (!row.es_manual && userAccessLevel < 10) {
+                      if (!row.es_manual && !row.isGhost && row.eco && userAccessLevel < 10) {
                         Alert.alert('Registro Protegido', 'Solo un Administrador (Nivel 10) puede modificar el número económico de un registro QR.');
+                        return;
+                      }
+                      if (row.es_manual || row.isGhost || !row.eco) {
+                        setManualTargetRowId(row.id);
+                        setManualInsertAfterIndex(null);
+                        setManualEcoInput(String(row.eco || ''));
+                        setManualPaxInput(String(row.pax || ''));
+                        setManualObsInput(String(row.observaciones || ''));
+                        setManualModalVisible(true);
                         return;
                       }
                       setSelectedRowIdForEco(row.id);
@@ -1852,9 +2088,6 @@ export default function EditorTREALScreen() {
                       const ecoClean = String(row.eco || '').replace(/[^0-9]/g, '');
                       const unitCap = ecoClean ? (unidadesMap[ecoClean] || 0) : 0;
                       const hasWrittenPax = row.pax !== undefined && row.pax !== null && String(row.pax).trim() !== '';
-                      const numPax = hasWrittenPax ? parseInt(String(row.pax).replace(/[^0-9]/g, '')) : 0;
-                      const progress = unitCap > 0 ? Math.min(100, Math.round((numPax / unitCap) * 100)) : 0;
-                      const extra = unitCap > 0 && numPax > unitCap ? numPax - unitCap : 0;
                       
                       return (
                         <View style={{ width: '100%', alignItems: 'center' }}>
@@ -1875,28 +2108,64 @@ export default function EditorTREALScreen() {
                             placeholder={unitCap > 0 ? `${unitCap}` : '--'}
                             placeholderTextColor={unitCap > 0 ? theme.textMuted : theme.textMuted}
                           />
-                          
                         </View>
                       );
                     })()}
                   </View>
                 )}
 
-                <View style={{ flex: 1, flexDirection: 'row', paddingHorizontal: 1, alignItems: 'center', justifyContent: 'center' }}>
-                  <TouchableOpacity 
-                    style={{ padding: 6, backgroundColor: row.observaciones ? '#eab30820' : 'transparent', borderRadius: 8 }}
-                    onPress={() => handleOpenObsModal(row.id, row.observaciones)}
-                  >
-                    <Feather name="message-square" size={16} color={row.observaciones ? '#eab308' : '#64748b'} />
-                  </TouchableOpacity>
-                  {row.photoUrl ? (
+                <View style={{ flex: 1, paddingHorizontal: 2, alignItems: 'center', justifyContent: 'center' }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
                     <TouchableOpacity 
-                      style={{ padding: 6, backgroundColor: '#3b82f620', borderRadius: 8, marginLeft: 2 }}
-                      onPress={() => { setPhotoViewerUrl(row.photoUrl); setPhotoViewerVisible(true); }}
+                      style={{ padding: 6, backgroundColor: row.observaciones ? '#eab30820' : 'transparent', borderRadius: 8 }}
+                      onPress={() => handleOpenObsModal(row.id, row.observaciones)}
                     >
-                      <Feather name="camera" size={16} color="#3b82f6" />
+                      <Feather name="message-square" size={16} color={row.observaciones ? '#eab308' : '#64748b'} />
                     </TouchableOpacity>
-                  ) : null}
+                    {row.photoUrl ? (
+                      <TouchableOpacity 
+                        style={{ padding: 6, backgroundColor: '#10b98120', borderRadius: 8, marginLeft: 2, position: 'relative' }}
+                        onPress={() => { setPhotoViewerUrl(row.photoUrl); setPhotoViewerVisible(true); }}
+                      >
+                        <Feather name="camera" size={16} color="#10b981" />
+                        <View style={{ position: 'absolute', top: -3, right: -3, backgroundColor: '#10b981', borderRadius: 7, width: 13, height: 13, alignItems: 'center', justifyContent: 'center' }}>
+                          <Feather name="check" size={9} color="#ffffff" />
+                        </View>
+                      </TouchableOpacity>
+                    ) : row.localPhotoUri ? (
+                      <TouchableOpacity 
+                        style={{ padding: 5, backgroundColor: '#f59e0b20', borderRadius: 8, marginLeft: 2, flexDirection: 'row', alignItems: 'center', gap: 3 }}
+                        onPress={() => { setPhotoViewerUrl(row.localPhotoUri); setPhotoViewerVisible(true); }}
+                      >
+                        <ActivityIndicator size="small" color="#f59e0b" style={{ transform: [{ scale: 0.65 }] }} />
+                        <Feather name="camera" size={14} color="#f59e0b" />
+                      </TouchableOpacity>
+                    ) : null}
+                  </View>
+                  {(isIndios || isLagos) && !row.isGhost && (() => {
+                    const ecoClean = String(row.eco || '').replace(/[^0-9]/g, '');
+                    const unitCap = ecoClean ? (unidadesMap[ecoClean] || 0) : 0;
+                    const hasWrittenPax = row.pax !== undefined && row.pax !== null && String(row.pax).trim() !== '';
+                    const numPax = hasWrittenPax ? parseInt(String(row.pax).replace(/[^0-9]/g, '')) : 0;
+                    const progress = unitCap > 0 ? Math.min(100, Math.round((numPax / unitCap) * 100)) : 0;
+                    const extra = unitCap > 0 && numPax > unitCap ? numPax - unitCap : 0;
+                    if (!hasWrittenPax || unitCap <= 0) return null;
+                    return (
+                      <View style={{ marginTop: 2, width: '94%', alignItems: 'center' }}>
+                        <Text style={{ fontSize: 7, color: row.highlightColor ? '#0f172a' : theme.textMuted, marginBottom: 1, fontWeight: '900' }}>
+                          {numPax} de {unitCap}
+                        </Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', width: '100%' }}>
+                          <View style={{ flex: 1, height: 3, backgroundColor: row.highlightColor ? 'rgba(0,0,0,0.2)' : theme.border, borderRadius: 2, overflow: 'hidden' }}>
+                            <View style={{ width: `${progress}%`, height: '100%', backgroundColor: progress >= 100 ? '#10b981' : '#3b82f6', borderRadius: 2 }} />
+                          </View>
+                          {extra > 0 && (
+                            <Text style={{ fontSize: 7.5, color: '#eab308', fontWeight: '900', marginLeft: 3 }}>+{extra}</Text>
+                          )}
+                        </View>
+                      </View>
+                    );
+                  })()}
                 </View>
 
                 
@@ -2017,13 +2286,113 @@ export default function EditorTREALScreen() {
               />
 
               <TouchableOpacity style={{ backgroundColor: theme.primary, padding: 18, borderRadius: 12 }} onPress={() => {
-                if (selectedRowIdForEco) {
-                  handleUpdateField(selectedRowIdForEco, 'eco', ecoInputValue);
+                const targetId = selectedRowIdForEco;
+                const val = ecoInputValue.trim();
+                const commitEco = () => {
+                  if (targetId) {
+                    handleUpdateField(targetId, 'eco', val);
+                  }
+                  setEcoModalVisible(false);
+                  setSelectedRowIdForEco(null);
+                };
+
+                if (targetId && val) {
+                  const targetRow = rows.find(r => r.id === targetId);
+                  const now = new Date();
+                  const currentTimeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+                  const refTime = (targetRow?.horario && targetRow.horario !== '--:--') ? targetRow.horario : currentTimeStr;
+                  const dup = findRecentDuplicateEco(val, refTime, targetId);
+                  if (dup) {
+                    Alert.alert(
+                      '⚠️ Posible Checada Duplicada',
+                      `La unidad ECO ${val} ya fue registrada a las ${dup.horario}.\n\n¿Deseas asignar este ECO de todas formas?`,
+                      [
+                        { text: 'Cancelar', style: 'cancel' },
+                        { text: 'Sí, Registrar', style: 'destructive', onPress: commitEco }
+                      ]
+                    );
+                    return;
+                  }
                 }
-                setEcoModalVisible(false);
-                setSelectedRowIdForEco(null);
+                commitEco();
               }}>
                 <Text style={{ color: theme.headerText, textAlign: 'center', fontWeight: 'bold', fontSize: 16 }}>Aceptar</Text>
+              </TouchableOpacity>
+            </View>
+          </KeyboardAvoidingView>
+        </Modal>
+
+        {/* Modal Registro Manual (Justificación Obligatoria + Foto de Unidad) */}
+        <Modal visible={manualModalVisible} animationType="slide" transparent={true} onRequestClose={() => setManualModalVisible(false)}>
+          <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}>
+            <View style={[styles.modalContent, { height: 'auto', paddingBottom: 28, backgroundColor: theme.surface }]}>
+              <View style={[styles.modalHeader, { borderBottomColor: theme.border }]}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <Feather name="edit-3" size={20} color="#f97316" />
+                  <Text style={[styles.modalTitle, { color: theme.text }]}>Registro Manual de Unidad</Text>
+                </View>
+                <TouchableOpacity onPress={() => setManualModalVisible(false)}>
+                  <Feather name="x" size={24} color="#94a3b8" />
+                </TouchableOpacity>
+              </View>
+
+              <View style={{ backgroundColor: '#f9731618', borderWidth: 1, borderColor: '#f97316', borderRadius: 10, padding: 10, marginBottom: 14, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Feather name="camera" size={18} color="#f97316" />
+                <Text style={{ flex: 1, fontSize: 12, color: theme.text, fontWeight: '700' }}>
+                  Todo registro manual requiere justificación obligatoria en Observaciones y fotografía de la unidad.
+                </Text>
+              </View>
+
+              <View style={{ flexDirection: 'row', gap: 10, marginBottom: 14 }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 12, fontWeight: '800', color: theme.textMuted, marginBottom: 6 }}>UNIDAD (ECO) *</Text>
+                  <TextInput
+                    style={{ backgroundColor: theme.background, borderWidth: 1, borderColor: theme.border, borderRadius: 12, color: theme.text, padding: 14, fontSize: 20, fontWeight: '900', textAlign: 'center' }}
+                    value={manualEcoInput}
+                    onChangeText={setManualEcoInput}
+                    placeholder="Ej. 1320"
+                    placeholderTextColor={isDarkMode ? '#888' : '#94a3b8'}
+                    keyboardType="number-pad"
+                    autoFocus={true}
+                  />
+                </View>
+                {(isIndios || isLagos) && (
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 12, fontWeight: '800', color: theme.textMuted, marginBottom: 6 }}>PASAJEROS (PAX)</Text>
+                    <TextInput
+                      style={{ backgroundColor: theme.background, borderWidth: 1, borderColor: theme.border, borderRadius: 12, color: theme.text, padding: 14, fontSize: 20, fontWeight: '900', textAlign: 'center' }}
+                      value={manualPaxInput}
+                      onChangeText={setManualPaxInput}
+                      placeholder="Ej. 18"
+                      placeholderTextColor={isDarkMode ? '#888' : '#94a3b8'}
+                      keyboardType="number-pad"
+                      maxLength={3}
+                    />
+                  </View>
+                )}
+              </View>
+
+              <Text style={{ fontSize: 12, fontWeight: '800', color: '#f97316', marginBottom: 6 }}>
+                JUSTIFICACIÓN EN OBSERVACIONES (OBLIGATORIA) *
+              </Text>
+              <TextInput
+                style={{ backgroundColor: theme.background, borderWidth: 1.5, borderColor: '#f97316', borderRadius: 12, color: theme.text, padding: 14, fontSize: 15, marginBottom: 18, minHeight: 80, textAlignVertical: 'top' }}
+                value={manualObsInput}
+                onChangeText={setManualObsInput}
+                placeholder="Explica por qué se realiza el registro manual (ej. QR dañado, unidad sin etiqueta)..."
+                placeholderTextColor={isDarkMode ? '#888' : '#94a3b8'}
+                multiline={true}
+                numberOfLines={3}
+              />
+
+              <TouchableOpacity
+                style={{ backgroundColor: '#f97316', padding: 16, borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 }}
+                onPress={handleConfirmManualRegistration}
+              >
+                <Feather name="camera" size={20} color="#ffffff" />
+                <Text style={{ color: '#ffffff', textAlign: 'center', fontWeight: '900', fontSize: 15 }}>
+                  Tomar Foto de Unidad y Registrar
+                </Text>
               </TouchableOpacity>
             </View>
           </KeyboardAvoidingView>

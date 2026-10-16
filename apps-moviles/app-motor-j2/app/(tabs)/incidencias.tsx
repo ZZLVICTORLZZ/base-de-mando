@@ -1,22 +1,19 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useTheme } from '../../src/theme/ThemeContext';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, ActivityIndicator, Alert, Modal } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Alert, Modal } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
-import { Platform } from 'react-native';
 import { supabase } from '../../src/services/supabaseClient';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import DateFilterBar from '../../src/components/DateFilterBar';
 
 export default function IncidenciasScreen() {
   const { theme } = useTheme();
   const styles = getStyles(theme);
   const today = new Date();
   const todayStr = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
-  const [search, setSearch] = useState('');
+  const [selectedBase, setSelectedBase] = useState('Todas');
   const [dateDesde, setDateDesde] = useState(todayStr);
   const [dateHasta, setDateHasta] = useState(todayStr);
-  const [showPickerDesde, setShowPickerDesde] = useState(false);
-  const [showPickerHasta, setShowPickerHasta] = useState(false);
   const [hojas, setHojas] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   
@@ -41,22 +38,6 @@ export default function IncidenciasScreen() {
       return new Date(Number(y), Number(m)-1, Number(d)).getTime();
     }
     return new Date(0).getTime();
-  };
-
-  const handleDateChangeDesde = (event: any, selectedDate?: Date) => {
-    setShowPickerDesde(Platform.OS === 'ios');
-    if (selectedDate) {
-      const dStr = `${String(selectedDate.getDate()).padStart(2, '0')}/${String(selectedDate.getMonth() + 1).padStart(2, '0')}/${selectedDate.getFullYear()}`;
-      setDateDesde(dStr);
-    }
-  };
-
-  const handleDateChangeHasta = (event: any, selectedDate?: Date) => {
-    setShowPickerHasta(Platform.OS === 'ios');
-    if (selectedDate) {
-      const dStr = `${String(selectedDate.getDate()).padStart(2, '0')}/${String(selectedDate.getMonth() + 1).padStart(2, '0')}/${selectedDate.getFullYear()}`;
-      setDateHasta(dStr);
-    }
   };
 
   const fetchHojas = async () => {
@@ -142,12 +123,14 @@ export default function IncidenciasScreen() {
   };
 
   const filteredHojas = hojas.filter(h => {
-    const matchesSearch = (h.base || '').toLowerCase().includes(search.toLowerCase());
+    const matchesBase =
+      selectedBase === 'Todas' ||
+      (h.base || '').toLowerCase().includes(selectedBase.toLowerCase());
     const rTime = parseDateString(h.fecha);
     const dTime = parseDateString(dateDesde);
     const hTime = parseDateString(dateHasta);
     const matchesDate = rTime >= dTime && rTime <= hTime;
-    return matchesSearch && matchesDate;
+    return matchesBase && matchesDate;
   });
 
   return (
@@ -158,50 +141,22 @@ export default function IncidenciasScreen() {
           style={styles.btnNuevo} 
           onPress={() => setModalVisible(true)}
         >
-          <Feather name="plus" size={18} color="#ffffff" style={{ marginRight: 6 }} />
+          <Feather name="plus" size={18} color={theme.headerText} style={{ marginRight: 6 }} />
           <Text style={styles.btnTextBold}>Nuevo</Text>
         </TouchableOpacity>
       </View>
 
-      <View style={[styles.filtersContainer, { flexDirection: 'column', alignItems: 'stretch', paddingVertical: 12 }]}>
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <Feather name="calendar" size={16} color="#64748b" style={styles.filterIcon} />
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 11, color: theme.textMuted, marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 }}>Desde</Text>
-            <TextInput 
-              style={{ color: theme.text, fontSize: 14, borderBottomWidth: 1, borderBottomColor: '#C8C1B2', paddingVertical: 4 }}
-              value={dateDesde}
-              onChangeText={setDateDesde}
-              placeholder="DD/MM/YYYY"
-              placeholderTextColor="#94a3b8"
-            />
-          </View>
-          <View style={{ width: 1, height: 20, backgroundColor: '#C8C1B2', marginHorizontal: 15, marginTop: 15 }} />
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 11, color: theme.textMuted, marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 }}>Hasta</Text>
-            <TextInput 
-              style={{ color: theme.text, fontSize: 14, borderBottomWidth: 1, borderBottomColor: '#C8C1B2', paddingVertical: 4 }}
-              value={dateHasta}
-              onChangeText={setDateHasta}
-              placeholder="DD/MM/YYYY"
-              placeholderTextColor="#94a3b8"
-            />
-          </View>
-        </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 15, backgroundColor: 'rgba(0,0,0,0.05)', borderRadius: 6, paddingHorizontal: 10 }}>
-          <Feather name="search" size={14} color="#64748b" style={{ marginRight: 8 }} />
-          <TextInput 
-            style={{ flex: 1, color: theme.text, fontSize: 12, paddingVertical: 8 }}
-            value={search}
-            onChangeText={setSearch}
-            placeholder="Buscar hoja por base..."
-            placeholderTextColor="#94a3b8"
-          />
-        </View>
-      </View>
+      <DateFilterBar
+        dateDesde={dateDesde}
+        dateHasta={dateHasta}
+        onChangeDesde={setDateDesde}
+        onChangeHasta={setDateHasta}
+        selectedBase={selectedBase}
+        onSelectBase={setSelectedBase}
+      />
 
       {loading ? (
-        <ActivityIndicator size="large" color="#3b82f6" style={{ marginTop: 40 }} />
+        <ActivityIndicator size="large" color={theme.primary} style={{ marginTop: 40 }} />
       ) : (
         <FlatList
           data={filteredHojas}
@@ -211,7 +166,7 @@ export default function IncidenciasScreen() {
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={
              <Text style={{ color: '#64748b', textAlign: 'center', marginTop: 40 }}>
-               No hay hojas de incidencias creadas.
+               No hay hojas de incidencias para el filtro seleccionado.
              </Text>
           }
         />
@@ -274,24 +229,10 @@ function getStyles(theme: any) { return StyleSheet.create({
     alignSelf: 'center'
   },
   btnTextBold: { color: theme.headerText, fontWeight: 'bold', fontSize: 14 },
-  
-  filtersContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: theme.background,
-    marginHorizontal: 20,
-    paddingHorizontal: 15,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: theme.border,
-    marginBottom: 10
-  },
-  filterIcon: { marginRight: 10 },
-  searchInput: { flex: 1, color: theme.text, fontSize: 14, paddingVertical: 12 },
 
   listPadding: { padding: 20 },
   card: { 
-    backgroundColor: theme.background, 
+    backgroundColor: theme.surface, 
     borderRadius: 12, 
     marginBottom: 16, 
     borderWidth: 1, 
@@ -345,7 +286,7 @@ function getStyles(theme: any) { return StyleSheet.create({
     justifyContent: 'flex-end'
   },
   modalContent: {
-    backgroundColor: theme.background,
+    backgroundColor: theme.surface,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 20,

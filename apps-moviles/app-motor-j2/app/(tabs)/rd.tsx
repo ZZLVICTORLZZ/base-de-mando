@@ -1,13 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useTheme } from '../../src/theme/ThemeContext';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
-import { Platform } from 'react-native';
 import { supabase } from '../../src/services/supabaseClient';
-import { useCallback } from 'react';
 import { isAdmin } from '../../lib/permissions';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import DateFilterBar from '../../src/components/DateFilterBar';
 
 export default function RDScreen() {
   const { theme } = useTheme();
@@ -16,8 +15,6 @@ export default function RDScreen() {
   const todayStr = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
   const [dateDesde, setDateDesde] = useState(todayStr);
   const [dateHasta, setDateHasta] = useState(todayStr);
-  const [showPickerDesde, setShowPickerDesde] = useState(false);
-  const [showPickerHasta, setShowPickerHasta] = useState(false);
   const [roles, setRoles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [userIsAdmin, setUserIsAdmin] = useState(false);
@@ -50,7 +47,7 @@ export default function RDScreen() {
         id: d.id,
         fecha: d.fecha,
         tipo: d.plantillas_predeterminadas?.name || 'Desconocido',
-        estatus: 'activa', // Hardcodeado por ahora
+        estatus: 'activa',
         creado_por: d.creado_por
       })));
     }
@@ -70,30 +67,6 @@ export default function RDScreen() {
     return new Date(0).getTime();
   };
 
-  const isToday = (fechaStr: string) => {
-    const today = new Date();
-    const dStr = String(today.getDate()).padStart(2, '0');
-    const mStr = String(today.getMonth() + 1).padStart(2, '0');
-    const yStr = String(today.getFullYear());
-    return fechaStr === `${dStr}/${mStr}/${yStr}`;
-  };
-
-  const handleDateChangeDesde = (event: any, selectedDate?: Date) => {
-    setShowPickerDesde(Platform.OS === 'ios');
-    if (selectedDate) {
-      const dStr = `${String(selectedDate.getDate()).padStart(2, '0')}/${String(selectedDate.getMonth() + 1).padStart(2, '0')}/${selectedDate.getFullYear()}`;
-      setDateDesde(dStr);
-    }
-  };
-
-  const handleDateChangeHasta = (event: any, selectedDate?: Date) => {
-    setShowPickerHasta(Platform.OS === 'ios');
-    if (selectedDate) {
-      const dStr = `${String(selectedDate.getDate()).padStart(2, '0')}/${String(selectedDate.getMonth() + 1).padStart(2, '0')}/${selectedDate.getFullYear()}`;
-      setDateHasta(dStr);
-    }
-  };
-
   const filteredRoles = roles.filter(r => {
     const rTime = parseDateString(r.fecha);
     const dTime = parseDateString(dateDesde);
@@ -102,7 +75,7 @@ export default function RDScreen() {
   });
 
   const canEdit = (item: any) => {
-    return true; // Todos pueden editar por ahora
+    return true;
   };
 
   const handleDelete = (id: string) => {
@@ -121,7 +94,6 @@ export default function RDScreen() {
   };
 
   const renderItem = ({ item }: { item: any }) => {
-    // Definimos el color del indicador visual según estatus
     const statusColor = item.estatus === 'activa' ? '#10b981' : item.estatus === 'finalizado' ? '#3b82f6' : '#64748b';
 
     return (
@@ -176,42 +148,20 @@ export default function RDScreen() {
           style={styles.btnNuevo} 
           onPress={() => router.push('/nuevo-rol')}
         >
-          <Feather name="plus" size={18} color="#ffffff" style={{ marginRight: 6 }} />
+          <Feather name="plus" size={18} color={theme.headerText} style={{ marginRight: 6 }} />
           <Text style={styles.btnTextBold}>Nuevo Rol</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Barra de Filtros Minimalista */}
-      <View style={styles.filtersContainer}>
-        <Feather name="filter" size={16} color="#64748b" style={styles.filterIcon} />
-        <View style={styles.dateInputWrapper}>
-          <Text style={styles.dateLabel}>Desde</Text>
-          <TextInput 
-            style={styles.dateInput}
-            value={dateDesde}
-            onChangeText={setDateDesde}
-            placeholder="DD/MM/YYYY"
-            placeholderTextColor="#94a3b8"
-          />
-        </View>
-        
-        <View style={styles.dateSeparator} />
-        
-        <View style={styles.dateInputWrapper}>
-          <Text style={styles.dateLabel}>Hasta</Text>
-          <TextInput 
-            style={styles.dateInput}
-            value={dateHasta}
-            onChangeText={setDateHasta}
-            placeholder="DD/MM/YYYY"
-            placeholderTextColor="#94a3b8"
-          />
-        </View>
-
-      </View>
+      <DateFilterBar
+        dateDesde={dateDesde}
+        dateHasta={dateHasta}
+        onChangeDesde={setDateDesde}
+        onChangeHasta={setDateHasta}
+      />
 
       {loading ? (
-        <ActivityIndicator size="large" color="#3b82f6" style={{ marginTop: 40 }} />
+        <ActivityIndicator size="large" color={theme.primary} style={{ marginTop: 40 }} />
       ) : roles.length === 0 ? (
         <Text style={{ color: '#64748b', textAlign: 'center', marginTop: 40 }}>No hay roles creados.</Text>
       ) : (
@@ -221,6 +171,11 @@ export default function RDScreen() {
           renderItem={renderItem}
           contentContainerStyle={styles.listPadding}
           showsVerticalScrollIndicator={false}
+          ListEmptyComponent={
+            <Text style={{ color: theme.textMuted, textAlign: 'center', marginTop: 30 }}>
+              No se encontraron roles para el periodo seleccionado.
+            </Text>
+          }
         />
       )}
     </View>
@@ -246,32 +201,11 @@ function getStyles(theme: any) { return StyleSheet.create({
     alignSelf: 'center'
   },
   btnTextBold: { color: theme.headerText, fontWeight: '600', fontSize: 14 },
-  
-  // Filtros
-  filtersContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingBottom: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.border
-  },
-  filterIcon: { marginRight: 15 },
-  dateInputWrapper: { flex: 1 },
-  dateLabel: { fontSize: 11, color: theme.textMuted, marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 },
-  dateInput: { 
-    color: theme.text, 
-    fontSize: 14, 
-    borderBottomWidth: 1, 
-    borderBottomColor: '#C8C1B2',
-    paddingVertical: 4
-  },
-  dateSeparator: { width: 1, height: 20, backgroundColor: '#C8C1B2', marginHorizontal: 15, marginTop: 15 },
 
   // Lista
   listPadding: { padding: 20 },
   card: { 
-    backgroundColor: theme.background, 
+    backgroundColor: theme.surface, 
     borderRadius: 12, 
     marginBottom: 12, 
     flexDirection: 'row', 
@@ -285,7 +219,7 @@ function getStyles(theme: any) { return StyleSheet.create({
   cardHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
   statusIndicator: { width: 8, height: 8, borderRadius: 4, marginRight: 8 },
   cardTitle: { fontSize: 16, fontWeight: '600', color: theme.text },
-  cardDate: { fontSize: 13, color: '#666666', paddingLeft: 16 },
+  cardDate: { fontSize: 13, color: theme.textMuted, paddingLeft: 16 },
   
   actionsRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingLeft: 15 },
   iconBtn: { padding: 8, backgroundColor: theme.background, borderRadius: 6, borderWidth: 1, borderColor: theme.border },

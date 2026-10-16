@@ -22,10 +22,25 @@ const navItems = [
   { path: '/archivo', label: 'Archivo', icon: Archive, moduleId: 'archivo' },
 ];
 
+const BDM_THEMES = ['tron', 'light', 'cherry', 'emerald', 'gold', 'crimson', 'sand', 'oceanic'] as const;
+const BDM_THEME_NAMES: Record<string, string> = {
+  tron: 'Tron (Cian)',
+  light: 'Claro Ejecutivo',
+  cherry: 'Cherry Neón',
+  emerald: 'Esmeralda Táctico',
+  gold: 'Titanio & Oro',
+  crimson: 'Alerta Rubí',
+  sand: 'Arena Institucional',
+  oceanic: 'Abismo Oceánico'
+};
+
 export const Layout = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [theme, setTheme] = useState('tron');
+  const [theme, setTheme] = useState(() => {
+    const saved = localStorage.getItem('apolo11_bdm_theme');
+    return saved && BDM_THEMES.includes(saved as any) ? saved : 'tron';
+  });
   const [userEmail, setUserEmail] = useState<string | null>('Comandante');
   const [canEdit, setCanEdit] = useState(true);
   const [accessLevel, setAccessLevel] = useState(3);
@@ -33,6 +48,7 @@ export const Layout = () => {
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('apolo11_bdm_theme', theme);
     
     // Obtener correo y perfil del usuario
     supabase.auth.getUser().then(async ({ data: { user } }) => {
@@ -56,9 +72,10 @@ export const Layout = () => {
   }, [theme]);
 
   const cycleTheme = () => {
-    if (theme === 'tron') setTheme('light');
-    else if (theme === 'light') setTheme('cherry');
-    else setTheme('tron');
+    setTheme((prev) => {
+      const idx = BDM_THEMES.indexOf(prev as any);
+      return BDM_THEMES[(idx + 1) % BDM_THEMES.length];
+    });
   };
 
   const handleLogout = async () => {
@@ -148,10 +165,11 @@ export const Layout = () => {
             <div style={{ display: 'flex', gap: '8px' }}>
               <button 
                 onClick={cycleTheme} 
-                style={{ background: 'transparent', padding: '8px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--glass-border)', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center' }} 
-                title={`Cambiar Tema (Actual: ${theme})`}
+                style={{ background: 'transparent', padding: '6px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--glass-border)', color: 'var(--primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.7rem', fontWeight: 600 }} 
+                title={`Cambiar Tema (Actual: ${BDM_THEME_NAMES[theme] || theme})`}
               >
-                <Palette size={16} />
+                <Palette size={15} />
+                <span>{BDM_THEME_NAMES[theme]?.split(' ')[0] || theme}</span>
               </button>
               <button onClick={handleLogout} className="logout-btn" title="Cerrar Sesión">
                 <LogOut size={16} />

@@ -34,10 +34,12 @@ export const Layout = () => {
     });
   }, [theme]);
 
+  const BDM_THEMES = ['tron', 'light', 'cherry', 'emerald', 'gold', 'crimson', 'sand', 'oceanic'];
   const cycleTheme = () => {
-    if (theme === 'tron') setTheme('light');
-    else if (theme === 'light') setTheme('cherry');
-    else setTheme('tron');
+    setTheme((prev) => {
+      const idx = BDM_THEMES.indexOf(prev);
+      return BDM_THEMES[(idx + 1) % BDM_THEMES.length];
+    });
   };
 
   const handleLogout = async () => {
