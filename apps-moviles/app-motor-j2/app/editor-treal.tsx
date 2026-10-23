@@ -1,20 +1,57 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useTheme } from '../src/theme/ThemeContext';
+import { useTheme, shareCapturedReportImage } from '../src/theme/ThemeContext';
 import { View, Text, Linking, Image, StyleSheet, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, KeyboardAvoidingView, Platform, Modal, Alert, LayoutAnimation, UIManager, Pressable, FlatList } from 'react-native';
 
 import { Feather } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Swipeable from 'react-native-gesture-handler/Swipeable';
-import ViewShot from 'react-native-view-shot';
+import ViewShot, { captureRef } from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
-import * as ImagePicker from 'expo-image-picker';
-import * as ImageManipulator from 'expo-image-manipulator';
 import { supabase } from '../src/services/supabaseClient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { CameraView, useCameraPermissions } from 'expo-camera';
 import { SyncManager } from '../src/services/SyncManager';
 import { decode } from 'base64-arraybuffer';
+
+let ImagePicker: any = null;
+try {
+  ImagePicker = require('expo-image-picker');
+} catch {}
+
+let ImageManipulator: any = null;
+try {
+  ImageManipulator = require('expo-image-manipulator');
+} catch {}
+
+let CameraView: any = View;
+let useCameraPermissions: () => [any, () => Promise<any>] = () => [
+  { granted: false },
+  async () => ({ granted: false }),
+];
+try {
+  const camMod = require('expo-camera');
+  if (camMod?.CameraView) CameraView = camMod.CameraView;
+  if (camMod?.useCameraPermissions) useCameraPermissions = camMod.useCameraPermissions;
+} catch {}
+
+const getLocalDateISO = (d: Date = new Date()) => {
+  try {
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Mexico_City',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).formatToParts(d);
+    const y = parts.find((p) => p.type === 'year')?.value;
+    const m = parts.find((p) => p.type === 'month')?.value;
+    const day = parts.find((p) => p.type === 'day')?.value;
+    if (y && m && day) return `${y}-${m}-${day}`;
+  } catch {}
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
 
 const FrecModal = ({ visible, onClose, initialFrec, onSave, isDarkMode }: any) => {
   const { theme, themeName } = useTheme();
@@ -77,7 +114,7 @@ const FrecModal = ({ visible, onClose, initialFrec, onSave, isDarkMode }: any) =
 };
 
 
-const ControlledCellInput = ({ value, onChangeText, onFocus, ...props }: any) => {
+const ControlledCellInput = ({ value, onChangeText, onFocus, onBlur, autoFormatTime, ...props }: any) => {
   const [localVal, setLocalVal] = React.useState(value);
   
   React.useEffect(() => {
@@ -88,11 +125,32 @@ const ControlledCellInput = ({ value, onChangeText, onFocus, ...props }: any) =>
     <TextInput 
       {...props}
       value={localVal}
-      onChangeText={setLocalVal}
-      onEndEditing={(e) => {
-        if (localVal !== value) {
-            onChangeText(e.nativeEvent.text);
+      selectTextOnFocus={true}
+      onChangeText={(t) => {
+        let nextVal = t;
+        if (autoFormatTime) {
+          const digits = t.replace(/[^0-9]/g, '');
+          if (!t.includes(':') && digits.length === 4) {
+            nextVal = `${digits.substring(0, 2)}:${digits.substring(2, 4)}`;
+          }
         }
+        setLocalVal(nextVal);
+        onChangeText(nextVal);
+      }}
+      onBlur={(e) => {
+        if (autoFormatTime && localVal && !String(localVal).includes(':')) {
+          const digits = String(localVal).replace(/[^0-9]/g, '');
+          if (digits.length === 3) {
+            const formatted = `0${digits.substring(0, 1)}:${digits.substring(1, 3)}`;
+            setLocalVal(formatted);
+            onChangeText(formatted);
+          } else if (digits.length === 4) {
+            const formatted = `${digits.substring(0, 2)}:${digits.substring(2, 4)}`;
+            setLocalVal(formatted);
+            onChangeText(formatted);
+          }
+        }
+        if (onBlur) onBlur(e);
       }}
       onFocus={(e) => {
         if (onFocus) onFocus(e);
@@ -113,6 +171,8 @@ export default function EditorTREALScreen() {
   const [obsGeneral, setObsGeneral] = useState('');
   const [rows, setRows] = useState<any[]>([]);
   const swipeableRefs = useRef(new Map());
+  const lastLocalEditRef = useRef<number>(0);
+  const savingRef = useRef<boolean>(false);
   const [frecModalVisible, setFrecModalVisible] = useState(false);
   const [selectedRowIdForFrec, setSelectedRowIdForFrec] = useState<string | null>(null);
   const [initialFrecForModal, setInitialFrecForModal] = useState('');
@@ -146,6 +206,7 @@ export default function EditorTREALScreen() {
   useEffect(() => { if (nfcPaxModalVisible) { setTimeout(() => paxInputRef.current?.focus(), 150); } }, [nfcPaxModalVisible]);
   const [isNfcScanning, setIsNfcScanning] = useState(false);
   const [activeRolId, setActiveRolId] = useState<string | null>((rol_id as string) || null);
+  const activeRolIdRef = useRef<string | null>((rol_id as string) || null);
   const [lastSavedTime, setLastSavedTime] = useState<string>('');
   const [unidadesList, setUnidadesList] = useState<any[]>([]);
   const [paxPromedioDia, setPaxPromedioDia] = useState<number>(0);
@@ -175,7 +236,8 @@ export default function EditorTREALScreen() {
     if (targetId) {
       channel = supabase.channel(`public:tablas_treal:${targetId}`)
         .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'tablas_treal', filter: `id=eq.${targetId}` }, (payload) => {
-          // Si otra persona actualizó los rows, los refrescamos si no estamos editando algo crítico localmente
+          // Evitar sobreescribir la edición local reciente cuando nuestro propio autoguardado regresa por Realtime
+          if (Date.now() - lastLocalEditRef.current < 4500) return;
           if (payload.new && payload.new.rows) {
              setRows(payload.new.rows);
              setLastSavedTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' (Realtime)');
@@ -613,32 +675,46 @@ export default function EditorTREALScreen() {
   }, [rows]);
 
   const performAutoSave = async () => {
-    if (isReadOnly || !isAllowedToEdit || loading || rows.length === 0) return;
+    if (savingRef.current || isReadOnly || !isAllowedToEdit || loading || rows.length === 0) return;
     try {
       let currentUser = await AsyncStorage.getItem('apolo11_user_name');
       if (!currentUser || currentUser.toLowerCase() === 'tablerista') {
         currentUser = 'Emiliano';
       }
-      const targetId = activeRolId || (rol_id as string);
+      const targetId = activeRolIdRef.current || activeRolId || (rol_id as string);
       if (targetId) {
         const success = await SyncManager.queueTREALUpdate(targetId, rows);
         await syncToOTP(rows);
         setLastSavedTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
       } else if (source_rol_id) {
-        // Primera vez que se autoguarda un nuevo TREAL
-        const { data: sourceData } = await supabase.from('tablas_treal').select('plantilla_base_id').eq('id', source_rol_id).single();
-        let finalPlantillaId = sourceData?.plantilla_base_id || null;
-        
-        const newTREAL = {
-          fecha: new Date().toISOString().split('T')[0],
-          plantilla_base_id: finalPlantillaId,
-          creado_por: `[TREAL] ${currentUser} | ${plantillaName} | ${tipoRolName}` + (obsGeneral ? ` | OBS: ${obsGeneral}` : ''),
-          rows: rows
-        };
-        if (saving) return;        const { data: inserted, error } = await supabase.from('tablas_treal').insert([newTREAL]).select('id').single();
-        if (inserted && !error) {
-          setActiveRolId(inserted.id);
-          setLastSavedTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+        if (saving || savingRef.current) return;
+        savingRef.current = true;
+        try {
+          // Primera vez que se autoguarda un nuevo TREAL
+          let finalPlantillaId = null;
+          if (source_rol_id !== 'empty') {
+            const { data: sourceData } = await supabase.from('roles_del_dia').select('plantilla_base_id').eq('id', source_rol_id).single();
+            finalPlantillaId = sourceData?.plantilla_base_id || null;
+          }
+          if (base_chequeo) {
+            const { data: bData } = await supabase.from('plantillas_predeterminadas').select('id').ilike('name', `%${base_chequeo}%`).limit(1).single();
+            if (bData) finalPlantillaId = bData.id;
+          }
+          
+          const newTREAL = {
+            fecha: getLocalDateISO(),
+            plantilla_base_id: finalPlantillaId,
+            creado_por: `[TREAL] ${currentUser} | ${plantillaName} | ${tipoRolName}` + (obsGeneral ? ` | OBS: ${obsGeneral}` : ''),
+            rows: rows
+          };
+          const { data: inserted, error } = await supabase.from('tablas_treal').insert([newTREAL]).select('id').single();
+          if (inserted && !error) {
+            activeRolIdRef.current = inserted.id;
+            setActiveRolId(inserted.id);
+            setLastSavedTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+          }
+        } finally {
+          savingRef.current = false;
         }
       }
     } catch (e) {
@@ -661,11 +737,11 @@ export default function EditorTREALScreen() {
       if (!baseName) return;
       const targetDate = fechaStr && fechaStr.includes('-') ? new Date(fechaStr + 'T12:00:00') : new Date();
       const targetDayOfWeek = targetDate.getDay();
-      const targetDateStr = fechaStr && fechaStr.includes('-') ? fechaStr : new Date().toISOString().split('T')[0];
+      const targetDateStr = fechaStr && fechaStr.includes('-') ? fechaStr : getLocalDateISO();
 
       const twoMonthsAgo = new Date();
       twoMonthsAgo.setDate(twoMonthsAgo.getDate() - 60);
-      const dateLimitStr = twoMonthsAgo.toISOString().split('T')[0];
+      const dateLimitStr = getLocalDateISO(twoMonthsAgo);
 
       const { data } = await supabase
         .from('tablas_treal')
@@ -896,16 +972,15 @@ export default function EditorTREALScreen() {
   };
 
   const calculateTimes = (currentRows: any[], startIndex: number, fieldChanged: 'frec' | 'horario', cascadeFrecValue?: string) => {
-    let newRows = [...currentRows];
-    newRows.forEach((r, idx) => r.no = idx + 1);
+    let newRows = currentRows.map((r, idx) => ({ ...r, no: idx + 1 }));
 
     if (cascadeFrecValue) {
       for (let i = startIndex; i < newRows.length; i++) {
-        newRows[i].frec = cascadeFrecValue;
+        newRows[i] = { ...newRows[i], frec: cascadeFrecValue };
       }
     }
 
-    if (newRows.length > 0) newRows[0].frec = 'I.F.';
+    if (newRows.length > 0) newRows[0] = { ...newRows[0], frec: 'I.F.' };
 
     if (fieldChanged === 'horario' && startIndex > 0) {
       const prevTime = getValidPrevTime(newRows, startIndex);
@@ -915,7 +990,7 @@ export default function EditorTREALScreen() {
         let [hPrev, mPrev] = prevTime.split(':').map(Number);
         let [hNew, mNew] = newTime.split(':').map(Number);
         
-        if (!isNaN(hPrev) && !isNaN(hNew)) {
+        if (!isNaN(hPrev) && !isNaN(hNew) && !isNaN(mPrev) && !isNaN(mNew)) {
           let prevMins = hPrev * 60 + mPrev;
           let newMins = hNew * 60 + mNew;
           let diff = newMins - prevMins;
@@ -942,13 +1017,14 @@ export default function EditorTREALScreen() {
             }
           }
           
+          let nextHorario = newRows[startIndex].horario;
           if (corrected) {
-             newRows[startIndex].horario = `${String(hNew).padStart(2, '0')}:${String(mNew).padStart(2, '0')}`;
+             nextHorario = `${String(hNew).padStart(2, '0')}:${String(mNew).padStart(2, '0')}`;
           } else {
              if (diff < 0) diff += 24 * 60;
           }
           
-          newRows[startIndex].frec = diff.toString();
+          newRows[startIndex] = { ...newRows[startIndex], horario: nextHorario, frec: diff.toString() };
         }
       }
     }
@@ -963,12 +1039,14 @@ export default function EditorTREALScreen() {
       
       if (prevTime && prevTime.includes(':') && !isNaN(currentFrec)) {
         const [hours, minutes] = prevTime.split(':').map(Number);
-        const date = new Date(2000, 0, 1, hours, minutes);
-        date.setMinutes(date.getMinutes() + currentFrec);
-        
-        const newHours = String(date.getHours()).padStart(2, '0');
-        const newMinutes = String(date.getMinutes()).padStart(2, '0');
-        newRows[i].horario = `${newHours}:${newMinutes}`;
+        if (!isNaN(hours) && !isNaN(minutes)) {
+          const date = new Date(2000, 0, 1, hours, minutes);
+          date.setMinutes(date.getMinutes() + currentFrec);
+          
+          const newHours = String(date.getHours()).padStart(2, '0');
+          const newMinutes = String(date.getMinutes()).padStart(2, '0');
+          newRows[i] = { ...newRows[i], horario: `${newHours}:${newMinutes}` };
+        }
       }
     }
     return newRows;
@@ -976,17 +1054,18 @@ export default function EditorTREALScreen() {
 
   const handleUpdateECO = (id: string, text: string) => {
     if (isReadOnly || !isAllowedToEdit) return;
-    setRows(rows.map(r => r.id === id ? { ...r, eco: text } : r));
+    lastLocalEditRef.current = Date.now();
+    setRows(prev => prev.map(r => r.id === id ? { ...r, eco: text } : r));
   };
 
   const handleToggleRuta = (id: string) => {
     if (isReadOnly || !isAllowedToEdit) return;
-    
+    lastLocalEditRef.current = Date.now();
     setRows(prevRows => {
       const rowIndex = prevRows.findIndex(r => r.id === id);
       if (rowIndex === -1) return prevRows;
       
-      let newRows = [...prevRows];
+      let newRows = prevRows.map(r => ({ ...r }));
       const r = newRows[rowIndex];
       
       if (r.ruta === 'MEX') {
@@ -1013,22 +1092,26 @@ export default function EditorTREALScreen() {
 
   const handleApplyFrecConfirm = (val: string, isSF: boolean, isCascada: boolean) => {
     if (!selectedRowIdForFrec) return;
-    const rowIndex = rows.findIndex(r => r.id === selectedRowIdForFrec);
-    if (rowIndex === -1) return;
+    const targetId = selectedRowIdForFrec;
+    const newFrec = (val && String(val).trim() !== '') ? String(val).trim() : '15';
+    lastLocalEditRef.current = Date.now();
 
-    let updatedRows = [...rows];
-    let newFrec = val || '15';
+    setRows(prevRows => {
+      const rowIndex = prevRows.findIndex(r => r.id === targetId);
+      if (rowIndex === -1) return prevRows;
 
-    if (isSF) {
-      updatedRows[rowIndex].frec = 'S.F.';
-      setRows(calculateTimes(updatedRows, rowIndex, 'frec'));
-    } else if (isCascada) {
-      updatedRows[rowIndex].frec = newFrec;
-      setRows(calculateTimes(updatedRows, rowIndex, 'frec', newFrec));
-    } else {
-      updatedRows[rowIndex].frec = newFrec;
-      setRows(calculateTimes(updatedRows, rowIndex, 'frec'));
-    }
+      const updatedRows = prevRows.map((r, idx) =>
+        idx === rowIndex ? { ...r, frec: isSF ? 'S.F.' : newFrec } : { ...r }
+      );
+
+      if (isSF) {
+        return calculateTimes(updatedRows, rowIndex, 'frec');
+      } else if (isCascada) {
+        return calculateTimes(updatedRows, rowIndex, 'frec', newFrec);
+      } else {
+        return calculateTimes(updatedRows, rowIndex, 'frec');
+      }
+    });
 
     setFrecModalVisible(false);
     setSelectedRowIdForFrec(null);
@@ -1054,12 +1137,13 @@ export default function EditorTREALScreen() {
 
     const currentRow = rows.find(r => r.id === id);
     if (currentRow && !currentRow.es_manual && userAccessLevel < 10) {
-      if (field !== 'observaciones') {
-        Alert.alert('Registro Protegido', 'Los registros escaneados por QR son de solo lectura y no pueden modificarse. Solo se pueden agregar observaciones.');
+      if (field !== 'observaciones' && field !== 'pax') {
+        Alert.alert('Registro Protegido', 'Los registros escaneados por QR son de solo lectura y no pueden modificarse. Solo se pueden agregar observaciones o pasajeros.');
         return;
       }
     }
 
+    lastLocalEditRef.current = Date.now();
     let formattedText = text;
     if (field === 'horario' && text.length === 4 && !text.includes(':')) {
       formattedText = `${text.substring(0, 2)}:${text.substring(2, 4)}`;
@@ -1086,7 +1170,7 @@ export default function EditorTREALScreen() {
           if (field === 'ruta' && formattedText === 'REY') modified.frec = 'S.F.';
           return modified;
         }
-        return r;
+        return { ...r };
       });
       if (field === 'frec' || field === 'horario') {
         return calculateTimes(updatedRows, rowIndex, field);
@@ -1122,13 +1206,17 @@ export default function EditorTREALScreen() {
 
   const handleRemoveRow = (id: string) => {
     if (isReadOnly || !isAllowedToEdit) return;
+    swipeableRefs.current.get(id)?.close();
     Alert.alert('Eliminar Turno', '¿Seguro que quieres eliminar este turno?', [
       { text: 'Cancelar', style: 'cancel' },
       { text: 'Eliminar', style: 'destructive', onPress: () => {
-          const index = rows.findIndex(r => r.id === id);
-          if (index === -1) return;
-          const newRows = rows.filter(r => r.id !== id);
-          setRows(calculateTimes(newRows, Math.max(0, index - 1), 'frec'));
+          lastLocalEditRef.current = Date.now();
+          setRows(prevRows => {
+            const index = prevRows.findIndex(r => r.id === id);
+            if (index === -1) return prevRows;
+            const newRows = prevRows.filter(r => r.id !== id);
+            return calculateTimes(newRows, Math.max(0, index - 1), 'frec');
+          });
           showToast('Turno Eliminado');
       }}
     ]);
@@ -1136,11 +1224,12 @@ export default function EditorTREALScreen() {
 
   const handleApplyColor = (id: string) => {
     if (isReadOnly || !activeColor) return;
+    lastLocalEditRef.current = Date.now();
     if (activeColor === 'eraser') {
-      setRows(rows.map(r => r.id === id ? { ...r, highlightColor: null } : r));
+      setRows(prev => prev.map(r => r.id === id ? { ...r, highlightColor: null } : r));
       return;
     }
-    setRows(rows.map(r => r.id === id ? { ...r, highlightColor: r.highlightColor === activeColor ? null : activeColor } : r));
+    setRows(prev => prev.map(r => r.id === id ? { ...r, highlightColor: r.highlightColor === activeColor ? null : activeColor } : r));
   };
 
   const handleInsertRow = (index: number) => {
@@ -1429,9 +1518,10 @@ export default function EditorTREALScreen() {
   };
 
   const handleSaveTREAL = async () => {
+    savingRef.current = true;
     setSaving(true);
     let errorObj = null;
-    const targetId = activeRolId || (rol_id as string);
+    const targetId = activeRolIdRef.current || activeRolId || (rol_id as string);
 
     if (targetId) {
       const { error } = await supabase.from('tablas_treal').update({ rows: rows }).eq('id', targetId);
@@ -1439,16 +1529,22 @@ export default function EditorTREALScreen() {
       await syncToOTP(rows);
     } else {
       // Creando nuevo TREAL
-      const { data: sourceData } = await supabase.from('tablas_treal').select('plantilla_base_id').eq('id', source_rol_id).single();
+      let finalPlantillaId = null;
+      if (source_rol_id && source_rol_id !== 'empty') {
+        const { data: sourceData } = await supabase.from('roles_del_dia').select('plantilla_base_id').eq('id', source_rol_id).single();
+        finalPlantillaId = sourceData?.plantilla_base_id || null;
+      }
+      if (base_chequeo) {
+        const { data: bData } = await supabase.from('plantillas_predeterminadas').select('id').ilike('name', `%${base_chequeo}%`).limit(1).single();
+        if (bData) finalPlantillaId = bData.id;
+      }
+
       let currentUser = await AsyncStorage.getItem('apolo11_user_name');
       if (!currentUser || currentUser.toLowerCase() === 'tablerista') {
         currentUser = 'Emiliano';
       }
-      
-      let finalPlantillaId = sourceData?.plantilla_base_id || null;
 
-      const today = new Date();
-      const localDateString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+      const localDateString = getLocalDateISO();
 
       const newTREAL = {
         fecha: localDateString,
@@ -1461,6 +1557,8 @@ export default function EditorTREALScreen() {
       errorObj = error;
 
       if (newRowData && newRowData.id) {
+         activeRolIdRef.current = newRowData.id;
+         setActiveRolId(newRowData.id);
          // Guardar retroactivamente en firmas_operativas las checadas previas a guardar
          const firmasToInsert = rows.filter(r => !r.isGhost && (!r.es_manual || r.photoUrl)).map(r => ({
               treal_id: newRowData.id,
@@ -1479,15 +1577,40 @@ export default function EditorTREALScreen() {
       }
     }
 
+    savingRef.current = false;
     setSaving(false);
     if (errorObj) {
-      alert('Error al guardar: ' + errorObj.message);
+      Alert.alert('Error al guardar', errorObj.message);
     } else {
       router.replace('/(tabs)/ctr');
     }
   };
 
   const exportToWhatsApp = async () => {
+    let cleanTablerista = creadorName.replace('[TREAL] ', '').trim();
+    if (!cleanTablerista || cleanTablerista.toLowerCase() === 'tablerista') {
+      cleanTablerista = 'Emiliano';
+    }
+    const webPayload = {
+      type: 'TREAL' as const,
+      title: 'TABLA EN TIEMPO REAL',
+      baseName: plantillaName,
+      rolName: tipoRolName,
+      tablerista: cleanTablerista,
+      fechaStr: new Date().toLocaleDateString('es-MX'),
+      baseColor,
+      obsGeneral,
+      isIndios,
+      isLagos,
+      unidadesMap,
+      rows,
+    };
+
+    if (Platform.OS === 'web') {
+      await shareCapturedReportImage('', 'Compartir Tabla TREAL', webPayload);
+      return;
+    }
+
     setIsExporting(true);
     setTimeout(async () => {
       if (!viewShotRef.current) {
@@ -1495,16 +1618,20 @@ export default function EditorTREALScreen() {
         return;
       }
       try {
-        const uri = await viewShotRef.current.capture();
+        const uri = await captureRef(viewShotRef, {
+          format: 'png',
+          quality: 0.95,
+          result: 'tmpfile',
+          useRenderInContext: true,
+        });
         setIsExporting(false);
-        if (await Sharing.isAvailableAsync()) {
-          await Sharing.shareAsync(uri, { mimeType: 'image/png', dialogTitle: 'Compartir Proyección TREAL', UTI: 'public.png' });
-        }
+        await shareCapturedReportImage(uri, 'Compartir Tabla TREAL');
       } catch (error) {
+        console.error('Error generando imagen TREAL:', error);
         setIsExporting(false);
-        alert('No se pudo generar la imagen.');
+        Alert.alert('Error', 'No se pudo generar la imagen.');
       }
-    }, 400);
+    }, 600);
   };
 
   // Cálculo de Frecuencia Promedio, Pasajeros Totales, Capacidad Proyectada y Mapa de Unidades
@@ -1758,15 +1885,15 @@ export default function EditorTREALScreen() {
         )}
 
         {!isExporting && (
-          <View style={{ flexDirection: 'row', paddingHorizontal: 20, paddingVertical: 6, backgroundColor: theme.surface, borderBottomWidth: 1, borderBottomColor: theme.border }}>
+          <View style={{ flexDirection: 'row', paddingHorizontal: 14, paddingVertical: 6, backgroundColor: theme.surface, borderBottomWidth: 1, borderBottomColor: theme.border, alignItems: 'center' }}>
             <View style={{ flex: 0.4 }}><Text style={[styles.th, {fontSize: 7.5}, {color: theme.textMuted}]}>NO.</Text></View>
-            <View style={{ flex: 0.5, paddingHorizontal: 1 }}><Text style={[styles.th, {fontSize: 7.5}, {color: theme.textMuted}]}>FREC</Text></View>
-            <View style={{ flex: 0.8, paddingHorizontal: 1 }}><Text style={[styles.th, {fontSize: 7.5}, {color: theme.textMuted}]}>HORA</Text></View>
-            <View style={{ flex: 0.8, paddingHorizontal: 1 }}><Text style={[styles.th, {fontSize: 7.5, color: theme.textMuted}]}>ECO</Text></View>
-            {!isIndios && <View style={{ flex: 0.8, paddingHorizontal: 1 }}><Text style={[styles.th, {fontSize: 7.5}, {color: theme.textMuted}]}>RUTA</Text></View>}
-            {(isIndios || isLagos) && <View style={{ flex: 0.5, paddingHorizontal: 1 }}><Text style={[styles.th, {fontSize: 7.5}, {color: theme.textMuted}]}>PAX</Text></View>}
-            <View style={{ flex: 0.6, paddingHorizontal: 1 }}><Text style={[styles.th, {fontSize: 7.5}, {color: theme.textMuted}]}>OBS</Text></View>
-            {!isReadOnly && <View style={{ width: 30 }} />}
+            <View style={{ flex: 0.55, paddingHorizontal: 1 }}><Text style={[styles.th, {fontSize: 7.5}, {color: theme.textMuted}]}>FREC</Text></View>
+            <View style={{ flex: 0.85, paddingHorizontal: 1 }}><Text style={[styles.th, {fontSize: 7.5}, {color: theme.textMuted}]}>HORA</Text></View>
+            <View style={{ flex: 0.85, paddingHorizontal: 1 }}><Text style={[styles.th, {fontSize: 7.5, color: theme.textMuted}]}>ECO</Text></View>
+            {!isIndios && <View style={{ flex: 0.75, paddingHorizontal: 1 }}><Text style={[styles.th, {fontSize: 7.5}, {color: theme.textMuted}]}>RUTA</Text></View>}
+            {(isIndios || isLagos) && <View style={{ flex: 0.55, paddingHorizontal: 1 }}><Text style={[styles.th, {fontSize: 7.5}, {color: theme.textMuted}]}>PAX</Text></View>}
+            <View style={{ flex: 0.75, paddingHorizontal: 1 }}><Text style={[styles.th, {fontSize: 7.5}, {color: theme.textMuted}]}>OBS</Text></View>
+            {(!isReadOnly && isAllowedToEdit) && <View style={{ width: 58 }}><Text style={[styles.th, {fontSize: 7.5}, {color: theme.textMuted}]}>ACC</Text></View>}
           </View>
         )}
 
@@ -1774,10 +1901,8 @@ export default function EditorTREALScreen() {
         {isExporting ? (
           <ScrollView horizontal style={{ flex: 1 }}>
             <ScrollView contentContainerStyle={undefined} onScrollBeginDrag={() => setExpandedRowId(null)}>
-              <ViewShot ref={viewShotRef} options={{ format: 'png', quality: 1 }}>
-                <TouchableOpacity activeOpacity={1} style={{ flex: 1 }} onPress={() => toggleExpand(null)}>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                    <View style={{ width: 900, backgroundColor: '#FFFFFF', padding: 30 }}>
+              <ViewShot ref={viewShotRef} options={{ format: 'png', quality: 0.95, result: 'tmpfile', useRenderInContext: true }} style={{ width: 900, backgroundColor: '#FFFFFF' }}>
+                <View style={{ width: 900, backgroundColor: '#FFFFFF', padding: 30 }}>
                     {/* Header de Exportación TREAL */}
                     <View style={{ flexDirection: 'column', borderBottomWidth: 2, borderColor: baseColor, paddingBottom: 15, marginBottom: 20 }}>
                       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: tipoRolName ? 5 : 10 }}>
@@ -1798,8 +1923,6 @@ export default function EditorTREALScreen() {
                           Sistema Saturno V | Tablerista: {(() => {
                             let name = creadorName.replace('[TREAL] ', '').trim();
                             if (!name || name.toLowerCase() === 'tablerista') return 'Emiliano';
-                            // If the name is literally "Nombre Completo Nombre_ID" (duplicated words), we can deduplicate it if needed.
-                            // But since the user complained about "Emiliano R" becoming "R", we will just print the full name.
                             return name;
                           })()}
                         </Text>
@@ -1942,9 +2065,7 @@ export default function EditorTREALScreen() {
                         TOTAL PASAJEROS: {pasajerosTotales}
                       </Text>
                     </View>
-                    </View>
-                  </ScrollView>
-                </TouchableOpacity>
+                </View>
               </ViewShot>
             </ScrollView>
           </ScrollView>
@@ -1952,21 +2073,23 @@ export default function EditorTREALScreen() {
           <>
           <FlatList
             data={rows}
+            extraData={rows}
             keyExtractor={item => item.id}
+            keyboardShouldPersistTaps="handled"
             contentContainerStyle={[styles.content, { backgroundColor: isDarkMode ? '#1A1A1A' : theme.background }]}
             onScrollBeginDrag={() => setExpandedRowId(null)}
-            initialNumToRender={15}
-            maxToRenderPerBatch={10}
-            windowSize={5}
-            removeClippedSubviews={true}
+            initialNumToRender={20}
+            maxToRenderPerBatch={15}
+            windowSize={7}
+            removeClippedSubviews={Platform.OS !== 'web'}
             renderItem={({ item: row, index }) => {
               const renderRightActions = () => (
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 4, marginLeft: 6 }}>
-                  <TouchableOpacity style={{ backgroundColor: '#10b981', justifyContent: 'center', alignItems: 'center', width: 62, height: '90%', borderRadius: 8, marginRight: 6 }} onPress={() => { swipeableRefs.current.get(row.id)?.close(); handleInsertRow(index); }}>
+                  <TouchableOpacity activeOpacity={0.65} style={{ backgroundColor: '#10b981', justifyContent: 'center', alignItems: 'center', width: 62, height: '90%', borderRadius: 8, marginRight: 6 }} onPress={() => { swipeableRefs.current.get(row.id)?.close(); handleInsertRow(index); }}>
                     <Feather name="plus-circle" size={20} color="#fff" />
                     <Text style={{ color: theme.headerText, fontSize: 10, fontWeight: '900', marginTop: 2 }}>Insertar</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity style={{ backgroundColor: '#ef4444', justifyContent: 'center', alignItems: 'center', width: 62, height: '90%', borderRadius: 8 }} onPress={() => handleRemoveRow(row.id)}>
+                  <TouchableOpacity activeOpacity={0.65} style={{ backgroundColor: '#ef4444', justifyContent: 'center', alignItems: 'center', width: 62, height: '90%', borderRadius: 8 }} onPress={() => handleRemoveRow(row.id)}>
                     <Feather name="trash-2" size={20} color="#fff" />
                     <Text style={{ color: theme.headerText, fontSize: 10, fontWeight: '900', marginTop: 2 }}>Borrar</Text>
                   </TouchableOpacity>
@@ -1983,12 +2106,8 @@ export default function EditorTREALScreen() {
                     swipeableRefs.current.delete(row.id);
                   }
                 }}
-                renderRightActions={!isReadOnly ? renderRightActions : undefined} friction={1} rightThreshold={15} overshootRight={true} overshootFriction={8}>
-              <TouchableOpacity activeOpacity={0.8}
-                onPress={() => {
-                  if (activeColor) handleApplyColor(row.id);
-                  toggleExpand(null);
-                }}
+                renderRightActions={!isReadOnly ? renderRightActions : undefined} friction={1.5} rightThreshold={25} overshootRight={false}>
+              <View
                 style={[
                   styles.tableRow, 
                   isDarkMode && { backgroundColor: theme.surface, borderBottomColor: theme.border },
@@ -1998,12 +2117,27 @@ export default function EditorTREALScreen() {
                   searchEco.trim() !== '' && String(row.eco) !== searchEco.trim() && { opacity: 0.15 }
                 ]}
               >
-                {renderTurnoIndicator(row, isDarkMode)}
+                <TouchableOpacity
+                  activeOpacity={0.65}
+                  disabled={!activeColor}
+                  hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+                  onPress={() => {
+                    if (activeColor) handleApplyColor(row.id);
+                  }}
+                  style={{ flex: 0.4, alignItems: 'center', justifyContent: 'center' }}
+                >
+                  {renderTurnoIndicator(row, isDarkMode)}
+                </TouchableOpacity>
                 
-                <View style={{ flex: 0.6, paddingHorizontal: 1 }}>
+                <View style={{ flex: 0.55, paddingHorizontal: 2 }}>
                   <TouchableOpacity 
-                    style={[styles.inputCell, row.highlightColor ? { backgroundColor: 'transparent', borderColor: 'transparent' } : { backgroundColor: theme.surface, borderColor: theme.border }, { justifyContent: 'center', paddingVertical: 8 }, isReadOnly && { opacity: 0.8, borderColor: 'transparent' }]}
-                    onPress={() => handleOpenFrecSelector(row.id, row.frec)}
+                    activeOpacity={0.65}
+                    hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
+                    style={[styles.inputCell, row.highlightColor ? { backgroundColor: 'transparent', borderColor: 'transparent' } : { backgroundColor: theme.surface, borderColor: theme.border }, { justifyContent: 'center', paddingVertical: 9 }, isReadOnly && { opacity: 0.8, borderColor: 'transparent' }]}
+                    onPress={() => {
+                      if (activeColor) { handleApplyColor(row.id); return; }
+                      handleOpenFrecSelector(row.id, row.frec);
+                    }}
                     disabled={isReadOnly}
                   >
                     <Text style={[{ color: theme.text, fontWeight: '900', textAlign: 'center', fontSize: 13 }, { color: theme.text }, row.highlightColor && { color: '#0f172a' }]}>
@@ -2012,9 +2146,11 @@ export default function EditorTREALScreen() {
                   </TouchableOpacity>
                 </View>
 
-                <View style={{ flex: 0.8, paddingHorizontal: 1, justifyContent: 'center' }}>
-                  <ControlledCellInput style={[styles.inputCell, { flex: 1, color: theme.text, fontWeight: '900', paddingVertical: 8, fontSize: 13, textAlign: 'center' }, row.highlightColor ? { backgroundColor: 'transparent', borderColor: 'transparent', color: '#0f172a' } : { backgroundColor: theme.surface, borderColor: theme.border, color: theme.text }, (isReadOnly || (!row.es_manual && userAccessLevel < 10)) && { opacity: 0.8, borderColor: 'transparent' }]}
+                <View style={{ flex: 0.85, paddingHorizontal: 2, justifyContent: 'center' }}>
+                  <ControlledCellInput
+                    style={[styles.inputCell, { flex: 1, color: theme.text, fontWeight: '900', paddingVertical: 9, fontSize: 13, textAlign: 'center' }, row.highlightColor ? { backgroundColor: 'transparent', borderColor: 'transparent', color: '#0f172a' } : { backgroundColor: theme.surface, borderColor: theme.border, color: theme.text }, (isReadOnly || (!row.es_manual && userAccessLevel < 10)) && { opacity: 0.8, borderColor: 'transparent' }]}
                     value={row.horario}
+                    autoFormatTime={true}
                     onChangeText={(t: string) => handleUpdateField(row.id, 'horario', t)}
                     onFocus={() => {
                       if (!row.es_manual && userAccessLevel < 10) {
@@ -2029,11 +2165,14 @@ export default function EditorTREALScreen() {
                   />
                 </View>
                 
-                <View style={{ flex: 1, paddingHorizontal: 1 }}>
+                <View style={{ flex: 0.85, paddingHorizontal: 2 }}>
                   <TouchableOpacity 
-                    style={[styles.inputCell, { justifyContent: 'center', paddingVertical: 8 }, row.highlightColor ? { backgroundColor: 'transparent', borderColor: 'transparent' } : { backgroundColor: theme.surface, borderColor: theme.border }, isReadOnly && { opacity: 0.8, borderColor: 'transparent' }]}
+                    activeOpacity={0.65}
+                    hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
+                    style={[styles.inputCell, { justifyContent: 'center', paddingVertical: 9 }, row.highlightColor ? { backgroundColor: 'transparent', borderColor: 'transparent' } : { backgroundColor: theme.surface, borderColor: theme.border }, isReadOnly && { opacity: 0.8, borderColor: 'transparent' }]}
                     onPress={() => {
-                      if(isReadOnly || !isAllowedToEdit) return;
+                      if (activeColor) { handleApplyColor(row.id); return; }
+                      if (isReadOnly || !isAllowedToEdit) return;
                       if (!row.es_manual && !row.isGhost && row.eco && userAccessLevel < 10) {
                         Alert.alert('Registro Protegido', 'Solo un Administrador (Nivel 10) puede modificar el número económico de un registro QR.');
                         return;
@@ -2060,16 +2199,21 @@ export default function EditorTREALScreen() {
                 </View>
 
                 {!isIndios && (
-                  <View style={{ flex: 0.8, paddingHorizontal: 1 }}>
+                  <View style={{ flex: 0.75, paddingHorizontal: 2 }}>
                     <TouchableOpacity 
+                      activeOpacity={0.65}
+                      hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
                       style={[
                         styles.inputCell, 
-                        { justifyContent: 'center', paddingVertical: 8 }, 
+                        { justifyContent: 'center', paddingVertical: 9 }, 
                         row.ruta === 'MEX' ? { borderColor: '#10b981' } : row.ruta === 'REY' ? { borderColor: '#ef4444' } : { borderColor: '#a855f7' },
                         isDarkMode && { backgroundColor: '#333', borderColor: '#444' },
                         isReadOnly && { opacity: 0.8, borderColor: 'transparent' }
                       ]}
-                      onPress={() => handleToggleRuta(row.id)}
+                      onPress={() => {
+                        if (activeColor) { handleApplyColor(row.id); return; }
+                        handleToggleRuta(row.id);
+                      }}
                       disabled={isReadOnly}
                     >
                       <Text style={[
@@ -2083,7 +2227,7 @@ export default function EditorTREALScreen() {
                 )}
 
                 {(isIndios || isLagos) && (
-                  <View style={{ flex: 0.5, paddingHorizontal: 1, alignItems: 'center' }}>
+                  <View style={{ flex: 0.55, paddingHorizontal: 2, alignItems: 'center' }}>
                     {(() => {
                       const ecoClean = String(row.eco || '').replace(/[^0-9]/g, '');
                       const unitCap = ecoClean ? (unidadesMap[ecoClean] || 0) : 0;
@@ -2094,7 +2238,7 @@ export default function EditorTREALScreen() {
                           <ControlledCellInput 
                             style={[
                               styles.inputCell, 
-                              { paddingVertical: 8, fontSize: 13, width: '100%', textAlign: 'center' },
+                              { paddingVertical: 9, fontSize: 13, width: '100%', textAlign: 'center' },
                               hasWrittenPax ? { color: theme.text, fontWeight: '900' } : { color: '#94a3b8', fontStyle: 'italic', opacity: unitCap > 0 ? 0.9 : 1 },
                               row.highlightColor ? { backgroundColor: 'transparent', borderColor: 'transparent', color: '#0f172a' } : { backgroundColor: theme.surface, borderColor: theme.border, color: hasWrittenPax ? theme.text : '#888' },
                               isReadOnly && { opacity: 0.8, borderColor: 'transparent' }
@@ -2102,7 +2246,7 @@ export default function EditorTREALScreen() {
                             value={hasWrittenPax ? String(row.pax) : ''}
                             onChangeText={(t: string) => handleUpdateField(row.id, 'pax', t)}
                             onFocus={() => { LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); toggleExpand(null); }}
-                            editable={!isReadOnly}
+                            editable={!isReadOnly && isAllowedToEdit}
                             keyboardType="number-pad"
                             maxLength={3}
                             placeholder={unitCap > 0 ? `${unitCap}` : '--'}
@@ -2114,16 +2258,23 @@ export default function EditorTREALScreen() {
                   </View>
                 )}
 
-                <View style={{ flex: 1, paddingHorizontal: 2, alignItems: 'center', justifyContent: 'center' }}>
+                <View style={{ flex: 0.75, paddingHorizontal: 1, alignItems: 'center', justifyContent: 'center' }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
                     <TouchableOpacity 
+                      activeOpacity={0.65}
+                      hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
                       style={{ padding: 6, backgroundColor: row.observaciones ? '#eab30820' : 'transparent', borderRadius: 8 }}
-                      onPress={() => handleOpenObsModal(row.id, row.observaciones)}
+                      onPress={() => {
+                        if (activeColor) { handleApplyColor(row.id); return; }
+                        handleOpenObsModal(row.id, row.observaciones);
+                      }}
                     >
                       <Feather name="message-square" size={16} color={row.observaciones ? '#eab308' : '#64748b'} />
                     </TouchableOpacity>
                     {row.photoUrl ? (
                       <TouchableOpacity 
+                        activeOpacity={0.65}
+                        hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
                         style={{ padding: 6, backgroundColor: '#10b98120', borderRadius: 8, marginLeft: 2, position: 'relative' }}
                         onPress={() => { setPhotoViewerUrl(row.photoUrl); setPhotoViewerVisible(true); }}
                       >
@@ -2134,6 +2285,8 @@ export default function EditorTREALScreen() {
                       </TouchableOpacity>
                     ) : row.localPhotoUri ? (
                       <TouchableOpacity 
+                        activeOpacity={0.65}
+                        hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
                         style={{ padding: 5, backgroundColor: '#f59e0b20', borderRadius: 8, marginLeft: 2, flexDirection: 'row', alignItems: 'center', gap: 3 }}
                         onPress={() => { setPhotoViewerUrl(row.localPhotoUri); setPhotoViewerVisible(true); }}
                       >
@@ -2168,8 +2321,27 @@ export default function EditorTREALScreen() {
                   })()}
                 </View>
 
-                
-              </TouchableOpacity>
+                {(!isReadOnly && isAllowedToEdit) && (
+                  <View style={{ width: 58, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 4 }}>
+                    <TouchableOpacity
+                      activeOpacity={0.65}
+                      hitSlop={{ top: 8, bottom: 8, left: 4, right: 2 }}
+                      style={{ width: 26, height: 30, borderRadius: 7, backgroundColor: '#10b98120', borderWidth: 1, borderColor: '#10b98160', alignItems: 'center', justifyContent: 'center' }}
+                      onPress={() => handleInsertRow(index)}
+                    >
+                      <Feather name="plus" size={14} color="#10b981" />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      activeOpacity={0.65}
+                      hitSlop={{ top: 8, bottom: 8, left: 2, right: 4 }}
+                      style={{ width: 26, height: 30, borderRadius: 7, backgroundColor: '#ef444420', borderWidth: 1, borderColor: '#ef444460', alignItems: 'center', justifyContent: 'center' }}
+                      onPress={() => handleRemoveRow(row.id)}
+                    >
+                      <Feather name="trash-2" size={14} color="#ef4444" />
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
               </Swipeable>
               </View>
               );

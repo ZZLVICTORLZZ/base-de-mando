@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useTheme } from '../src/theme/ThemeContext';
+import { useTheme, shareCapturedReportImage } from '../src/theme/ThemeContext';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, KeyboardAvoidingView, Platform, Modal, Alert, LayoutAnimation, UIManager, Pressable, FlatList } from 'react-native';
 
 import { Feather } from '@expo/vector-icons';
@@ -7,10 +7,29 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import Swipeable from 'react-native-gesture-handler/Swipeable';
-import ViewShot from 'react-native-view-shot';
+import ViewShot, { captureRef } from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../src/services/supabaseClient';
+
+const getLocalDateISO = (d: Date = new Date()) => {
+  try {
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Mexico_City',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).formatToParts(d);
+    const y = parts.find((p) => p.type === 'year')?.value;
+    const m = parts.find((p) => p.type === 'month')?.value;
+    const day = parts.find((p) => p.type === 'day')?.value;
+    if (y && m && day) return `${y}-${m}-${day}`;
+  } catch {}
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
 
 const FrecModal = ({ visible, onClose, initialFrec, onSave, isDarkMode }: any) => {
   const { theme } = useTheme();
@@ -146,7 +165,7 @@ export default function EditorRolScreen() {
         await supabase.from('roles_del_dia').update({ rows: rows }).eq('id', targetId);
         setLastSavedTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
       } else if (actualPId) {
-        let fechaBd = fechaStr || new Date().toISOString().split('T')[0];
+        let fechaBd = fechaStr || getLocalDateISO();
         if (fechaStr && typeof fechaStr === 'string' && fechaStr.includes('/')) {
           const parts = fechaStr.split('/');
           if (parts.length === 3) fechaBd = `${parts[2]}-${parts[1]}-${parts[0]}`;
@@ -199,12 +218,7 @@ export default function EditorRolScreen() {
   };
 
   const calculateTimes = (currentRows: any[], startIndex: number, fieldChanged: 'frec' | 'horario') => {
-    let newRows = [...currentRows];
-    
-    // Re-indexar los números de turno siempre
-    newRows.forEach((r, idx) => {
-      r.no = idx + 1;
-    });
+    let newRows = currentRows.map((r, idx) => ({ ...r, no: idx + 1 }));
 
     if (fieldChanged === 'horario' && startIndex > 0) {
       const prevTime = newRows[startIndex - 1].horario;
@@ -214,10 +228,10 @@ export default function EditorRolScreen() {
         const [hPrev, mPrev] = prevTime.split(':').map(Number);
         const [hNew, mNew] = newTime.split(':').map(Number);
         
-        if (!isNaN(hPrev) && !isNaN(hNew)) {
+        if (!isNaN(hPrev) && !isNaN(hNew) && !isNaN(mPrev) && !isNaN(mNew)) {
           let diff = (hNew * 60 + mNew) - (hPrev * 60 + mPrev);
           if (diff < 0) diff += 24 * 60;
-          newRows[startIndex].frec = diff.toString();
+          newRows[startIndex] = { ...newRows[startIndex], frec: diff.toString() };
         }
       }
     }
@@ -230,12 +244,14 @@ export default function EditorRolScreen() {
       
       if (prevTime && prevTime.includes(':') && !isNaN(currentFrec)) {
         const [hours, minutes] = prevTime.split(':').map(Number);
-        const date = new Date(2000, 0, 1, hours, minutes);
-        date.setMinutes(date.getMinutes() + currentFrec);
-        
-        const newHours = String(date.getHours()).padStart(2, '0');
-        const newMinutes = String(date.getMinutes()).padStart(2, '0');
-        newRows[i].horario = `${newHours}:${newMinutes}`;
+        if (!isNaN(hours) && !isNaN(minutes)) {
+          const date = new Date(2000, 0, 1, hours, minutes);
+          date.setMinutes(date.getMinutes() + currentFrec);
+          
+          const newHours = String(date.getHours()).padStart(2, '0');
+          const newMinutes = String(date.getMinutes()).padStart(2, '0');
+          newRows[i] = { ...newRows[i], horario: `${newHours}:${newMinutes}` };
+        }
       }
     }
     return newRows;
@@ -243,7 +259,7 @@ export default function EditorRolScreen() {
 
   const handleUpdateECO = (id: string, text: string) => {
     if (isReadOnly) return;
-    setRows(rows.map(r => r.id === id ? { ...r, eco: text } : r));
+    setRows(prev => prev.map(r => r.id === id ? { ...r, eco: text } : r));
   };
 
   const handleUpdateField = (id: string, field: 'frec' | 'horario', text: string) => {
@@ -255,9 +271,12 @@ export default function EditorRolScreen() {
       formattedText = `${text.substring(0, 2)}:${text.substring(2, 4)}`;
     }
 
-    const rowIndex = rows.findIndex(r => r.id === id);
-    const updatedRows = rows.map(r => r.id === id ? { ...r, [field]: formattedText } : r);
-    setRows(calculateTimes(updatedRows, rowIndex, field));
+    setRows(prevRows => {
+      const rowIndex = prevRows.findIndex(r => r.id === id);
+      if (rowIndex === -1) return prevRows;
+      const updatedRows = prevRows.map(r => r.id === id ? { ...r, [field]: formattedText } : { ...r });
+      return calculateTimes(updatedRows, rowIndex, field);
+    });
   };
 
   const handleAdjustTime = (id: string, minutesToAdd: number) => {
@@ -296,16 +315,19 @@ export default function EditorRolScreen() {
 
   const handleRemoveRow = (id: string) => {
     if (isReadOnly) return;
+    swipeableRefs.current.get(id)?.close();
     Alert.alert('Confirmar', '¿Estás seguro de borrar este turno?', [
       { text: 'Cancelar', style: 'cancel' },
       { 
         text: 'Borrar', 
         style: 'destructive',
         onPress: () => {
-          const index = rows.findIndex(r => r.id === id);
-          if (index === -1) return;
-          const newRows = rows.filter(r => r.id !== id);
-          setRows(calculateTimes(newRows, Math.max(0, index - 1), 'frec'));
+          setRows(prevRows => {
+            const index = prevRows.findIndex(r => r.id === id);
+            if (index === -1) return prevRows;
+            const newRows = prevRows.filter(r => r.id !== id);
+            return calculateTimes(newRows, Math.max(0, index - 1), 'frec');
+          });
         }
       }
     ]);
@@ -314,39 +336,43 @@ export default function EditorRolScreen() {
   const handleApplyColor = (id: string) => {
     if (isReadOnly || !activeColor) return;
     if (activeColor === 'eraser') {
-      setRows(rows.map(r => r.id === id ? { ...r, highlightColor: null } : r));
+      setRows(prev => prev.map(r => r.id === id ? { ...r, highlightColor: null } : r));
       return;
     }
-    setRows(rows.map(r => r.id === id ? { ...r, highlightColor: r.highlightColor === activeColor ? null : activeColor } : r));
+    setRows(prev => prev.map(r => r.id === id ? { ...r, highlightColor: r.highlightColor === activeColor ? null : activeColor } : r));
   };
 
   const handleInsertRow = (index: number) => {
     if (isReadOnly) return;
-    const prevFrec = rows[index] ? rows[index].frec : '15';
-    const newRow = {
-      id: Date.now().toString(),
-      no: 0,
-      frec: prevFrec,
-      horario: '--:--', 
-      eco: ''
-    };
-    const newRows = [...rows];
-    newRows.splice(index + 1, 0, newRow);
-    setRows(calculateTimes(newRows, index, 'frec'));
+    setRows(prevRows => {
+      const prevFrec = prevRows[index] ? prevRows[index].frec : '15';
+      const newRow = {
+        id: Date.now().toString() + Math.random().toString(36).slice(2, 6),
+        no: 0,
+        frec: prevFrec,
+        horario: '--:--', 
+        eco: ''
+      };
+      const newRows = [...prevRows];
+      newRows.splice(index + 1, 0, newRow);
+      return calculateTimes(newRows, index, 'frec');
+    });
   };
 
   const handleAddRow = () => {
     if (isReadOnly) return;
-    const lastRow = rows[rows.length - 1];
-    const prevFrec = lastRow ? lastRow.frec : '15';
-    const newRow = {
-      id: Date.now().toString(),
-      no: (lastRow?.no || 0) + 1,
-      frec: prevFrec,
-      horario: '--:--', 
-      eco: ''
-    };
-    setRows(calculateTimes([...rows, newRow], rows.length - 1, 'frec'));
+    setRows(prevRows => {
+      const lastRow = prevRows[prevRows.length - 1];
+      const prevFrec = lastRow ? lastRow.frec : '15';
+      const newRow = {
+        id: Date.now().toString() + Math.random().toString(36).slice(2, 6),
+        no: (lastRow?.no || 0) + 1,
+        frec: prevFrec,
+        horario: '--:--', 
+        eco: ''
+      };
+      return calculateTimes([...prevRows, newRow], Math.max(0, prevRows.length - 1), 'frec');
+    });
   };
 
   const handleSaveRol = async () => {
@@ -359,7 +385,7 @@ export default function EditorRolScreen() {
       const { error } = await supabase.from('roles_del_dia').update({ rows: rows }).eq('id', targetId);
       errorObj = error;
     } else {
-      let fechaBd = fechaStr || new Date().toISOString().split('T')[0];
+      let fechaBd = fechaStr || getLocalDateISO();
       if (fechaStr && fechaStr.includes('/')) {
         const parts = fechaStr.split('/');
         if (parts.length === 3) {
@@ -380,41 +406,12 @@ export default function EditorRolScreen() {
     setSaving(false);
 
     if (errorObj) {
-      alert('Error al guardar el rol: ' + errorObj.message);
+      Alert.alert('Error al guardar el rol', errorObj.message);
     } else {
-      alert('¡Rol guardado con éxito!');
+      Alert.alert('Éxito', '¡Rol guardado con éxito!');
       router.replace('/(tabs)/rd');
     }
   };
-
-  const exportToWhatsApp = async () => {
-    setIsExporting(true);
-    setTimeout(async () => {
-      try {
-        if (!viewShotRef.current) return;
-        const uri = await viewShotRef.current.capture();
-        const isAvailable = await Sharing.isAvailableAsync();
-        if (isAvailable) {
-          await Sharing.shareAsync(uri, { dialogTitle: 'Compartir Rol del Día', mimeType: 'image/png' });
-        } else {
-          Alert.alert('Aviso', 'La función de compartir no está disponible en este dispositivo o simulador.');
-        }
-      } catch (e: any) {
-        Alert.alert('Error', 'No se pudo generar la imagen del rol: ' + e.message);
-      } finally {
-        setIsExporting(false);
-      }
-    }, 300);
-  };
-
-  if (loading) {
-    return (
-      <SafeAreaView style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" color="#3b82f6" />
-        <Text style={{ color: '#94a3b8', marginTop: 10 }}>Descargando plantilla...</Text>
-      </SafeAreaView>
-    );
-  }
 
   const getNextDayTitle = () => {
     let baseDate = new Date();
@@ -440,6 +437,53 @@ export default function EditorRolScreen() {
 
     return `ROL DESPEGUE ${diaNombre.toUpperCase()} ${diaNum} DE ${mesNombre.toUpperCase()} ${anio}`;
   };
+
+  const exportToWhatsApp = async () => {
+    const webPayload = {
+      type: 'ROL' as const,
+      title: getNextDayTitle(),
+      baseName: plantillaName ? plantillaName.toUpperCase() : 'ENTRE SEMANA',
+      tablerista: 'Emiliano',
+      fechaStr: new Date().toLocaleDateString('es-MX'),
+      baseColor: '#0033A0',
+      rows,
+    };
+
+    if (Platform.OS === 'web') {
+      await shareCapturedReportImage('', 'Compartir Rol del Día', webPayload);
+      return;
+    }
+
+    setIsExporting(true);
+    setTimeout(async () => {
+      try {
+        if (!viewShotRef.current) {
+          setIsExporting(false);
+          return;
+        }
+        const uri = await captureRef(viewShotRef, {
+          format: 'png',
+          quality: 0.95,
+          result: 'tmpfile',
+          useRenderInContext: true,
+        });
+        setIsExporting(false);
+        await shareCapturedReportImage(uri, 'Compartir Rol del Día');
+      } catch (e: any) {
+        setIsExporting(false);
+        Alert.alert('Error', 'No se pudo generar la imagen del rol: ' + e.message);
+      }
+    }, 600);
+  };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color="#3b82f6" />
+        <Text style={{ color: '#94a3b8', marginTop: 10 }}>Descargando plantilla...</Text>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <KeyboardAvoidingView 
@@ -475,17 +519,16 @@ export default function EditorRolScreen() {
           <View style={[styles.tableHeader, isDarkMode && { backgroundColor: '#333' }]}>
             <Text style={[styles.th, { flex: 0.4 }, isDarkMode && { color: theme.text }]}>NO.</Text>
             <Text style={[styles.th, { flex: 0.9 }, isDarkMode && { color: theme.text }]}>FREC.</Text>
-            <Text style={[styles.th, { flex: 1.5 }, isDarkMode && { color: theme.text }]}>HORARIO</Text>
+            <Text style={[styles.th, { flex: 1.4 }, isDarkMode && { color: theme.text }]}>HORARIO</Text>
             <Text style={[styles.th, { flex: 1.1, color: theme.text }, isDarkMode && { color: theme.text }]}>ECO</Text>
+            {!isReadOnly && <Text style={[styles.th, { width: 58 }, isDarkMode && { color: theme.text }]}>ACC</Text>}
           </View>
         )}
         {isExporting ? (
           <ScrollView horizontal style={{ flex: 1 }}>
             <ScrollView contentContainerStyle={undefined}>
-              <ViewShot ref={viewShotRef} options={{ format: 'png', quality: 1 }}>
-                <TouchableOpacity activeOpacity={1} style={{ flex: 1 }} onPress={() => toggleExpand(null)}>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                    <View style={{ width: 900, backgroundColor: '#FFFFFF', padding: 30 }}>
+              <ViewShot ref={viewShotRef} options={{ format: 'png', quality: 0.95, result: 'tmpfile', useRenderInContext: true }} style={{ width: 900, backgroundColor: '#FFFFFF' }}>
+                <View style={{ width: 900, backgroundColor: '#FFFFFF', padding: 30 }}>
                       {/* Header de Exportación */}
                       <View style={{ flexDirection: 'column', borderBottomWidth: 2, borderColor: '#0033A0', paddingBottom: 15, marginBottom: 20 }}>
                         <Text style={{ color: '#0033A0', fontSize: 26, fontWeight: 'bold', textAlign: 'center', marginBottom: 6 }}>
@@ -544,27 +587,28 @@ export default function EditorRolScreen() {
                         )}
                         
                       </View>
-                    </View>
-                  </ScrollView>
-                </TouchableOpacity>
+                </View>
               </ViewShot>
             </ScrollView>
           </ScrollView>
         ) : (
           <FlatList
             data={rows}
+            extraData={rows}
             keyExtractor={item => item.id}
+            keyboardShouldPersistTaps="handled"
             contentContainerStyle={[styles.content, { backgroundColor: isDarkMode ? '#1A1A1A' : theme.background }]}
             onScrollBeginDrag={() => setExpandedRowId(null)}
             initialNumToRender={20}
+            removeClippedSubviews={Platform.OS !== 'web'}
             renderItem={({ item: row, index }) => {
               const renderRightActions = () => (
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 4, marginLeft: 6 }}>
-                  <TouchableOpacity style={{ backgroundColor: '#10b981', justifyContent: 'center', alignItems: 'center', width: 62, height: '90%', borderRadius: 8, marginRight: 6 }} onPress={() => { swipeableRefs.current.get(row.id)?.close(); handleInsertRow(index); }}>
+                  <TouchableOpacity activeOpacity={0.65} style={{ backgroundColor: '#10b981', justifyContent: 'center', alignItems: 'center', width: 62, height: '90%', borderRadius: 8, marginRight: 6 }} onPress={() => { swipeableRefs.current.get(row.id)?.close(); handleInsertRow(index); }}>
                     <Feather name="plus-circle" size={20} color="#fff" />
                     <Text style={{ color: theme.headerText, fontSize: 10, fontWeight: 'bold', marginTop: 2 }}>Insertar</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity style={{ backgroundColor: '#ef4444', justifyContent: 'center', alignItems: 'center', width: 62, height: '90%', borderRadius: 8 }} onPress={() => handleRemoveRow(row.id)}>
+                  <TouchableOpacity activeOpacity={0.65} style={{ backgroundColor: '#ef4444', justifyContent: 'center', alignItems: 'center', width: 62, height: '90%', borderRadius: 8 }} onPress={() => handleRemoveRow(row.id)}>
                     <Feather name="trash-2" size={20} color="#fff" />
                     <Text style={{ color: theme.headerText, fontSize: 10, fontWeight: 'bold', marginTop: 2 }}>Borrar</Text>
                   </TouchableOpacity>
@@ -598,22 +642,28 @@ export default function EditorRolScreen() {
                       swipeableRefs.current.delete(row.id);
                     }
                   }}
-                  renderRightActions={!isReadOnly ? renderRightActions : undefined} friction={1} rightThreshold={15} overshootRight={true} overshootFriction={8}>
-                  <TouchableOpacity activeOpacity={0.8}
-                    onPress={() => {
-                      if (activeColor) handleApplyColor(row.id);
-                      toggleExpand(null);
-                    }}
+                  renderRightActions={!isReadOnly ? renderRightActions : undefined} friction={1.5} rightThreshold={25} overshootRight={false}>
+                  <View
                     style={[
                       styles.tableRow, 
                       isDarkMode && { backgroundColor: '#222', borderBottomColor: '#333' },
                       row.highlightColor && { backgroundColor: `${row.highlightColor}40` }
                     ]}
                   >
-                    <Text style={[styles.td, { flex: 0.4, fontWeight: 'bold' }, isDarkMode && { color: theme.text }]}>{row.no}</Text>
+                    <TouchableOpacity
+                      activeOpacity={0.65}
+                      disabled={!activeColor}
+                      onPress={() => {
+                        if (activeColor) handleApplyColor(row.id);
+                      }}
+                      style={{ flex: 0.4, alignItems: 'center', justifyContent: 'center' }}
+                    >
+                      <Text style={[styles.td, { fontWeight: 'bold' }, isDarkMode && { color: theme.text }]}>{row.no}</Text>
+                    </TouchableOpacity>
                     
                     <View style={{ flex: 0.9, paddingHorizontal: 2 }}>
                       <TextInput 
+                        selectTextOnFocus={true}
                         style={[styles.inputCell, isDarkMode && { backgroundColor: '#333', borderColor: '#444', color: theme.text }, isReadOnly && { opacity: 0.8, borderColor: 'transparent' }]}
                         value={row.frec}
                         onChangeText={(t) => handleUpdateField(row.id, 'frec', t)}
@@ -624,8 +674,9 @@ export default function EditorRolScreen() {
                       />
                     </View>
 
-                    <View style={{ flex: 1.5, paddingHorizontal: 1, justifyContent: 'center' }}>
+                    <View style={{ flex: 1.4, paddingHorizontal: 1, justifyContent: 'center' }}>
                       <TextInput 
+                        selectTextOnFocus={true}
                         style={[styles.inputCell, { flex: 1, paddingHorizontal: 2, textAlign: 'center' }, isDarkMode && { backgroundColor: '#333', borderColor: '#444', color: theme.text }, isReadOnly && { opacity: 0.8, borderColor: 'transparent' }, isChoque && { borderColor: '#ef4444', borderWidth: 2, color: '#ef4444', fontWeight: 'bold' }, isHueco && { borderColor: '#f59e0b', borderWidth: 2, color: '#f59e0b', fontWeight: 'bold' }]}
                         value={row.horario}
                         onChangeText={(t) => handleUpdateField(row.id, 'horario', t)}
@@ -638,8 +689,13 @@ export default function EditorRolScreen() {
                     
                     <View style={{ flex: 1.1, paddingHorizontal: 2 }}>
                       <TouchableOpacity 
+                        activeOpacity={0.65}
+                        hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
                         style={[styles.inputCell, { borderColor: '#94a3b8', justifyContent: 'center' }, isDarkMode && { backgroundColor: '#333', borderColor: '#444' }, isReadOnly && { opacity: 0.8, borderColor: 'transparent' }]}
-                        onPress={() => handleOpenEcoSelector(row.id)}
+                        onPress={() => {
+                          if (activeColor) { handleApplyColor(row.id); return; }
+                          handleOpenEcoSelector(row.id);
+                        }}
                         disabled={isReadOnly}
                       >
                         <Text style={[{ color: '#0f172a', fontWeight: 'bold', textAlign: 'center' }, isDarkMode && { color: theme.text }]}>
@@ -647,7 +703,28 @@ export default function EditorRolScreen() {
                         </Text>
                       </TouchableOpacity>
                     </View>
-                  </TouchableOpacity>
+
+                    {!isReadOnly && (
+                      <View style={{ width: 58, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 4 }}>
+                        <TouchableOpacity
+                          activeOpacity={0.65}
+                          hitSlop={{ top: 8, bottom: 8, left: 4, right: 2 }}
+                          style={{ width: 26, height: 30, borderRadius: 7, backgroundColor: '#10b98120', borderWidth: 1, borderColor: '#10b98160', alignItems: 'center', justifyContent: 'center' }}
+                          onPress={() => handleInsertRow(index)}
+                        >
+                          <Feather name="plus" size={14} color="#10b981" />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          activeOpacity={0.65}
+                          hitSlop={{ top: 8, bottom: 8, left: 2, right: 4 }}
+                          style={{ width: 26, height: 30, borderRadius: 7, backgroundColor: '#ef444420', borderWidth: 1, borderColor: '#ef444460', alignItems: 'center', justifyContent: 'center' }}
+                          onPress={() => handleRemoveRow(row.id)}
+                        >
+                          <Feather name="trash-2" size={14} color="#ef4444" />
+                        </TouchableOpacity>
+                      </View>
+                    )}
+                  </View>
                 </Swipeable>
               );
             }}

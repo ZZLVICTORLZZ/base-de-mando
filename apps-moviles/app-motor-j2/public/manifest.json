@@ -1,0 +1,22 @@
+{
+  "name": "Motor J2",
+  "short_name": "Motor J2",
+  "description": "Sistema Operativo Móvil Motor J2 - Saturno V",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0f172a",
+  "theme_color": "#006847",
+  "icons": [
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

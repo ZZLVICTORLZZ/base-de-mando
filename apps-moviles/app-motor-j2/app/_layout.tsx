@@ -6,6 +6,7 @@ import { supabase } from '../src/services/supabaseClient';
 import { Session } from '@supabase/supabase-js';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { ThemeProvider } from '../src/theme/ThemeContext';
+import { OtpNotificationProvider } from '../src/services/OtpNotificationMonitor';
 
 export default function RootLayout() {
   const [session, setSession] = useState<Session | null>(null);
@@ -14,13 +15,16 @@ export default function RootLayout() {
   const router = useRouter();
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setLoading(false);
-    }).catch((error) => {
-      console.warn('Error conectando a Supabase:', error);
-      setLoading(false);
-    });
+    supabase.auth
+      .getSession()
+      .then(({ data: { session } }) => {
+        setSession(session);
+        setLoading(false);
+      })
+      .catch((error) => {
+        console.warn('Error conectando a Supabase:', error);
+        setLoading(false);
+      });
 
     supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
@@ -30,10 +34,8 @@ export default function RootLayout() {
   useEffect(() => {
     if (loading) return;
 
-    // BYPASS ELIMINADO - Guardia de seguridad activada
-    const inTabsGroup = segments[0] === '(tabs)';
     const isLoginScreen = segments[0] === 'login';
-    
+
     if (!session && !isLoginScreen) {
       router.replace('/login');
     } else if (session && isLoginScreen) {
@@ -43,7 +45,14 @@ export default function RootLayout() {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0f172a' }}>
+      <View
+        style={{
+          flex: 1,
+          justifyContent: 'center',
+          alignItems: 'center',
+          backgroundColor: '#0f172a',
+        }}
+      >
         <Text style={{ color: '#38bdf8' }}>Iniciando Sistemas J2...</Text>
       </View>
     );
@@ -51,15 +60,17 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider>
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <Stack screenOptions={{ headerShown: false }}>
-        {session ? (
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        ) : (
-          <Stack.Screen name="login" options={{ headerShown: false }} />
-        )}
-      </Stack>
-    </GestureHandlerRootView>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <OtpNotificationProvider>
+          <Stack screenOptions={{ headerShown: false }}>
+            {session ? (
+              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            ) : (
+              <Stack.Screen name="login" options={{ headerShown: false }} />
+            )}
+          </Stack>
+        </OtpNotificationProvider>
+      </GestureHandlerRootView>
     </ThemeProvider>
   );
 }

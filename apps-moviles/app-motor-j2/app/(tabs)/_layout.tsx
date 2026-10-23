@@ -1,29 +1,27 @@
-import { Tabs, useRouter, useSegments } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { View, Text } from 'react-native';
-import { supabase } from '../../src/services/supabaseClient';
-import { Session } from '@supabase/supabase-js';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Tabs } from 'expo-router';
+import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../../src/theme/ThemeContext';
-import { TouchableOpacity } from 'react-native';
 
 export default function TabLayout() {
-  const { theme, cycleTheme, themeName } = useTheme();
+  const { theme, fontScale } = useTheme();
   return (
     <Tabs
       screenOptions={{
         headerStyle: { backgroundColor: theme.background },
-        headerRight: () => (
-          <TouchableOpacity onPress={cycleTheme} style={{ marginRight: 15 }}>
-            <MaterialCommunityIcons name="palette" size={24} color={theme.primary} />
-          </TouchableOpacity>
-        ),
+        headerTitleStyle: {
+          fontSize: Math.round(17 * fontScale),
+          fontWeight: '800',
+        },
         headerTintColor: theme.text,
         tabBarStyle: { backgroundColor: theme.surface, borderTopColor: theme.border },
+        tabBarLabelStyle: {
+          fontSize: Math.round(9.5 * fontScale),
+          fontWeight: '700',
+        },
         tabBarActiveTintColor: theme.primary,
         tabBarInactiveTintColor: theme.textMuted,
-      }}>
+      }}
+    >
       <Tabs.Screen
         name="index"
         options={{
@@ -66,8 +64,13 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => <Feather name="users" size={20} color={color} />,
         }}
       />
+      <Tabs.Screen
+        name="personalizacion"
+        options={{
+          title: 'Ajustes',
+          tabBarIcon: ({ color }) => <Feather name="sliders" size={20} color={color} />,
+        }}
+      />
     </Tabs>
   );
 }
-
-// trigger rebuild 1

@@ -8,13 +8,26 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.basedemando.j2",
+      "infoPlist": {
+        "NSCameraUsageDescription": "La aplicación J2 requiere acceso a la cámara para escanear códigos QR de unidades y tomar fotografías de evidencia operativa.",
+        "NSPhotoLibraryUsageDescription": "La aplicación J2 requiere acceso a la galería para adjuntar y exportar reportes operativos.",
+        "NSPhotoLibraryAddUsageDescription": "La aplicación J2 requiere permiso para guardar capturas y reportes operativos.",
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "com.basedemando.j2",
-      "versionCode": 1,
+      "versionCode": 2,
       "permissions": [
-        "android.permission.NFC"
+        "android.permission.NFC",
+        "android.permission.CAMERA",
+        "android.permission.VIBRATE",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.SCHEDULE_EXACT_ALARM",
+        "android.permission.WAKE_LOCK"
       ],
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
@@ -25,13 +38,23 @@
       "predictiveBackGestureEnabled": false
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "bundler": "metro",
+      "output": "single",
+      "favicon": "./assets/favicon.png",
+      "name": "Motor J2",
+      "shortName": "Motor J2",
+      "display": "standalone",
+      "orientation": "portrait",
+      "themeColor": "#006847",
+      "backgroundColor": "#0f172a"
     },
     "plugins": [
       "expo-router",
       "expo-status-bar",
       "expo-sqlite",
-      "expo-sharing"
+      "expo-sharing",
+      "expo-audio",
+      "expo-notifications"
     ],
     "extra": {
       "router": {},
